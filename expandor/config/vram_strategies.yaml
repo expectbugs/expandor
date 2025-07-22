@@ -1,0 +1,56 @@
+# VRAM Strategy Configurations
+# Based on ai-wallpaper VRAM calculations
+
+thresholds:
+  # Minimum VRAM for each strategy (MB)
+  full_processing: 8000      # 8GB+ for full processing
+  tiled_processing: 4000     # 4GB+ for tiled
+  cpu_offload: 0            # Any amount, but very slow
+  
+  # Safety margins
+  safety_factor: 0.8        # Only use 80% of available VRAM
+  
+tile_configurations:
+  # Tile size based on available VRAM
+  high_vram:  # 8GB+
+    tile_size: 1024
+    overlap: 256
+    max_tiles: 16
+  
+  medium_vram:  # 4-8GB
+    tile_size: 768
+    overlap: 192
+    max_tiles: 12
+  
+  low_vram:  # 2-4GB
+    tile_size: 512
+    overlap: 128
+    max_tiles: 8
+  
+  minimal_vram:  # <2GB
+    tile_size: 384
+    overlap: 96
+    max_tiles: 4
+
+fallback_chain:
+  # Order of fallback strategies
+  1: "full"
+  2: "tiled_large"    # 1024x1024 tiles
+  3: "tiled_medium"   # 768x768 tiles
+  4: "tiled_small"    # 512x512 tiles
+  5: "cpu_offload"    # Last resort
+
+model_specific:
+  sdxl:
+    latent_factor: 8     # VAE downscales by 8
+    channels: 4          # Latent channels
+    dtype_bytes:
+      float16: 2
+      float32: 4
+  
+  flux:
+    latent_factor: 8
+    channels: 4
+    dtype_bytes:
+      bfloat16: 2
+      float32: 4

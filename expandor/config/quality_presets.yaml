@@ -1,0 +1,114 @@
+# Quality Preset Definitions
+# Based on ai-wallpaper resolution.yaml quality settings
+
+ultra:
+  description: "Maximum quality, no time limits"
+  refinement:
+    enabled: true
+    passes: 5
+    multi_pass_enabled: true
+    coherence_strength: 0.08
+    coherence_steps: 50
+    targeted_strength: 0.25
+    targeted_steps: 80
+    detail_strength: 0.05
+    detail_steps: 40
+  
+  artifact_detection: "aggressive"
+  seam_repair_attempts: 3
+  
+  upscaling:
+    model: "RealESRGAN_x4plus"
+    tile_size: 512
+    fp32: true
+  
+  progressive_outpainting:
+    denoising_strength_decay: 0.95
+    extra_boundary_width: 10
+  
+  vram_strategy:
+    prefer_quality: true
+    allow_tiling: true
+    allow_cpu_offload: false
+
+high:
+  description: "95% quality, 50% faster"
+  refinement:
+    enabled: true
+    passes: 3
+    multi_pass_enabled: true
+    coherence_strength: 0.10
+    coherence_steps: 40
+    targeted_strength: 0.30
+    targeted_steps: 60
+    detail_strength: 0.08
+    detail_steps: 30
+  
+  artifact_detection: "standard"
+  seam_repair_attempts: 2
+  
+  upscaling:
+    model: "RealESRGAN_x4plus"
+    tile_size: 768
+    fp32: true
+  
+  progressive_outpainting:
+    denoising_strength_decay: 0.90
+    extra_boundary_width: 8
+  
+  vram_strategy:
+    prefer_quality: true
+    allow_tiling: true
+    allow_cpu_offload: true
+
+balanced:
+  description: "90% quality, 75% faster"
+  refinement:
+    enabled: true
+    passes: 2
+    multi_pass_enabled: false
+    denoising_strength: 0.35
+    steps: 50
+  
+  artifact_detection: "light"
+  seam_repair_attempts: 1
+  
+  upscaling:
+    model: "RealESRGAN_x4plus"
+    tile_size: 1024
+    fp32: false
+  
+  progressive_outpainting:
+    denoising_strength_decay: 0.85
+    extra_boundary_width: 5
+  
+  vram_strategy:
+    prefer_quality: false
+    allow_tiling: true
+    allow_cpu_offload: true
+
+fast:
+  description: "85% quality, maximum speed"
+  refinement:
+    enabled: true
+    passes: 1
+    multi_pass_enabled: false
+    denoising_strength: 0.30
+    steps: 30
+  
+  artifact_detection: "disabled"
+  seam_repair_attempts: 0
+  
+  upscaling:
+    model: "RealESRGAN_x2plus"
+    tile_size: 1536
+    fp32: false
+  
+  progressive_outpainting:
+    denoising_strength_decay: 0.80
+    extra_boundary_width: 0
+  
+  vram_strategy:
+    prefer_quality: false
+    allow_tiling: true
+    allow_cpu_offload: true
