@@ -5,6 +5,7 @@ Result dataclasses for Expandor operations
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
+from PIL import Image
 
 @dataclass
 class StageResult:

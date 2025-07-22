@@ -29,6 +29,29 @@ class TestVRAMManager:
         )
         assert result_batch2 == result * 2
     
+    def test_calculate_generation_vram_with_dtype(self):
+        """Test VRAM calculation with different dtypes"""
+        # Test float16 (default)
+        result_f16 = self.vram_manager.calculate_generation_vram(
+            1920, 1080, dtype="float16"
+        )
+        
+        # Test float32
+        result_f32 = self.vram_manager.calculate_generation_vram(
+            1920, 1080, dtype="float32"
+        )
+        
+        # float32 should use 2x memory of float16
+        assert result_f32 > result_f16
+        
+        # Test bfloat16
+        result_bf16 = self.vram_manager.calculate_generation_vram(
+            1920, 1080, dtype="bfloat16"
+        )
+        
+        # bfloat16 should be same as float16
+        assert result_bf16 == result_f16
+    
     def test_determine_strategy(self):
         """Test strategy determination"""
         # Small image should use full strategy
@@ -49,3 +72,32 @@ class TestVRAMManager:
         else:
             # CPU-only system
             assert vram is None
+    
+    def test_peak_usage_tracking(self):
+        """Test peak VRAM usage tracking"""
+        # Initial peak should be 0
+        assert self.vram_manager.get_peak_usage() == 0.0
+        
+        # Track some usage
+        self.vram_manager.track_peak_usage(1000.0)
+        assert self.vram_manager.get_peak_usage() == 1000.0
+        
+        # Track lower usage - peak should not change
+        self.vram_manager.track_peak_usage(500.0)
+        assert self.vram_manager.get_peak_usage() == 1000.0
+        
+        # Track higher usage - peak should update
+        self.vram_manager.track_peak_usage(1500.0)
+        assert self.vram_manager.get_peak_usage() == 1500.0
+    
+    def test_clear_cache(self):
+        """Test cache clearing"""
+        # Should not raise any errors
+        self.vram_manager.clear_cache()
+        
+        # Test with CUDA if available
+        if torch.cuda.is_available():
+            # Create some tensor to use memory
+            tensor = torch.randn(1000, 1000).cuda()
+            self.vram_manager.clear_cache()
+            # Cache should be cleared without error

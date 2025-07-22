@@ -7,9 +7,10 @@ Original: ai_wallpaper/processing/aspect_adjuster.py
 import numpy as np
 from PIL import Image, ImageFilter, ImageDraw
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Tuple, Any, Union
 from datetime import datetime
 import logging
+import time
 
 from .base_strategy import BaseExpansionStrategy
 from ..core.vram_manager import VRAMManager
@@ -88,8 +89,10 @@ class ProgressiveOutpaintStrategy(BaseExpansionStrategy):
             'sample_size': pixels.shape[0]
         }
     
-    def execute(self, config) -> Dict[str, Any]:
+    def execute(self, config, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Execute progressive outpainting strategy"""
+        self._context = context or {}
+        
         # IMPORTANT: This method needs access to inpaint_pipeline
         # In actual use, pipeline should be passed via config or set on strategy
         if hasattr(config, 'inpaint_pipeline') and config.inpaint_pipeline:

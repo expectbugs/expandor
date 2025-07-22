@@ -20,20 +20,24 @@ class VRAMManager:
         self.ATTENTION_MULTIPLIER = 4   # Attention needs ~4x image memory
         self.SAFETY_BUFFER = 0.2        # 20% safety margin
         
+        # Track peak usage
+        self.peak_usage_mb = 0.0
+        
     def calculate_generation_vram(self, 
                                  width: int, 
                                  height: int,
                                  batch_size: int = 1,
-                                 model_type: str = "sdxl") -> float:
+                                 model_type: str = "sdxl",
+                                 dtype: str = "float16") -> float:
         """
         Calculate ACCURATE VRAM requirements for refinement.
         Copy implementation from lines 22-76 of vram_calculator.py
         """
         pixels = width * height
         
-        # Bytes per pixel - always use float16 for SDXL models
-        # TODO: Add model-specific dtype mapping if needed for other models
-        bytes_per_pixel = 2  # float16 = 2 bytes per pixel
+        # Dtype mapping for different precision modes
+        dtype_map = {"float16": 2, "float32": 4, "bfloat16": 2}
+        bytes_per_pixel = dtype_map.get(dtype, 2)  # Default to float16
         
         # Image tensor memory (BCHW format)
         # 1 batch × 4 channels (latent) × H × W
@@ -146,3 +150,16 @@ class VRAMManager:
         """Estimate VRAM for ExpandorConfig"""
         target_w, target_h = config.target_resolution
         return self.calculate_generation_vram(target_w, target_h)
+    
+    def track_peak_usage(self, current_mb: float) -> None:
+        """Track peak VRAM usage during operations"""
+        self.peak_usage_mb = max(self.peak_usage_mb, current_mb)
+    
+    def clear_cache(self) -> None:
+        """Clear CUDA cache to free up VRAM"""
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+    
+    def get_peak_usage(self) -> float:
+        """Get peak VRAM usage recorded"""
+        return self.peak_usage_mb

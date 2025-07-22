@@ -33,3 +33,11 @@ class StrategyError(ExpandorError):
 class QualityError(ExpandorError):
     """Quality validation errors"""
     pass
+
+class UpscalerError(ExpandorError):
+    """Upscaler tool execution errors"""
+    def __init__(self, message: str, tool_name: Optional[str] = None, 
+                 exit_code: Optional[int] = None):
+        self.tool_name = tool_name
+        self.exit_code = exit_code
+        super().__init__(message, stage="upscaling")

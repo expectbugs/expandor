@@ -7,6 +7,13 @@ import yaml
 from pathlib import Path
 from typing import Dict, Any, Optional
 
+# Try importing pkg_resources with fallback
+try:
+    import pkg_resources
+    HAS_PKG_RESOURCES = True
+except ImportError:
+    HAS_PKG_RESOURCES = False
+
 class ConfigLoader:
     """
     Loads and manages configuration from YAML files
@@ -24,7 +31,7 @@ class ConfigLoader:
         self.logger = logger or logging.getLogger(__name__)
         
         if not self.config_dir.exists():
-            raise FileNotFoundError(f"Config directory not found: {self.config_dir}")
+            self.logger.warning(f"Config directory not found: {self.config_dir}")
     
     def load_all_configs(self) -> Dict[str, Any]:
         """
@@ -120,3 +127,90 @@ class ConfigLoader:
         except Exception as e:
             self.logger.error(f"Failed to save {filename}: {e}")
             raise
+    
+    def get_config_path(self, filename: str) -> Path:
+        """
+        Get config file path with fallback handling
+        
+        Args:
+            filename: Config filename
+            
+        Returns:
+            Path to config file
+        """
+        if HAS_PKG_RESOURCES:
+            try:
+                return Path(pkg_resources.resource_filename('expandor', f'config/{filename}'))
+            except Exception:
+                pass
+        # Fallback to relative path
+        return Path(__file__).parent.parent / 'config' / filename
+    
+    def load_yaml(self, filename: str) -> Dict[str, Any]:
+        """
+        Load YAML file with graceful error handling
+        
+        Args:
+            filename: YAML filename
+            
+        Returns:
+            Configuration dict or empty dict if file missing
+        """
+        try:
+            file_path = self.get_config_path(filename)
+            if file_path.exists():
+                with open(file_path, 'r') as f:
+                    return yaml.safe_load(f) or {}
+        except Exception as e:
+            self.logger.warning(f"Could not load {filename}: {e}")
+        return {}
+    
+    def load_quality_preset(self, preset_name: str) -> Dict[str, Any]:
+        """
+        Load a quality preset configuration
+        
+        Args:
+            preset_name: Name of quality preset
+            
+        Returns:
+            Quality preset configuration
+        """
+        # Try loading from YAML first
+        presets = self.load_yaml('quality_presets.yaml')
+        if presets and 'quality_presets' in presets:
+            if preset_name in presets['quality_presets']:
+                return presets['quality_presets'][preset_name]
+        
+        # Fallback to default presets
+        default_presets = {
+            'ultra': {
+                'inference_steps': 80,
+                'cfg_scale': 7.5,
+                'denoise_strength': 0.95,
+                'blur_radius': 300
+            },
+            'high': {
+                'inference_steps': 60,
+                'cfg_scale': 7.0,
+                'denoise_strength': 0.9,
+                'blur_radius': 200
+            },
+            'balanced': {
+                'inference_steps': 40,
+                'cfg_scale': 6.5,
+                'denoise_strength': 0.85,
+                'blur_radius': 150
+            },
+            'fast': {
+                'inference_steps': 25,
+                'cfg_scale': 6.0,
+                'denoise_strength': 0.8,
+                'blur_radius': 100
+            }
+        }
+        
+        if preset_name in default_presets:
+            return default_presets[preset_name]
+        
+        self.logger.warning(f"Unknown quality preset: {preset_name}, using 'balanced'")
+        return default_presets['balanced']
