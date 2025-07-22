@@ -1,0 +1,39 @@
+"""Unit tests for CPU Offload Strategy"""
+
+import pytest
+from unittest.mock import Mock, patch
+from PIL import Image
+
+from expandor.strategies.cpu_offload import CPUOffloadStrategy
+from expandor.core.config import ExpandorConfig
+from expandor.core.exceptions import StrategyError
+
+
+class TestCPUOffloadStrategy:
+    
+    @pytest.fixture
+    def strategy(self):
+        return CPUOffloadStrategy()
+    
+    def test_requires_cpu_offload_allowed(self, strategy):
+        """Test that strategy fails if CPU offload not allowed"""
+        config = ExpandorConfig(
+            source_image=Image.new('RGB', (512, 512)),
+            target_resolution=(1024, 1024),
+            prompt="Test",
+            seed=42,
+            source_metadata={},
+            allow_cpu_offload=False
+        )
+        
+        with pytest.raises(StrategyError) as exc_info:
+            strategy.execute(config)
+            
+        assert "not allowed" in str(exc_info.value)
+    
+    def test_tile_size_calculation(self, strategy):
+        """Test optimal tile size calculation"""
+        # Test with various VRAM amounts
+        assert strategy._calculate_optimal_tile_size(512) == 384  # Minimum
+        assert strategy._calculate_optimal_tile_size(2048) <= 768  # Maximum
+        assert strategy._calculate_optimal_tile_size(1024) % 64 == 0  # Multiple of 64

@@ -367,5 +367,40 @@ class DimensionCalculator:
                 window_num += 1
         
         # Similar logic for vertical windows if needed
+        if need_vertical:
+            # Calculate vertical sliding windows
+            temp_w = target_w  # Use final width from horizontal expansion
+            temp_h = current_h if not need_horizontal else target_h  # Use target height if horizontal was done
+            window_num = 1
+            
+            while temp_h < target_h:
+                # Calculate next window position
+                next_h = min(temp_h + window_size, target_h)
+                
+                # Ensure we reach exactly target_h on last step
+                if target_h - next_h < step_size:
+                    next_h = target_h
+                else:
+                    # Round to multiple of 8 for SDXL compatibility
+                    next_h = self.round_to_multiple(next_h, 8)
+                
+                steps.append({
+                    "method": "sliding_window",
+                    "current_size": (temp_w, temp_h),
+                    "target_size": (temp_w, next_h),
+                    "window_size": next_h - temp_h,
+                    "overlap_size": window_size - step_size if window_num > 1 else 0,
+                    "direction": "vertical",
+                    "window_number": window_num,
+                    "description": f"V-Window {window_num}: {temp_w}x{temp_h} → {temp_w}x{next_h}"
+                })
+                
+                # Calculate actual step taken
+                if window_num == 1:
+                    actual_step = next_h - temp_h
+                else:
+                    actual_step = step_size
+                temp_h = temp_h + actual_step
+                window_num += 1
         
         return steps
