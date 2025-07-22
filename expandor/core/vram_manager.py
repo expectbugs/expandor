@@ -149,7 +149,11 @@ class VRAMManager:
     def estimate_requirement(self, config) -> Dict[str, float]:
         """Estimate VRAM for ExpandorConfig"""
         target_w, target_h = config.target_resolution
-        return self.calculate_generation_vram(target_w, target_h)
+        vram_mb = self.calculate_generation_vram(target_w, target_h)
+        return {
+            "required_mb": vram_mb,
+            "peak_mb": vram_mb * 1.2  # 20% buffer for peak usage
+        }
     
     def track_peak_usage(self, current_mb: float) -> None:
         """Track peak VRAM usage during operations"""

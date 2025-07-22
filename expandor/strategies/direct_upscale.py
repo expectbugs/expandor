@@ -77,7 +77,8 @@ class DirectUpscaleStrategy(BaseExpansionStrategy):
             )
             if result.returncode == 0:
                 return Path(result.stdout.strip())
-        except:
+        except Exception:
+            # which command might not be available on all systems
             pass
         
         return None
@@ -264,7 +265,13 @@ class DirectUpscaleStrategy(BaseExpansionStrategy):
         """
         # Prepare output path
         timestamp = int(time.time() * 1000)
-        output_path = Path("temp") / f"upscaled_{scale}x_{timestamp}.png"
+        
+        # Get temp directory from context
+        temp_base = Path("temp")
+        if hasattr(self, '_context') and self._context and 'temp_dir' in self._context:
+            temp_base = self._context['temp_dir']
+        
+        output_path = temp_base / "upscale" / f"upscaled_{scale}x_{timestamp}.png"
         output_path.parent.mkdir(parents=True, exist_ok=True)
         
         # Build command based on executable type

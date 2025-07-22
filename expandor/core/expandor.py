@@ -5,6 +5,8 @@ Main Expandor class - Universal image expansion orchestrator
 import logging
 import time
 import json
+import tempfile
+import atexit
 from typing import Optional, Dict, Any, List
 from pathlib import Path
 from PIL import Image
@@ -89,6 +91,13 @@ class Expandor:
             # Cache for loaded strategies
             self._strategy_cache = {}
             
+            # Create temp directory
+            self._temp_base = Path(tempfile.mkdtemp(prefix="expandor_"))
+            self.logger.debug(f"Created temp directory: {self._temp_base}")
+            
+            # Register cleanup on exit
+            atexit.register(self._cleanup_temp_base)
+            
         except Exception as e:
             raise ExpandorError(
                 f"Failed to initialize core components: {str(e)}",
@@ -163,7 +172,8 @@ class Expandor:
                 strategy=strategy,
                 config=config,
                 metadata_tracker=self.metadata_tracker,
-                boundary_tracker=self.boundary_tracker
+                boundary_tracker=self.boundary_tracker,
+                temp_dir=self._temp_base
             )
             
             # Post-execution validation and repair
@@ -342,20 +352,27 @@ class Expandor:
     
     def _prepare_workspace(self, config: ExpandorConfig):
         """Prepare directories and workspace for execution"""
-        # Create temp directories
-        temp_dirs = [
-            Path("temp"),
-            Path("temp/progressive"),
-            Path("temp/tiles"),
-            Path("temp/upscale")
+        # Create temp subdirectories
+        temp_subdirs = [
+            "progressive",
+            "tiles", 
+            "upscale",
+            "masks",
+            "stages"
         ]
         
-        for dir_path in temp_dirs:
+        for subdir in temp_subdirs:
+            dir_path = self._temp_base / subdir
             dir_path.mkdir(parents=True, exist_ok=True)
         
         # Create stage directory if saving stages
         if config.save_stages and config.stage_dir:
             config.stage_dir.mkdir(parents=True, exist_ok=True)
+    
+    @property
+    def temp_dir(self) -> Path:
+        """Get the temporary directory for this instance"""
+        return self._temp_base
     
     def _validate_and_repair(self, result: ExpandorResult, config: ExpandorConfig) -> ExpandorResult:
         """
@@ -462,23 +479,35 @@ class Expandor:
     
     def _cleanup_temp_files(self):
         """Clean up temporary files created during processing"""
+        if not hasattr(self, '_temp_base') or not self._temp_base.exists():
+            return
+            
+        # Clean up files in temp subdirectories
         temp_patterns = [
-            "temp/progressive_*.png",
-            "temp/tile_*.png",
-            "temp/upscaled_*.png",
-            "temp/canvas_*.png",
-            "temp/mask_*.png"
+            self._temp_base / "progressive" / "*.png",
+            self._temp_base / "tiles" / "*.png",
+            self._temp_base / "upscale" / "*.png",
+            self._temp_base / "masks" / "*.png"
         ]
         
         import glob
-        import os
         
         for pattern in temp_patterns:
-            for file_path in glob.glob(pattern):
+            for file_path in glob.glob(str(pattern)):
                 try:
-                    os.unlink(file_path)
-                except:
-                    pass
+                    Path(file_path).unlink()
+                except Exception as e:
+                    self.logger.debug(f"Failed to delete temp file {file_path}: {e}")
+    
+    def _cleanup_temp_base(self):
+        """Clean up the entire temp directory on exit"""
+        if hasattr(self, '_temp_base') and self._temp_base.exists():
+            import shutil
+            try:
+                shutil.rmtree(self._temp_base)
+                self.logger.debug(f"Cleaned up temp directory: {self._temp_base}")
+            except Exception as e:
+                self.logger.warning(f"Failed to clean up temp directory {self._temp_base}: {e}")
     
     def _log_vram_error(self, error: VRAMError):
         """Log detailed VRAM error information"""

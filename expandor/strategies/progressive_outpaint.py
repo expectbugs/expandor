@@ -15,14 +15,17 @@ import time
 from .base_strategy import BaseExpansionStrategy
 from ..core.vram_manager import VRAMManager
 from ..utils.dimension_calculator import DimensionCalculator
+from ..core.config import ExpandorConfig
 
 class ProgressiveOutpaintStrategy(BaseExpansionStrategy):
     """Progressive aspect ratio adjustment with zero quality compromise"""
     
-    def __init__(self, logger: Optional[logging.Logger] = None):
-        super().__init__(logger)
-        self.logger = logger or logging.getLogger(__name__)
-        self.vram_manager = VRAMManager(self.logger)
+    def __init__(self, 
+                 config: Optional[Dict[str, Any]] = None,
+                 metrics: Optional[Any] = None,
+                 logger: Optional[logging.Logger] = None):
+        super().__init__(config=config, metrics=metrics, logger=logger)
+        # Note: logger is already set by parent class
         self.dimension_calc = DimensionCalculator(self.logger)
         self.model_metadata = {}  # Initialize for boundary tracking
         
@@ -89,7 +92,7 @@ class ProgressiveOutpaintStrategy(BaseExpansionStrategy):
             'sample_size': pixels.shape[0]
         }
     
-    def execute(self, config, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def execute(self, config: ExpandorConfig, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Execute progressive outpainting strategy"""
         self._context = context or {}
         
@@ -149,9 +152,21 @@ class ProgressiveOutpaintStrategy(BaseExpansionStrategy):
             )
             
             # Track boundaries for seam detection
+            boundary_position = step['current_size'][0] if step['direction'] == 'horizontal' else step['current_size'][1]
+            self.track_boundary(
+                position=boundary_position,
+                direction=step['direction'],
+                step=step_num,
+                expansion_size=step['target_size'][0] - step['current_size'][0] if step['direction'] == 'horizontal' else step['target_size'][1] - step['current_size'][1],
+                source_size=step['current_size'],
+                target_size=step['target_size'],
+                method='progressive_outpaint'
+            )
+            
+            # Also keep local list for return value
             boundaries.append({
                 'step': step_num,
-                'position': step['current_size'][0] if step['direction'] == 'horizontal' else step['current_size'][1],
+                'position': boundary_position,
                 'direction': step['direction']
             })
             

@@ -14,6 +14,7 @@ from ..core.vram_manager import VRAMManager
 from ..core.exceptions import StrategyError, VRAMError
 from ..processors.artifact_removal import ArtifactDetector
 from ..core.result import StageResult
+from ..core.config import ExpandorConfig
 
 class BaseExpansionStrategy(ABC):
     """Base class for all expansion strategies"""
@@ -55,7 +56,7 @@ class BaseExpansionStrategy(ABC):
         pass
     
     @abstractmethod
-    def execute(self, config, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def execute(self, config: ExpandorConfig, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Execute the expansion strategy
         
@@ -83,7 +84,7 @@ class BaseExpansionStrategy(ABC):
         # Override in subclasses to check specific requirements
         pass
     
-    def estimate_vram(self, config) -> Dict[str, float]:
+    def estimate_vram(self, config: ExpandorConfig) -> Dict[str, float]:
         """
         Estimate VRAM requirements for this strategy
         
@@ -173,7 +174,13 @@ class BaseExpansionStrategy(ABC):
     def save_temp_image(self, image: Image.Image, name: str) -> Path:
         """Save temporary image and track for cleanup"""
         timestamp = int(time.time() * 1000)
-        temp_path = Path("temp") / f"{name}_{timestamp}.png"
+        
+        # Get temp directory from context or use default
+        temp_base = Path("temp")
+        if hasattr(self, '_context') and self._context and 'temp_dir' in self._context:
+            temp_base = self._context['temp_dir']
+        
+        temp_path = temp_base / f"{name}_{timestamp}.png"
         temp_path.parent.mkdir(parents=True, exist_ok=True)
         
         # Use lossless PNG
@@ -188,8 +195,8 @@ class BaseExpansionStrategy(ABC):
             try:
                 if path.exists():
                     path.unlink()
-            except:
-                pass
+            except Exception as e:
+                self.logger.debug(f"Failed to delete temp file {path}: {e}")
         self.temp_files.clear()
         
         # Clear CUDA cache if available
@@ -210,7 +217,7 @@ class BaseExpansionStrategy(ABC):
         except Exception as e:
             raise StrategyError(f"Failed to load image {path}: {str(e)}")
     
-    def validate_inputs(self, config):
+    def validate_inputs(self, config: ExpandorConfig) -> None:
         """Validate configuration inputs"""
         if config.target_resolution[0] <= 0 or config.target_resolution[1] <= 0:
             raise ValueError(f"Invalid target resolution: {config.target_resolution}")

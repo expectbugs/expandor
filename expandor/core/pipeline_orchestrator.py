@@ -54,7 +54,8 @@ class PipelineOrchestrator:
                 strategy: BaseExpansionStrategy,
                 config,
                 metadata_tracker: MetadataTracker,
-                boundary_tracker: BoundaryTracker) -> ExpandorResult:
+                boundary_tracker: BoundaryTracker,
+                temp_dir: Optional[Path] = None) -> ExpandorResult:
         """
         Execute strategy with comprehensive error handling and fallbacks
         
@@ -228,7 +229,8 @@ class PipelineOrchestrator:
             "pipeline_registry": self.pipeline_registry,  # Available AI pipelines
             "stage_callback": lambda stage: self._record_stage(stage, metadata_tracker),  # Stage recording function
             "save_stages": getattr(config, 'save_stages', False),         # Whether to save intermediate results
-            "stage_dir": getattr(config, 'stage_dir', Path('temp/stages'))  # Directory for saving stages
+            "stage_dir": getattr(config, 'stage_dir', Path('temp/stages')),  # Directory for saving stages
+            "temp_dir": temp_dir or Path("temp")      # Temp directory for intermediate files
         }
         
         # Execute strategy
@@ -256,8 +258,9 @@ class PipelineOrchestrator:
             if hasattr(strategy, 'cleanup'):
                 try:
                     strategy.cleanup()
-                except:
-                    pass  # Don't let cleanup errors mask the real error
+                except Exception as cleanup_error:
+                    self.logger.debug(f"Cleanup error after execution failure: {cleanup_error}")
+                    # Don't let cleanup errors mask the real error
             raise
     
     def _build_fallback_chain(self, 
