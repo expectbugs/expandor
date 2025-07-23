@@ -227,12 +227,23 @@ class QualityOrchestrator:
         return results
     
     def _convert_boundaries(self, boundary_infos: List[Any]) -> List[Dict[str, Any]]:
-        """Convert BoundaryInfo objects to dicts for compatibility."""
+        """Convert BoundaryInfo objects or dicts to standardized format."""
         boundaries = []
         for info in boundary_infos:
-            if hasattr(info, 'position') and hasattr(info, 'direction'):
+            if isinstance(info, dict):
+                # Already in dict format from BoundaryTracker
+                boundaries.append(info)
+            elif hasattr(info, 'position') and hasattr(info, 'direction'):
+                # Convert object to dict
+                position = info.position
+                # Position might be a tuple (x1,y1,x2,y2) or a single value
+                if isinstance(position, (list, tuple)) and len(position) >= 2:
+                    boundary_value = position[0] if info.direction == 'vertical' else position[1]
+                else:
+                    boundary_value = position
+                    
                 boundaries.append({
-                    'position': info.position[0] if info.direction == 'vertical' else info.position[1],
+                    'position': boundary_value,
                     'direction': info.direction,
                     'step': getattr(info, 'step', 0),
                     'strength': getattr(info, 'denoising_strength', 0.9)

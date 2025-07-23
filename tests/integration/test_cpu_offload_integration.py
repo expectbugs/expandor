@@ -21,7 +21,7 @@ class TestCPUOffloadIntegration(BaseIntegrationTest):
             source_image=test_image_small,
             target_resolution=(1024, 1024),
             inpaint_pipeline=mock_inpaint_pipeline,
-            force_strategy='cpu_offload',
+            strategy_override='cpu_offload',
             allow_cpu_offload=True,
             stage_dir=temp_dir / "stages"
         )
@@ -40,7 +40,7 @@ class TestCPUOffloadIntegration(BaseIntegrationTest):
         config = self.create_config(
             source_image=test_image_small,
             target_resolution=(1024, 1024),
-            force_strategy='cpu_offload',
+            strategy_override='cpu_offload',
             allow_cpu_offload=False,  # Not allowed
             stage_dir=temp_dir / "stages"
         )
@@ -67,7 +67,7 @@ class TestCPUOffloadIntegration(BaseIntegrationTest):
             source_image=test_image_4k,
             target_resolution=(5760, 3240),  # 1.5x expansion
             img2img_pipeline=mock_img2img_pipeline,
-            force_strategy='cpu_offload',
+            strategy_override='cpu_offload',
             allow_cpu_offload=True,
             stage_dir=temp_dir / "stages"
         )
@@ -88,7 +88,7 @@ class TestCPUOffloadIntegration(BaseIntegrationTest):
             source_image=test_image_small,
             target_resolution=(1024, 768),  # Aspect change
             inpaint_pipeline=mock_inpaint_pipeline,
-            force_strategy='cpu_offload',
+            strategy_override='cpu_offload',
             allow_cpu_offload=True,
             save_stages=True,
             stage_dir=stage_dir

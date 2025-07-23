@@ -26,14 +26,15 @@ class TestDirectUpscaleStrategy:
         assert 'high_vram' in self.strategy.tile_config
     
     def test_validate_requirements_no_upscaler(self):
-        """Test validation fails without upscaler"""
+        """Test validation fails loud when no upscaler"""
         strategy = DirectUpscaleStrategy()
         strategy.realesrgan_path = None
         
+        # Should FAIL LOUD - no silent fallbacks
         with pytest.raises(StrategyError) as exc_info:
             strategy.validate_requirements()
         
-        assert "Real-ESRGAN" in str(exc_info.value)
+        assert "Real-ESRGAN not found" in str(exc_info.value)
     
     def test_calculate_upscale_passes(self):
         """Test upscale pass calculation"""
@@ -93,9 +94,11 @@ class TestDirectUpscaleStrategy:
     @patch('subprocess.run')
     def test_run_realesrgan_failure(self, mock_run):
         """Test Real-ESRGAN execution failure"""
-        # Setup mock to fail
-        mock_run.return_value = MagicMock(
+        # Setup mock to fail with CalledProcessError
+        from subprocess import CalledProcessError
+        mock_run.side_effect = CalledProcessError(
             returncode=1,
+            cmd=['realesrgan', '-i', 'input.png'],
             stderr='Error: Out of memory'
         )
         
@@ -110,6 +113,7 @@ class TestDirectUpscaleStrategy:
         
         assert exc_info.value.tool_name == 'realesrgan'
         assert exc_info.value.exit_code == 1
+        assert 'Out of memory' in str(exc_info.value)
     
     @patch.object(DirectUpscaleStrategy, '_run_realesrgan')
     def test_execute_simple_upscale(self, mock_run):
@@ -164,8 +168,13 @@ class TestDirectUpscaleStrategy:
         # Should have upscale + resize stages
         assert len(result['stages']) >= 2
     
-    def test_execute_with_context(self):
+    @patch.object(DirectUpscaleStrategy, '_run_realesrgan')
+    def test_execute_with_context(self, mock_run):
         """Test execution with context parameter"""
+        # Setup mock to return a valid path
+        output_path = Path('/tmp/upscaled.png')
+        mock_run.return_value = output_path
+        
         source_img = Image.new('RGB', (512, 512))
         config = ExpandorConfig(
             source_image=source_img,
@@ -177,15 +186,17 @@ class TestDirectUpscaleStrategy:
         
         context = {
             'save_stages': True,
-            'metadata_tracker': Mock()
+            'metadata_tracker': Mock(),
+            'temp_dir': Path('/tmp')
         }
         
-        # Should accept context without error
-        try:
-            self.strategy.execute(config, context)
-        except StrategyError:
-            # Expected due to no real upscaler
-            pass
+        # Mock image loading to return expected size
+        with patch('PIL.Image.open') as mock_open:
+            mock_open.return_value = Image.new('RGB', (1024, 1024))
+            
+            result = self.strategy.execute(config, context)
         
+        assert result['size'] == (1024, 1024)
+        # strategy_used is not in direct result, it's added by orchestrator
         assert hasattr(self.strategy, '_context')
         assert self.strategy._context == context

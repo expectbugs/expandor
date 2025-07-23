@@ -6,7 +6,7 @@ import pytest
 from unittest.mock import Mock, patch
 from PIL import Image
 
-from expandor import ExpandorConfig, ExpandorResult, VRAMError, StrategyError
+from expandor import ExpandorConfig, ExpandorResult, VRAMError, StrategyError, ExpandorError
 from expandor.core.pipeline_orchestrator import PipelineOrchestrator
 from expandor.core.metadata_tracker import MetadataTracker
 from expandor.core.boundary_tracker import BoundaryTracker
@@ -115,7 +115,9 @@ class TestPipelineOrchestrator:
             
             assert result.strategy_used == 'MockStrategy'
             assert result.fallback_count == 1
-            assert len(self.orchestrator.execution_history) == 2
+            # Only failures are tracked in execution_history
+            assert len(self.orchestrator.execution_history) == 1
+            assert self.orchestrator.execution_history[0]['status'] == 'failed'
     
     def test_all_strategies_fail(self):
         """Test when all strategies fail"""

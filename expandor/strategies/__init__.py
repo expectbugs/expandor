@@ -13,7 +13,7 @@ STRATEGY_REGISTRY = {
     "direct_upscale": "direct_upscale.DirectUpscaleStrategy",
     "progressive_outpaint": "progressive_outpaint.ProgressiveOutpaintStrategy", 
     "tiled_expansion": "tiled_expansion.TiledExpansionStrategy",
-    "swpo": "swpo_strategy.SlidingWindowStrategy",
+    "swpo": "swpo_strategy.SWPOStrategy",
     "cpu_offload": "cpu_offload.CPUOffloadStrategy",
     "hybrid_adaptive": "experimental.hybrid_adaptive.HybridAdaptiveStrategy"
 }
@@ -70,13 +70,13 @@ def get_strategy_class(strategy_name: str) -> Type[BaseExpansionStrategy]:
 from .base_strategy import BaseExpansionStrategy
 from .progressive_outpaint import ProgressiveOutpaintStrategy
 from .direct_upscale import DirectUpscaleStrategy
-from .tiled_expansion import TiledExpansionStrategy
+# from .tiled_expansion import TiledExpansionStrategy  # Not implemented yet
 
 __all__ = [
     'BaseExpansionStrategy',
     'ProgressiveOutpaintStrategy',
     'DirectUpscaleStrategy',
-    'TiledExpansionStrategy',
+    # 'TiledExpansionStrategy',  # Not implemented yet
     'STRATEGY_REGISTRY',
     'get_strategy_class'
 ]

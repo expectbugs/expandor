@@ -9,7 +9,7 @@ import numpy as np
 from PIL import Image, ImageDraw
 import logging
 
-from ..core.boundary_tracker import BoundaryTracker, BoundaryInfo
+from ..core.boundary_tracker import BoundaryTracker
 from ..core.exceptions import QualityError
 
 
@@ -86,32 +86,48 @@ class BoundaryAnalyzer:
         return analysis
     
     def _analyze_single_boundary(self, 
-                               boundary: BoundaryInfo,
+                               boundary: Any,
                                image: Image.Image) -> Optional[Dict[str, Any]]:
         """Analyze a single boundary for issues."""
-        x1, y1, x2, y2 = boundary.position
+        # Handle both dict and BoundaryInfo object
+        if isinstance(boundary, dict):
+            position = boundary['position']
+            direction = boundary['direction']
+        else:
+            position = boundary.position
+            direction = boundary.direction
         
-        # Extract boundary region with margin
+        # Create boundary region based on direction
         margin = 10
-        region_bounds = (
-            max(0, x1 - margin),
-            max(0, y1 - margin),
-            min(image.width, x2 + margin),
-            min(image.height, y2 + margin)
-        )
+        if direction == 'vertical':
+            # Vertical boundary at x=position
+            region_bounds = (
+                max(0, position - margin),
+                0,
+                min(image.width, position + margin),
+                image.height
+            )
+        else:
+            # Horizontal boundary at y=position
+            region_bounds = (
+                0,
+                max(0, position - margin),
+                image.width,
+                min(image.height, position + margin)
+            )
         
         try:
             region = image.crop(region_bounds)
             region_array = np.array(region)
             
             # Analyze based on boundary direction
-            if boundary.direction == 'vertical':
+            if direction == 'vertical':
                 issue = self._analyze_vertical_boundary(
-                    region_array, boundary, margin
+                    region_array, boundary, margin, position
                 )
             else:
                 issue = self._analyze_horizontal_boundary(
-                    region_array, boundary, margin
+                    region_array, boundary, margin, position
                 )
             
             return issue
@@ -121,19 +137,20 @@ class BoundaryAnalyzer:
             return None
     
     def _analyze_vertical_boundary(self, region_array: np.ndarray,
-                                 boundary: BoundaryInfo,
-                                 margin: int) -> Optional[Dict[str, Any]]:
+                                 boundary: Any,
+                                 margin: int,
+                                 position: int) -> Optional[Dict[str, Any]]:
         """Analyze vertical boundary for seams."""
         # Check vertical seam
         center_x = margin
-        if center_x < region_array.shape[1] - margin:
+        if center_x <= region_array.shape[1] - margin:
             left_strip = region_array[:, center_x-5:center_x]
             right_strip = region_array[:, center_x:center_x+5]
             
             # Color difference
-            color_diff = np.mean(np.abs(
-                left_strip.mean(axis=1) - right_strip.mean(axis=1)
-            ))
+            left_mean = np.mean(left_strip, axis=(0, 1))  # Mean color of left strip
+            right_mean = np.mean(right_strip, axis=(0, 1))  # Mean color of right strip
+            color_diff = np.linalg.norm(left_mean - right_mean)
             
             # Texture difference (using std)
             texture_diff = abs(
@@ -158,26 +175,27 @@ class BoundaryAnalyzer:
                     'color_difference': float(color_diff),
                     'texture_difference': float(texture_diff)
                 },
-                'position': boundary.position,
+                'position': position,
                 'direction': 'vertical'
             }
         
         return None
     
     def _analyze_horizontal_boundary(self, region_array: np.ndarray,
-                                   boundary: BoundaryInfo,
-                                   margin: int) -> Optional[Dict[str, Any]]:
+                                   boundary: Any,
+                                   margin: int,
+                                   position: int) -> Optional[Dict[str, Any]]:
         """Analyze horizontal boundary for seams."""
         # Check horizontal seam
         center_y = margin
-        if center_y < region_array.shape[0] - margin:
+        if center_y <= region_array.shape[0] - margin:
             top_strip = region_array[center_y-5:center_y, :]
             bottom_strip = region_array[center_y:center_y+5, :]
             
             # Color difference
-            color_diff = np.mean(np.abs(
-                top_strip.mean(axis=0) - bottom_strip.mean(axis=0)
-            ))
+            top_mean = np.mean(top_strip, axis=(0, 1))  # Mean color of top strip
+            bottom_mean = np.mean(bottom_strip, axis=(0, 1))  # Mean color of bottom strip
+            color_diff = np.linalg.norm(top_mean - bottom_mean)
             
             # Texture difference
             texture_diff = abs(
@@ -202,14 +220,14 @@ class BoundaryAnalyzer:
                     'color_difference': float(color_diff),
                     'texture_difference': float(texture_diff)
                 },
-                'position': boundary.position,
+                'position': position,
                 'direction': 'horizontal'
             }
         
         return None
     
     def _create_severity_map(self, 
-                           boundaries: List[BoundaryInfo],
+                           boundaries: List[Any],
                            issues: List[Dict[str, Any]],
                            image_size: Tuple[int, int]) -> np.ndarray:
         """Create a severity heatmap of boundary issues."""
@@ -217,8 +235,8 @@ class BoundaryAnalyzer:
         
         # Add severity for each issue
         for issue in issues:
-            boundary = issue['boundary']
-            x1, y1, x2, y2 = boundary.position
+            position = issue['position']
+            direction = issue['direction']
             
             severity_value = {
                 'low': 0.3,
@@ -228,29 +246,29 @@ class BoundaryAnalyzer:
             }.get(issue['severity'], 0.5)
             
             # Mark issue region with gradient falloff
-            if issue['direction'] == 'vertical':
-                # Vertical boundary
-                for x in range(max(0, x1-10), min(image_size[0], x2+10)):
-                    distance = min(abs(x - x1), abs(x - x2))
+            if direction == 'vertical':
+                # Vertical boundary at x=position
+                for x in range(max(0, position-10), min(image_size[0], position+10)):
+                    distance = abs(x - position)
                     falloff = max(0, 1 - distance / 10)
-                    severity_map[y1:y2, x] = np.maximum(
-                        severity_map[y1:y2, x],
+                    severity_map[:, x] = np.maximum(
+                        severity_map[:, x],
                         severity_value * falloff
                     )
             else:
-                # Horizontal boundary
-                for y in range(max(0, y1-10), min(image_size[1], y2+10)):
-                    distance = min(abs(y - y1), abs(y - y2))
+                # Horizontal boundary at y=position
+                for y in range(max(0, position-10), min(image_size[1], position+10)):
+                    distance = abs(y - position)
                     falloff = max(0, 1 - distance / 10)
-                    severity_map[y, x1:x2] = np.maximum(
-                        severity_map[y, x1:x2],
+                    severity_map[y, :] = np.maximum(
+                        severity_map[y, :],
                         severity_value * falloff
                     )
         
         return severity_map
     
     def _generate_recommendations(self, issues: List[Dict[str, Any]],
-                                critical_boundaries: List[BoundaryInfo]) -> List[str]:
+                                critical_boundaries: List[Any]) -> List[str]:
         """Generate recommendations based on issues found."""
         recommendations = []
         

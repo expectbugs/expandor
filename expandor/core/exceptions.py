@@ -2,7 +2,7 @@
 Custom exceptions for Expandor
 """
 
-from typing import Optional, Any
+from typing import Optional, Any, Dict
 
 class ExpandorError(Exception):
     """Base exception for Expandor"""
@@ -28,11 +28,18 @@ class VRAMError(ExpandorError):
 
 class StrategyError(ExpandorError):
     """Strategy selection or execution errors"""
-    pass
+    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None, **kwargs):
+        self.details = details
+        super().__init__(message, **kwargs)
 
 class QualityError(ExpandorError):
     """Quality validation errors"""
-    pass
+    def __init__(self, message: str, severity: Optional[str] = None, 
+                 stage: Optional[str] = None, config: Optional[Any] = None, 
+                 partial_result: Optional[Any] = None, details: Optional[Any] = None):
+        self.severity = severity
+        self.details = details
+        super().__init__(message, stage, config, partial_result)
 
 class UpscalerError(ExpandorError):
     """Upscaler tool execution errors"""

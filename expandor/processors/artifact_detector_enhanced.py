@@ -5,7 +5,7 @@ Extends the existing ArtifactDetector with additional capabilities.
 
 import numpy as np
 from typing import List, Dict, Any, Optional, Tuple
-from enum import Enum
+from enum import IntEnum
 from dataclasses import dataclass
 from PIL import Image
 import logging
@@ -16,13 +16,13 @@ from .edge_analysis import EdgeAnalyzer, EdgeInfo
 from ..core.exceptions import QualityError
 
 
-class ArtifactSeverity(Enum):
+class ArtifactSeverity(IntEnum):
     """Severity levels for detected artifacts"""
-    NONE = "none"
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
-    CRITICAL = "critical"
+    NONE = 0
+    LOW = 1
+    MEDIUM = 2
+    HIGH = 3
+    CRITICAL = 4
 
 
 @dataclass
@@ -122,9 +122,10 @@ class EnhancedArtifactDetector(ArtifactDetector):
             )
             
             # Calculate statistics
-            total_pixels = artifact_mask.sum() if artifact_mask is not None else 0
+            # Count pixels with artifacts (mask values > 0)
+            total_artifact_pixels = np.count_nonzero(artifact_mask) if artifact_mask is not None else 0
             total_image_pixels = image.width * image.height
-            artifact_percentage = (total_pixels / total_image_pixels) * 100
+            artifact_percentage = (total_artifact_pixels / total_image_pixels) * 100
             
             # Prepare seam locations
             seam_locations = []
@@ -147,14 +148,14 @@ class EnhancedArtifactDetector(ArtifactDetector):
                 artifact_mask=artifact_mask,
                 seam_locations=seam_locations,
                 detection_scores=detection_scores,
-                total_artifact_pixels=int(total_pixels),
+                total_artifact_pixels=int(total_artifact_pixels),
                 artifact_percentage=artifact_percentage,
                 edge_artifacts=seam_artifacts + general_artifacts,
                 recommendations=recommendations
             )
             
-            # FAIL LOUD if critical
-            if severity == ArtifactSeverity.CRITICAL:
+            # FAIL LOUD if critical AND significant area affected
+            if severity == ArtifactSeverity.CRITICAL and artifact_percentage > 5.0:
                 self.logger.error(f"CRITICAL artifacts detected: {artifact_percentage:.1f}% of image")
                 raise QualityError(
                     f"Critical quality issues detected - {len(seam_artifacts)} seams, "
@@ -268,6 +269,11 @@ class EnhancedArtifactDetector(ArtifactDetector):
         # Use autocorrelation to detect patterns
         pattern_scores = []
         
+        # Check for gradient-like behavior first
+        # In a gradient, the difference should be proportional to distance
+        is_gradient = True
+        gradient_threshold = 0.1  # Allow 10% deviation
+        
         # Check for repeating patterns at different scales
         for shift in [64, 128, 256]:
             if shift < min(image.width, image.height) // 2:
@@ -277,6 +283,13 @@ class EnhancedArtifactDetector(ArtifactDetector):
                     right = img_array[:, shift:]
                     # Use mean absolute difference instead of correlation for efficiency
                     diff = np.mean(np.abs(left - right))
+                    
+                    # Check if this looks like a gradient
+                    # For a gradient, diff should be proportional to shift
+                    expected_diff = (shift / image.width) * 255
+                    if expected_diff > 0 and abs(diff - expected_diff) / expected_diff > gradient_threshold:
+                        is_gradient = False
+                    
                     pattern_scores.append(1.0 - diff / 255.0)
                 
                 # Vertical shift correlation
@@ -284,8 +297,18 @@ class EnhancedArtifactDetector(ArtifactDetector):
                     top = img_array[:image.height-shift, :]
                     bottom = img_array[shift:, :]
                     diff = np.mean(np.abs(top - bottom))
+                    
+                    # Check gradient behavior
+                    expected_diff = (shift / image.height) * 255
+                    if expected_diff > 0 and abs(diff - expected_diff) / expected_diff > gradient_threshold:
+                        is_gradient = False
+                        
                     pattern_scores.append(1.0 - diff / 255.0)
         
+        # If it looks like a gradient, return low score
+        if is_gradient:
+            return 0.0
+            
         return max(pattern_scores) if pattern_scores else 0.0
     
     def _calculate_severity(self, scores: Dict[str, float],

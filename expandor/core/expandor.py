@@ -394,18 +394,22 @@ class Expandor:
         critical_boundaries = self.boundary_tracker.get_critical_boundaries()
         
         # Validate quality
+        validation_metadata = {
+            'boundaries': critical_boundaries,
+            'quality_preset': config.quality_preset
+        }
         validation_result = self.quality_validator.validate(
             image_path=result.image_path,
-            boundaries=critical_boundaries,
-            quality_preset=config.quality_preset
+            metadata=validation_metadata,
+            detection_level=config.quality_preset
         )
         
-        result.quality_score = validation_result.get('score', 1.0)
-        result.seams_detected = len(validation_result.get('issues', []))
+        result.quality_score = validation_result.get('quality_score', 1.0)
+        result.seams_detected = validation_result.get('seam_count', 0)
         
         # Check if repair needed
-        if not validation_result.get('passed', True) and config.auto_refine:
-            self.logger.warning(f"Quality issues detected: {validation_result['issues']}")
+        if validation_result.get('issues_found', False) and config.auto_refine:
+            self.logger.warning(f"Quality issues detected: score={validation_result.get('quality_score', 0)}")
             
             # Attempt repair if pipelines available
             if config.inpaint_pipeline or config.refiner_pipeline:
@@ -418,7 +422,7 @@ class Expandor:
                     # Create artifact mask from issues
                     artifact_mask = self._create_artifact_mask(
                         result.image_path,
-                        validation_result['issues']
+                        validation_result.get('details', {}).get('seam_locations', [])
                     )
                     
                     # Repair
@@ -559,6 +563,58 @@ class Expandor:
             "allow_cpu_offload": config.allow_cpu_offload,
             "strategy_override": config.strategy_override
         }
+    
+    def validate_quality(self, result: ExpandorResult, config: ExpandorConfig) -> Dict[str, Any]:
+        """
+        Validate and potentially refine the expansion result.
+        
+        Args:
+            result: The expansion result to validate
+            config: The configuration used for expansion
+            
+        Returns:
+            Quality validation results
+            
+        Raises:
+            QualityError: If quality requirements cannot be met
+        """
+        # Import here to avoid circular imports
+        from ..processors.quality_orchestrator import QualityOrchestrator
+        from pathlib import Path
+        
+        # Initialize quality orchestrator
+        quality_config = {
+            'quality_validation': {
+                'quality_threshold': 0.85 if config.quality_preset == 'ultra' else 0.7,
+                'max_refinement_passes': 3,
+                'auto_fix_threshold': 0.6
+            }
+        }
+        
+        orchestrator = QualityOrchestrator(quality_config, self.logger)
+        
+        # Prepare pipeline registry
+        pipeline_registry = {
+            'inpaint': config.inpaint_pipeline,
+            'img2img': config.img2img_pipeline
+        }
+        
+        # Validate and refine
+        validation_results = orchestrator.validate_and_refine(
+            image_path=result.image_path,
+            boundary_tracker=self.boundary_tracker,
+            pipeline_registry=pipeline_registry,
+            config=config
+        )
+        
+        # Update result if refined
+        if validation_results['final_image'] != str(result.image_path):
+            result.image_path = Path(validation_results['final_image'])
+            result.metadata['quality_refined'] = True
+            result.metadata['refinement_passes'] = validation_results['refinement_passes']
+            result.metadata['final_quality_score'] = validation_results['quality_score']
+        
+        return validation_results
     
     def clear_caches(self):
         """

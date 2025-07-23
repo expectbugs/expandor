@@ -107,7 +107,8 @@ class PipelineOrchestrator:
                     current_strategy,
                     config,
                     metadata_tracker,
-                    boundary_tracker
+                    boundary_tracker,
+                    temp_dir
                 )
                 
                 # Success! Update result metadata
@@ -214,7 +215,8 @@ class PipelineOrchestrator:
                                 strategy: BaseExpansionStrategy,
                                 config,
                                 metadata_tracker: MetadataTracker,
-                                boundary_tracker: BoundaryTracker) -> ExpandorResult:
+                                boundary_tracker: BoundaryTracker,
+                                temp_dir: Optional[Path] = None) -> ExpandorResult:
         """
         Execute a single strategy with proper tracking
         

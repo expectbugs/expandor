@@ -23,7 +23,7 @@ class TestSWPOIntegration(BaseIntegrationTest):
             inpaint_pipeline=mock_inpaint_pipeline,
             window_size=400,
             overlap_ratio=0.8,
-            force_strategy='swpo',  # Force SWPO
+            strategy_override='swpo',  # Force SWPO
             stage_dir=temp_dir / "stages"
         )
         
@@ -50,7 +50,7 @@ class TestSWPOIntegration(BaseIntegrationTest):
             inpaint_pipeline=mock_inpaint_pipeline,
             window_size=256,
             overlap_ratio=0.75,
-            force_strategy='swpo',
+            strategy_override='swpo',
             stage_dir=temp_dir / "stages"
         )
         
@@ -70,7 +70,7 @@ class TestSWPOIntegration(BaseIntegrationTest):
             inpaint_pipeline=mock_inpaint_pipeline,
             window_size=300,
             overlap_ratio=0.8,
-            force_strategy='swpo',
+            strategy_override='swpo',
             stage_dir=temp_dir / "stages"
         )
         
@@ -84,7 +84,7 @@ class TestSWPOIntegration(BaseIntegrationTest):
         config = self.create_config(
             source_image=test_image_small,
             target_resolution=(1024, 512),
-            force_strategy='swpo',
+            strategy_override='swpo',
             # No inpaint pipeline
             stage_dir=temp_dir / "stages"
         )
@@ -105,7 +105,7 @@ class TestSWPOIntegration(BaseIntegrationTest):
             inpaint_pipeline=mock_inpaint_pipeline,
             window_size=256,
             overlap_ratio=0.5,
-            force_strategy='swpo',
+            strategy_override='swpo',
             save_stages=True,
             stage_dir=stage_dir
         )

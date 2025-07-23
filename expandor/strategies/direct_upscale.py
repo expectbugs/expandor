@@ -48,11 +48,16 @@ class DirectUpscaleStrategy(BaseExpansionStrategy):
         self.realesrgan_path = self._find_realesrgan()
     
     def validate_requirements(self):
-        """Validate upscaler is available"""
+        """Validate upscaler is available - FAIL LOUD if not"""
         if not self.realesrgan_path:
             raise StrategyError(
-                "DirectUpscaleStrategy requires Real-ESRGAN. "
-                "Please install it or use a different strategy."
+                "Real-ESRGAN not found. Direct upscale strategy requires Real-ESRGAN. "
+                "Please install realesrgan-ncnn-vulkan or ensure it's in your PATH.",
+                details={"searched_paths": [
+                    "realesrgan-ncnn-vulkan (in PATH)",
+                    "/usr/local/bin/realesrgan-ncnn-vulkan",
+                    "~/bin/realesrgan-ncnn-vulkan"
+                ]}
             )
     
     def _find_realesrgan(self) -> Optional[Path]:
@@ -152,7 +157,7 @@ class DirectUpscaleStrategy(BaseExpansionStrategy):
             # Determine tile size based on VRAM
             tile_size = self._determine_tile_size(current_image.size)
             
-            # Execute upscaling
+            # Execute upscaling - Real-ESRGAN is required
             output_path = self._run_realesrgan(
                 input_path=current_path,
                 scale=esrgan_scale,
@@ -219,7 +224,6 @@ class DirectUpscaleStrategy(BaseExpansionStrategy):
         
         # Build result
         return {
-            'image': final_image,
             'image_path': final_path,
             'size': (target_w, target_h),
             'stages': self.stage_results,
@@ -346,6 +350,7 @@ class DirectUpscaleStrategy(BaseExpansionStrategy):
                 f"Failed to run Real-ESRGAN: {str(e)}",
                 tool_name="realesrgan"
             )
+    
     
     def _calculate_upscale_passes(self, source_size: Tuple[int, int], 
                                  target_size: Tuple[int, int]) -> List[Dict[str, Any]]:

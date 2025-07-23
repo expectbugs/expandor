@@ -50,3 +50,19 @@ class ExpandorConfig:
     stage_dir: Optional[Path] = None
     stage_save_callback: Optional[Callable] = None
     verbose: bool = False
+    
+    # Additional strategy-specific parameters
+    swpo_enabled: bool = True
+    progressive_stages: Optional[List[Dict[str, Any]]] = None
+    tile_size: Optional[int] = None
+    auto_refine: bool = True
+    edge_blur_radius: int = 20
+    
+    # Strategy feature flags
+    allow_swpo: bool = True
+    allow_progressive: bool = True
+    
+    @property
+    def force_strategy(self) -> Optional[str]:
+        """Alias for strategy_override for backward compatibility"""
+        return self.strategy_override

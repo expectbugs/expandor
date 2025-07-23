@@ -121,7 +121,6 @@ class ProgressiveOutpaintStrategy(BaseExpansionStrategy):
         if not steps:
             # No expansion needed
             return {
-                'image': current_image,
                 'image_path': config.source_image if isinstance(config.source_image, Path) else None,
                 'size': current_size,
                 'stages': []
@@ -181,7 +180,6 @@ class ProgressiveOutpaintStrategy(BaseExpansionStrategy):
             })
         
         return {
-            'image': current_image,
             'image_path': current_path,
             'size': current_image.size,
             'stages': stages,
@@ -196,6 +194,14 @@ class ProgressiveOutpaintStrategy(BaseExpansionStrategy):
         Execute a single outpaint step.
         Adapted from _execute_outpaint_step lines 524-698
         """
+        # Validate input
+        if image_path is None:
+            raise ValueError("Image path cannot be None")
+        if not isinstance(image_path, Path):
+            image_path = Path(image_path)
+        if not image_path.exists():
+            raise FileNotFoundError(f"Image not found: {image_path}")
+            
         # Load image
         image = Image.open(image_path)
         if image.mode != 'RGB':

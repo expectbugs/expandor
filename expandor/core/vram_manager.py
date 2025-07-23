@@ -167,3 +167,91 @@ class VRAMManager:
     def get_peak_usage(self) -> float:
         """Get peak VRAM usage recorded"""
         return self.peak_usage_mb
+    
+    def estimate_pipeline_memory(self, pipeline_type: str = 'sdxl',
+                               include_vae: bool = True) -> float:
+        """
+        Estimate memory required for a pipeline.
+        
+        Args:
+            pipeline_type: Type of pipeline ('sdxl', 'sd15', 'flux')
+            include_vae: Include VAE memory requirements
+            
+        Returns:
+            Estimated memory in MB
+        """
+        # Base memory requirements for different pipelines
+        pipeline_memory = {
+            'sdxl': 6144,      # 6GB for SDXL
+            'sd15': 2048,      # 2GB for SD 1.5
+            'sd2': 3072,       # 3GB for SD 2.x
+            'flux': 12288,     # 12GB for Flux
+            'unknown': 4096    # 4GB default
+        }
+        
+        base_memory = pipeline_memory.get(pipeline_type.lower(), pipeline_memory['unknown'])
+        
+        # Add VAE memory if included
+        if include_vae:
+            vae_memory = {
+                'sdxl': 512,   # SDXL VAE
+                'sd15': 256,   # SD 1.5 VAE
+                'sd2': 384,    # SD 2.x VAE
+                'flux': 768,   # Flux VAE
+                'unknown': 384
+            }
+            base_memory += vae_memory.get(pipeline_type.lower(), vae_memory['unknown'])
+        
+        return base_memory
+    
+    def get_safe_tile_size(self, available_mb: Optional[float] = None,
+                          model_type: str = 'sdxl',
+                          safety_factor: float = 0.8) -> int:
+        """
+        Calculate safe tile size based on available VRAM.
+        
+        Args:
+            available_mb: Available VRAM (auto-detect if None)
+            model_type: Model type for constraints
+            safety_factor: Safety factor (0-1)
+            
+        Returns:
+            Safe tile size in pixels
+        """
+        if available_mb is None:
+            available_mb = self.get_available_vram()
+            if available_mb is None:
+                # No GPU, return minimum tile size
+                return 384
+        
+        # Apply safety factor
+        safe_vram = available_mb * safety_factor
+        
+        # Model-specific base requirements (MB per megapixel)
+        mb_per_mp = {
+            'sdxl': 150,     # ~150MB per megapixel for SDXL
+            'sd15': 100,     # ~100MB per megapixel for SD 1.5
+            'sd2': 120,      # ~120MB per megapixel for SD 2.x
+            'flux': 200,     # ~200MB per megapixel for Flux
+            'unknown': 150
+        }
+        
+        mb_per_pixel = mb_per_mp.get(model_type.lower(), mb_per_mp['unknown']) / 1_000_000
+        
+        # Calculate maximum pixels
+        max_pixels = int(safe_vram / mb_per_pixel)
+        
+        # Convert to square tile size
+        tile_size = int(max_pixels ** 0.5)
+        
+        # Apply constraints
+        min_size = 384
+        max_size = 2048
+        
+        # Round to multiple of 64 for better compatibility
+        tile_size = max(min_size, min(tile_size, max_size))
+        tile_size = (tile_size // 64) * 64
+        
+        self.logger.debug(f"Calculated safe tile size: {tile_size} for {safe_vram:.0f}MB VRAM")
+        
+        return tile_size

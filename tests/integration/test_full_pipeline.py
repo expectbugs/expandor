@@ -35,7 +35,14 @@ class TestFullPipelineIntegration(BaseIntegrationTest):
         
         self.validate_result(result, (1024, 1024))
         # Could use various strategies depending on available tools
-        assert result.strategy_used in ["direct_upscale", "hybrid_adaptive", "progressive_outpaint", "TiledExpansionStrategy"]
+        # Strategy names can be either the registry key or the class name
+        valid_strategies = [
+            "direct", "direct_upscale", "DirectUpscaleStrategy",
+            "hybrid_adaptive", "HybridAdaptiveStrategy",
+            "progressive", "progressive_outpaint", "ProgressiveOutpaintStrategy",
+            "tiled", "TiledExpansionStrategy"
+        ]
+        assert result.strategy_used in valid_strategies, f"Unexpected strategy: {result.strategy_used}"
         self.check_no_artifacts(result)
     
     def test_progressive_expansion(self, expandor, test_image_1080p,
@@ -52,7 +59,8 @@ class TestFullPipelineIntegration(BaseIntegrationTest):
         result = expandor.expand(config)
         
         self.validate_result(result, (2560, 1440))
-        assert result.strategy_used in ["progressive_outpaint", "hybrid_adaptive"]
+        assert result.strategy_used in ["progressive", "progressive_outpaint", "ProgressiveOutpaintStrategy", 
+                                       "hybrid_adaptive", "HybridAdaptiveStrategy"]
         
         # Check boundaries were tracked
         assert 'boundary_positions' in result.metadata or 'boundaries' in result.metadata
@@ -74,7 +82,9 @@ class TestFullPipelineIntegration(BaseIntegrationTest):
         
         self.validate_result(result, (3840, 1080))
         # Should use SWPO or progressive for extreme ratio
-        assert result.strategy_used in ["swpo", "progressive_outpaint", "hybrid_adaptive"]
+        assert result.strategy_used in ["swpo", "SWPOStrategy", 
+                                       "progressive", "progressive_outpaint", "ProgressiveOutpaintStrategy",
+                                       "hybrid_adaptive", "HybridAdaptiveStrategy"]
     
     def test_vram_constrained_expansion(self, expandor, test_image_4k,
                                        mock_inpaint_pipeline, temp_dir, monkeypatch):
@@ -102,7 +112,9 @@ class TestFullPipelineIntegration(BaseIntegrationTest):
         
         self.validate_result(result, (7680, 4320))
         # Should use tiled or CPU offload strategy
-        assert result.strategy_used in ["tiled_expansion", "cpu_offload", "hybrid_adaptive"]
+        assert result.strategy_used in ["tiled", "tiled_expansion", "TiledExpansionStrategy",
+                                       "cpu_offload", "CPUOffloadStrategy",
+                                       "hybrid_adaptive", "HybridAdaptiveStrategy"]
     
     def test_no_pipeline_fails_loud(self, expandor, test_image_small, temp_dir):
         """Test that expansion fails loud without pipelines"""
