@@ -9,7 +9,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="expandor",
-    version="0.1.0",
+    version="0.5.0",
     author="Your Name",
     author_email="your.email@example.com",
     description="Universal image resolution and aspect ratio adaptation system",
@@ -18,7 +18,7 @@ setup(
     url="https://github.com/yourusername/expandor",
     packages=find_packages(),
     classifiers=[
-        "Development Status :: 3 - Alpha",
+        "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
         "Topic :: Software Development :: Libraries :: Python Modules",
         "License :: OSI Approved :: MIT License",
@@ -31,12 +31,14 @@ setup(
     python_requires=">=3.8",
     install_requires=[
         "torch>=2.0.0",
-        "torchvision>=0.15.0", 
+        "torchvision>=0.15.0",
         "Pillow>=10.0.0",
         "numpy>=1.24.0",
         "opencv-python>=4.8.0",
         "PyYAML>=6.0",
         "tqdm>=4.65.0",
+        "huggingface_hub>=0.16.0",
+        "psutil>=5.9.0",
     ],
     extras_require={
         "dev": [
@@ -46,8 +48,22 @@ setup(
             "flake8>=6.0.0",
             "mypy>=1.3.0",
         ],
-        "ai-wallpaper": [
+        "diffusers": [
             "diffusers>=0.25.0",
+            "transformers>=4.35.0",
+            "accelerate>=0.25.0",
+        ],
+        "all": [
+            "diffusers>=0.25.0",
+            "transformers>=4.35.0",
+            "accelerate>=0.25.0",
+            "xformers>=0.0.20",
+            "scipy>=1.9.0",
+        ],
+    },
+    entry_points={
+        "console_scripts": [
+            "expandor=expandor.cli.main:main",
         ],
     },
 )

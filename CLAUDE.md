@@ -2,16 +2,18 @@
 
 ## ⚠️ READ THIS ENTIRE FILE BEFORE STARTING ⚠️
 
-You are about to implement Expandor, a complex image resolution adaptation system. This file contains ALL the context you need to build it correctly.
+You are working with Expandor, a complex image resolution adaptation system. This file contains critical context about the project's current state and philosophy.
 
 ## What is Expandor?
 
 Expandor is a **standalone, model-agnostic** image resolution and aspect ratio adaptation system that can expand images to any target resolution while maintaining maximum quality. It is adapted from the ai-wallpaper project but designed to work independently with any image generation pipeline.
 
-### Core Philosophy: FAIL LOUD
+### Core Philosophy: QUALITY & ELEGANCE
 - **NO SILENT FAILURES** - Every error must be loud and explicit
 - **NO QUALITY COMPROMISE** - Perfect results or explicit failure
 - **ALL OR NOTHING** - Operations either work perfectly or fail completely
+- **NO BACKWARDS COMPATIBILITY** - Clean, forward-looking design only
+- **ELEGANCE OVER SIMPLICITY** - Sophisticated solutions for complex problems
 
 ## Project Origin & Attribution
 
@@ -30,110 +32,95 @@ Originally developed for:
 - **Priority**: Quality over speed/space - no limits on time or storage
 - **Goal**: Generate amazing, incredibly detailed, ultimate high quality images
 
-## Implementation Phases
+## Current Implementation Status
 
-The project is structured in 4 phases (found in expandor*.md files):
+### ✅ Completed (Phases 1-3)
+- Core extraction and infrastructure
+- Main Expandor class with adapter pattern
+- All expansion strategies (Direct, Progressive, SWPO, Tiled, CPU Offload)
+- Quality validation and artifact detection systems
+- Comprehensive test suite
+- Configuration system with YAML support
 
-### Phase 1: Core Extraction (expandor1.md)
-- Repository setup
-- Extract core components from ai-wallpaper
-- Create base infrastructure
-- Mock pipeline interfaces for testing
-
-### Phase 2: Core Implementation (expandor2.*.md)
-- Main Expandor class
-- Strategy selector with VRAM awareness
-- Configuration system
-- Metadata tracking
-- Error handling framework
-
-### Phase 3: Advanced Strategies (expandor3.*.md)
-- **Step 1** (expandor3.1.md): Complex strategies (SWPO, CPU Offload, Adaptive Hybrid)
-- **Step 2** (expandor3.2.md): Quality systems (SmartArtifactDetector, SmartQualityRefiner, BoundaryTracker)
-- **Step 3** (expandor3.3.md): Integration tests
-
-### Phase 4: Production Readiness (expandor4.md)
-- Real pipeline adapters (Diffusers, ComfyUI, A1111)
-- Performance optimizations
-- CLI and API
-- Documentation and examples
+### ✅ Phase 4 Status (Complete)
+- ✅ CLI interface with argparse
+- ✅ User configuration system
+- ✅ DiffusersPipelineAdapter (functional)
+- ✅ ControlNet: Model loading only (generation in Phase 5)
+- ✅ ComfyUI/A1111 adapters: Documented placeholders
+- ✅ All critical code quality issues fixed
 
 ## Critical Technical Details
 
-### 1. VRAM Management
-- Always calculate requirements before operations
-- Implement fallback strategies: Full → Tiled → CPU Offload
-- Track peak usage for optimization
-- Clear CUDA cache aggressively in memory-constrained scenarios
+### 1. Adapter Pattern (REQUIRED)
+```python
+# Expandor now REQUIRES a pipeline adapter - no exceptions
+from expandor.adapters import DiffusersPipelineAdapter
+adapter = DiffusersPipelineAdapter(model_id="stabilityai/sdxl")
+expandor = Expandor(adapter)  # adapter is mandatory
+```
 
-### 2. Dimension Constraints
-- **SDXL**: All dimensions must be multiples of 8
-- **FLUX**: All dimensions must be multiples of 16
-- Always round dimensions properly before pipeline calls
+### 2. Import Style
+- Use relative imports within the package: `from ..utils import`
+- No absolute imports: ~~`from expandor.utils import`~~
+- Consistency is critical for maintainability
 
-### 3. Boundary Tracking
-- **CRITICAL**: Track EVERY expansion boundary for seam detection
-- Store position, direction, step number, expansion size
-- Progressive boundaries are different from SWPO window boundaries
-- Used later for artifact detection and targeted repair
+### 3. Error Handling
+- All errors must fail loud with helpful messages
+- Config validation raises ValueError on ANY invalid data
+- No print statements - use logging only
+- Include solutions in error messages
 
-### 4. Progressive Expansion
-- First step: up to 1.4x (reduced from 2.0x for better context)
-- Middle steps: 1.25x
-- Final step: 1.15x
-- High denoising strength (0.95) for content generation
-- Adaptive mask blur based on expansion size
+### 4. Quality Thresholds
+- Now configurable via `quality_thresholds.yaml`
+- Different presets: ultra, high, balanced, fast
+- Thresholds loaded dynamically by quality systems
 
-### 5. SWPO (Sliding Window Progressive Outpainting)
-- For extreme aspect ratios (>4x)
-- Window overlap MUST be ≥50% (default 80%)
-- Clear cache every 5 windows
-- Optional final unification pass
-- Track window boundaries separately
+## Implementation Phases
 
-### 6. Quality Validation
-- Use multiple detection methods: color, gradient, frequency
-- Aggressive thresholds for "fail loud" philosophy
-- Multi-pass refinement for critical seams
-- Zero tolerance for visible artifacts
+### Phase 1-3: ✅ Complete
+Core functionality implemented and tested
 
-## Implementation Order & Dependencies
+### Phase 4: ✅ Complete
+All production readiness tasks completed:
+1. ✅ Fixed all import issues (moved to top of files)
+2. ✅ Removed backwards compatibility (adapter now mandatory)
+3. ✅ Implemented strict FAIL LOUD philosophy
+4. ✅ Completed partial implementations (ControlNet model loading)
+5. ✅ Added comprehensive testing scripts
+6. ✅ Updated all documentation
 
-1. **Read ALL expandor*.md files first** - They contain the complete implementation
-2. **Follow phases strictly** - Later phases depend on earlier ones
-3. **Create files in the exact order specified** - Some files import others
-4. **Test each component** before moving to the next
-5. **Use mock pipelines first** - Real pipeline integration comes in Phase 4
+### Phase 4.5: ✅ Critical API Fix Complete
+- ✅ Migrated from LegacyExpandorConfig to new ExpandorConfig API
+- ✅ All strategies updated to use new config
+- ✅ Removed all legacy code and backwards compatibility
+- ✅ Fixed circular imports and reduced style warnings by 77%
+- ✅ Version bumped to 0.5.0
 
-## Common Pitfalls to Avoid
+### Phase 5: 📋 In Progress
+- [ ] Full ControlNet implementation (generation, not just loading)
+- [ ] ComfyUI adapter implementation
+- [ ] A1111 adapter implementation
+- [ ] Advanced features and optimizations
 
-1. **Import Order**: Some files import from others - follow the file creation order exactly
-2. **Method Names**: DimensionCalculator has `calculate_progressive_strategy` not `calculate_progressive_outpaint_strategy`
-3. **Type Imports**: Always import types (Optional, Dict, etc.) where needed
-4. **Hash Values**: Use `abs(hash(...))` to avoid negative seeds
-5. **Path Handling**: result.image_path is already a Path object
-6. **VRAM Checks**: Always check available VRAM before operations
-7. **Boundary Types**: Dict format for boundaries, not dataclass initially
+## Known Issues (Resolved)
 
-## Testing Strategy
+1. ~~**API Mismatch**: Tests and examples use new ExpandorConfig API while core uses LegacyExpandorConfig~~ ✅ FIXED
+2. ~~**Code Style**: 712 flake8 warnings~~ ✅ REDUCED to 166 warnings (77% reduction)
+3. **Test Coverage**: Now measurable with unified API
 
-1. Start with mock pipelines (already provided in expandor1.md)
-2. Test each strategy in isolation
-3. Test strategy selection logic
-4. Test VRAM fallback chains
-5. Test quality validation
-6. Integration tests with mock pipelines
-7. Only then move to real pipeline adapters
+All Phase 4 and Phase 5 critical issues have been resolved.
 
-## Quality Requirements
+## Testing Requirements
 
-- **Seam Detection**: Must detect 100% of progressive boundaries
-- **Artifact Repair**: Must fix all detected artifacts or fail
-- **VRAM Safety**: Never exceed available VRAM
-- **Dimension Accuracy**: Final size must match target exactly
-- **Metadata Completeness**: Track everything for debugging
+- Mock adapter tests must pass
+- Real CLI usage must work
+- Config validation must fail loud
+- All imports must be relative
+- No duplicate methods or functions
+- Code quality tools must pass
 
-## Key Algorithms
+## Key Algorithms (Unchanged)
 
 ### Progressive Expansion Planning
 - Calculate aspect ratio change
@@ -154,42 +141,12 @@ The project is structured in 4 phases (found in expandor*.md files):
 - Frequency domain analysis
 - Combine all methods with weights
 
-## File Structure
-
-```
-expandor/
-├── CLAUDE.md (this file)
-├── expandor1.md - Phase 1: Core extraction
-├── expandor2.1.md - Phase 2 Step 1: Main implementation
-├── expandor2.2.md - Phase 2 Step 2: Strategy selector
-├── expandor2.3.md - Phase 2 Step 3: Integration
-├── expandor3.1.md - Phase 3 Step 1: Complex strategies
-├── expandor3.2.md - Phase 3 Step 2: Quality systems
-├── expandor3.3.md - Phase 3 Step 3: Integration tests
-└── expandor4.md - Phase 4: Production readiness
-```
-
-## Build Instructions
-
-1. Create a new directory for the Expandor project
-2. Copy all expandor*.md files into it
-3. Follow expandor1.md step by step to set up the repository
-4. Continue through each phase in order
-5. Run tests after each major component
-6. Never skip ahead - dependencies matter
-
-## Success Criteria
-
-- All tests pass with mock pipelines
-- Can expand 1080p → 4K without artifacts
-- Can handle 16:9 → 32:9 extreme expansions
-- Gracefully handles VRAM limitations
-- Clear error messages for all failure modes
-- Comprehensive metadata tracking
-- Zero visible seams or artifacts
-
 ## Remember
 
-This is a complex project that prioritizes **quality over everything else**. Take time to understand each component. When in doubt, fail loud and clear. The goal is perfect image expansion with zero compromises.
+This project prioritizes **quality over everything else**. When implementing fixes:
+1. Follow the FAIL LOUD philosophy strictly
+2. Create elegant, complete solutions - complexity is acceptable for quality
+3. Test everything thoroughly
+4. Document limitations honestly
 
-Good luck! The implementation guide in the expandor*.md files is comprehensive and tested. Follow it carefully and you'll build an amazing system.
+The goal is perfect image expansion with zero compromises. Elegance and completeness matter more than simplicity.

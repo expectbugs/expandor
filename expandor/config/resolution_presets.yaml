@@ -1,0 +1,276 @@
+# Expandor Resolution Presets
+# Common resolutions and aspect ratios for easy selection
+
+resolution_presets:
+  # Standard resolutions (16:9 aspect ratio)
+  standard:
+    720p:
+      name: "HD (720p)"
+      resolution: [1280, 720]
+      aspect_ratio: "16:9"
+      description: "Standard HD resolution"
+      
+    1080p:
+      name: "Full HD (1080p)"
+      resolution: [1920, 1080]
+      aspect_ratio: "16:9"
+      description: "Full HD resolution"
+      
+    1440p:
+      name: "QHD (1440p)"
+      resolution: [2560, 1440]
+      aspect_ratio: "16:9"
+      description: "Quad HD resolution"
+      
+    4k:
+      name: "4K UHD"
+      resolution: [3840, 2160]
+      aspect_ratio: "16:9"
+      description: "4K Ultra HD resolution"
+      aliases: ["uhd", "2160p"]
+      
+    5k:
+      name: "5K"
+      resolution: [5120, 2880]
+      aspect_ratio: "16:9"
+      description: "5K resolution"
+      
+    8k:
+      name: "8K UHD"
+      resolution: [7680, 4320]
+      aspect_ratio: "16:9"
+      description: "8K Ultra HD resolution"
+      aliases: ["8k_uhd", "4320p"]
+      
+  # Ultrawide resolutions (21:9 aspect ratio)
+  ultrawide:
+    uwfhd:
+      name: "Ultrawide FHD"
+      resolution: [2560, 1080]
+      aspect_ratio: "21:9"
+      description: "Ultrawide Full HD"
+      aliases: ["ultrawide", "21:9"]
+      
+    uwqhd:
+      name: "Ultrawide QHD"
+      resolution: [3440, 1440]
+      aspect_ratio: "21:9"
+      description: "Ultrawide Quad HD"
+      aliases: ["ultrawide_1440p"]
+      
+    uw4k:
+      name: "Ultrawide 4K"
+      resolution: [5120, 2160]
+      aspect_ratio: "21:9"
+      description: "Ultrawide 4K resolution"
+      aliases: ["ultrawide_4k"]
+      
+  # Super ultrawide resolutions (32:9 aspect ratio)
+  super_ultrawide:
+    dqhd:
+      name: "Dual QHD"
+      resolution: [5120, 1440]
+      aspect_ratio: "32:9"
+      description: "Dual Quad HD (32:9)"
+      aliases: ["superultrawide", "32:9"]
+      
+    dfhd:
+      name: "Dual FHD"
+      resolution: [3840, 1080]
+      aspect_ratio: "32:9"
+      description: "Dual Full HD (32:9)"
+      aliases: ["superultrawide_1080p"]
+      
+  # Multi-monitor setups
+  multi_monitor:
+    dual_4k:
+      name: "Dual 4K"
+      resolution: [7680, 2160]
+      aspect_ratio: "32:9"
+      description: "Two 4K monitors side by side"
+      
+    triple_1080p:
+      name: "Triple 1080p"
+      resolution: [5760, 1080]
+      aspect_ratio: "48:9"
+      description: "Three 1080p monitors"
+      
+    triple_1440p:
+      name: "Triple 1440p"
+      resolution: [7680, 1440]
+      aspect_ratio: "48:9"
+      description: "Three 1440p monitors"
+      
+    triple_4k:
+      name: "Triple 4K"
+      resolution: [11520, 2160]
+      aspect_ratio: "48:9"
+      description: "Three 4K monitors side by side"
+      warning: "Requires significant VRAM"
+      
+  # Portrait orientations
+  portrait:
+    portrait_1080p:
+      name: "Portrait FHD"
+      resolution: [1080, 1920]
+      aspect_ratio: "9:16"
+      description: "Vertical Full HD"
+      
+    portrait_1440p:
+      name: "Portrait QHD"
+      resolution: [1440, 2560]
+      aspect_ratio: "9:16"
+      description: "Vertical Quad HD"
+      
+    portrait_4k:
+      name: "Portrait 4K"
+      resolution: [2160, 3840]
+      aspect_ratio: "9:16"
+      description: "Vertical 4K"
+      aliases: ["portrait4k", "9:16"]
+      
+  # Square formats
+  square:
+    square_1k:
+      name: "Square 1K"
+      resolution: [1024, 1024]
+      aspect_ratio: "1:1"
+      description: "1K square format"
+      
+    square_2k:
+      name: "Square 2K"
+      resolution: [2048, 2048]
+      aspect_ratio: "1:1"
+      description: "2K square format"
+      
+    square_4k:
+      name: "Square 4K"
+      resolution: [3840, 3840]
+      aspect_ratio: "1:1"
+      description: "4K square format"
+      aliases: ["square4k", "1:1"]
+      
+  # Mobile wallpapers
+  mobile:
+    iphone:
+      name: "iPhone"
+      resolution: [1170, 2532]
+      aspect_ratio: "19.5:9"
+      description: "iPhone Pro Max resolution"
+      device_family: "iOS"
+      
+    iphone_se:
+      name: "iPhone SE"
+      resolution: [750, 1334]
+      aspect_ratio: "16:9"
+      description: "iPhone SE/8/7 resolution"
+      device_family: "iOS"
+      
+    ipad:
+      name: "iPad Pro"
+      resolution: [2048, 2732]
+      aspect_ratio: "3:4"
+      description: "iPad Pro 12.9 resolution"
+      device_family: "iOS"
+      
+    android:
+      name: "Android Flagship"
+      resolution: [1440, 3200]
+      aspect_ratio: "20:9"
+      description: "High-end Android resolution"
+      device_family: "Android"
+      
+    android_tablet:
+      name: "Android Tablet"
+      resolution: [2560, 1600]
+      aspect_ratio: "16:10"
+      description: "Android tablet resolution"
+      device_family: "Android"
+      
+  # Classic aspect ratios
+  classic:
+    "4:3":
+      name: "Classic 4:3"
+      resolution: [1600, 1200]
+      aspect_ratio: "4:3"
+      description: "Classic monitor ratio"
+      
+    "16:10":
+      name: "Classic 16:10"
+      resolution: [1920, 1200]
+      aspect_ratio: "16:10"
+      description: "Classic widescreen"
+      
+    "3:2":
+      name: "Classic 3:2"
+      resolution: [3000, 2000]
+      aspect_ratio: "3:2"
+      description: "Surface/photography ratio"
+      
+  # Cinema formats
+  cinema:
+    cinemascope:
+      name: "Cinemascope"
+      resolution: [2560, 1080]
+      aspect_ratio: "2.39:1"
+      description: "Cinema widescreen"
+      
+    imax:
+      name: "IMAX"
+      resolution: [4096, 3072]
+      aspect_ratio: "1.33:1"
+      description: "IMAX format"
+      
+    dci_4k:
+      name: "DCI 4K"
+      resolution: [4096, 2160]
+      aspect_ratio: "1.9:1"
+      description: "Digital Cinema 4K"
+
+# Aspect ratio definitions
+aspect_ratios:
+  "1:1": { width: 1, height: 1, name: "Square" }
+  "3:2": { width: 3, height: 2, name: "Classic Photo" }
+  "4:3": { width: 4, height: 3, name: "Classic Monitor" }
+  "16:9": { width: 16, height: 9, name: "Widescreen" }
+  "16:10": { width: 16, height: 10, name: "Classic Widescreen" }
+  "21:9": { width: 21, height: 9, name: "Ultrawide" }
+  "32:9": { width: 32, height: 9, name: "Super Ultrawide" }
+  "9:16": { width: 9, height: 16, name: "Portrait" }
+  "2.39:1": { width: 2.39, height: 1, name: "Cinemascope" }
+  
+# Global resolution settings
+global:
+  # Default resolution if not specified
+  default_resolution: "1080p"
+  
+  # Automatic resolution selection
+  auto_select:
+    enabled: true
+    prefer_native_aspect: true  # Maintain source aspect ratio
+    
+  # Resolution limits
+  limits:
+    min_width: 256
+    min_height: 256
+    max_width: 16384
+    max_height: 16384
+    max_total_pixels: 134217728  # 128 megapixels
+    
+  # Multiplier support
+  multipliers:
+    enabled: true
+    allowed: [0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0, 4.0]
+    max_multiplier: 4.0
+    
+  # Model compatibility warnings
+  compatibility_warnings:
+    sdxl:
+      recommended_max: 2048
+      warning_threshold: 3072
+      message: "SDXL works best below 2048px dimensions"
+      
+    flux:
+      recommended_max: 2048
+      warning_threshold: 2048
+      message: "FLUX has fixed generation size, will require scaling"

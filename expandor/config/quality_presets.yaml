@@ -1,114 +1,228 @@
-# Quality Preset Definitions
-# Based on ai-wallpaper resolution.yaml quality settings
+# Expandor Quality Presets Configuration
+# Defines quality levels with their associated parameters
 
-ultra:
-  description: "Maximum quality, no time limits"
-  refinement:
-    enabled: true
-    passes: 5
-    multi_pass_enabled: true
-    coherence_strength: 0.08
-    coherence_steps: 50
-    targeted_strength: 0.25
-    targeted_steps: 80
-    detail_strength: 0.05
-    detail_steps: 40
-  
-  artifact_detection: "aggressive"
-  seam_repair_attempts: 3
-  
-  upscaling:
-    model: "RealESRGAN_x4plus"
-    tile_size: 512
-    fp32: true
-  
-  progressive_outpainting:
-    denoising_strength_decay: 0.95
-    extra_boundary_width: 10
-  
-  vram_strategy:
-    prefer_quality: true
-    allow_tiling: true
-    allow_cpu_offload: false
+quality_presets:
+  ultra:
+    # Maximum quality, no compromise
+    name: "Ultra Quality"
+    description: "Highest quality with maximum processing time"
+    priority: 4  # Highest priority
+    
+    # Generation parameters
+    generation:
+      num_inference_steps: 80  # Maximum steps for best quality
+      guidance_scale: 8.5  # Higher guidance for more prompt adherence
+      scheduler: "DPMSolverMultistepScheduler"  # High quality scheduler
+      use_karras_sigmas: true  # Better noise schedule
+      
+    # Resolution handling
+    resolution:
+      prefer_native: true  # Use model's preferred resolution
+      upscale_method: "real-esrgan"  # Best upscaler
+      upscale_denoise: 0.2  # Light denoising during upscale
+      
+    # Expansion parameters
+    expansion:
+      denoising_strength: 0.95  # High strength for new content
+      mask_blur_ratio: 0.5  # 50% blur for smoother transitions
+      overlap_ratio: 0.85  # High overlap in SWPO
+      edge_blend_pixels: 128  # Wide blending zone
+      
+    # Quality validation
+    validation:
+      enable_artifact_detection: true
+      artifact_threshold: 0.1  # Very sensitive
+      enable_seam_detection: true
+      seam_threshold: 0.05  # Detect subtle seams
+      max_repair_attempts: 5  # Try harder to fix issues
+      
+    # Performance trade-offs
+    performance:
+      enable_xformers: true  # Memory efficient attention
+      enable_cpu_offload: false  # Keep on GPU for speed
+      tile_processing: false  # Avoid tiling if possible
+      batch_size: 1  # Focus on single image quality
+      
+    # Model selection
+    models:
+      prefer_refiner: true  # Use SDXL refiner if available
+      refiner_strength: 0.3  # Refiner denoising strength
+      controlnet_strength: 1.0  # Full ControlNet guidance
+      
+    # Output settings
+    output:
+      format: "png"
+      compression: 0  # No compression
+      save_intermediate: true  # Save all stages
+      
+  high:
+    # High quality with reasonable speed
+    name: "High Quality"
+    description: "Excellent quality with good performance balance"
+    priority: 3
+    
+    generation:
+      num_inference_steps: 50  # Good quality/speed balance
+      guidance_scale: 7.5  # Standard guidance
+      scheduler: "EulerAncestralDiscreteScheduler"  # Fast and good
+      use_karras_sigmas: true
+      
+    resolution:
+      prefer_native: true
+      upscale_method: "real-esrgan"
+      upscale_denoise: 0.3
+      
+    expansion:
+      denoising_strength: 0.85  # Slightly lower for speed
+      mask_blur_ratio: 0.4  # 40% blur
+      overlap_ratio: 0.75  # Good overlap
+      edge_blend_pixels: 96
+      
+    validation:
+      enable_artifact_detection: true
+      artifact_threshold: 0.2  # Less sensitive
+      enable_seam_detection: true
+      seam_threshold: 0.1
+      max_repair_attempts: 3
+      
+    performance:
+      enable_xformers: true
+      enable_cpu_offload: false
+      tile_processing: false
+      batch_size: 1
+      
+    models:
+      prefer_refiner: true
+      refiner_strength: 0.25
+      controlnet_strength: 0.9
+      
+    output:
+      format: "png"
+      compression: 3  # Light compression
+      save_intermediate: false
+      
+  balanced:
+    # Default preset - good for most use cases
+    name: "Balanced Quality"
+    description: "Good quality with reasonable processing time"
+    priority: 2  # Default priority
+    
+    generation:
+      num_inference_steps: 35  # Moderate steps
+      guidance_scale: 7.0  # Standard guidance
+      scheduler: "EulerDiscreteScheduler"  # Fast and stable
+      use_karras_sigmas: false
+      
+    resolution:
+      prefer_native: false  # Allow non-native for speed
+      upscale_method: "bicubic"  # Faster upscaling
+      upscale_denoise: 0.0  # No denoising
+      
+    expansion:
+      denoising_strength: 0.75  # Moderate strength
+      mask_blur_ratio: 0.35  # 35% blur
+      overlap_ratio: 0.6  # Moderate overlap
+      edge_blend_pixels: 64
+      
+    validation:
+      enable_artifact_detection: true
+      artifact_threshold: 0.3  # Moderate sensitivity
+      enable_seam_detection: false  # Skip for speed
+      seam_threshold: 0.15
+      max_repair_attempts: 2
+      
+    performance:
+      enable_xformers: true
+      enable_cpu_offload: true  # Allow if needed
+      tile_processing: true  # Allow for large images
+      batch_size: 2  # Some batching okay
+      
+    models:
+      prefer_refiner: false  # Skip refiner for speed
+      refiner_strength: 0.2
+      controlnet_strength: 0.8
+      
+    output:
+      format: "png"
+      compression: 6  # Moderate compression
+      save_intermediate: false
+      
+  fast:
+    # Speed priority for quick results
+    name: "Fast Processing"
+    description: "Fastest processing with acceptable quality"
+    priority: 1  # Lowest priority
+    
+    generation:
+      num_inference_steps: 20  # Minimum viable steps
+      guidance_scale: 6.0  # Lower guidance for speed
+      scheduler: "DDIMScheduler"  # Fastest scheduler
+      use_karras_sigmas: false
+      
+    resolution:
+      prefer_native: false
+      upscale_method: "bilinear"  # Fastest upscaling
+      upscale_denoise: 0.0
+      
+    expansion:
+      denoising_strength: 0.65  # Lower for speed
+      mask_blur_ratio: 0.25  # Minimal blur
+      overlap_ratio: 0.4  # Less overlap
+      edge_blend_pixels: 32  # Narrow blend
+      
+    validation:
+      enable_artifact_detection: false  # Skip validation
+      artifact_threshold: 0.5
+      enable_seam_detection: false
+      seam_threshold: 0.25
+      max_repair_attempts: 0  # No repairs
+      
+    performance:
+      enable_xformers: true
+      enable_cpu_offload: true
+      tile_processing: true
+      batch_size: 4  # Batch for speed
+      
+    models:
+      prefer_refiner: false
+      refiner_strength: 0.0  # No refiner
+      controlnet_strength: 0.6  # Reduced for speed
+      
+    output:
+      format: "jpeg"  # Smaller files
+      compression: 85  # JPEG quality
+      save_intermediate: false
 
-high:
-  description: "95% quality, 50% faster"
-  refinement:
+# Global quality settings
+global:
+  # Default preset if not specified
+  default_preset: "balanced"
+  
+  # Automatic quality selection based on image
+  auto_select:
     enabled: true
-    passes: 3
-    multi_pass_enabled: true
-    coherence_strength: 0.10
-    coherence_steps: 40
-    targeted_strength: 0.30
-    targeted_steps: 60
-    detail_strength: 0.08
-    detail_steps: 30
-  
-  artifact_detection: "standard"
-  seam_repair_attempts: 2
-  
-  upscaling:
-    model: "RealESRGAN_x4plus"
-    tile_size: 768
-    fp32: true
-  
-  progressive_outpainting:
-    denoising_strength_decay: 0.90
-    extra_boundary_width: 8
-  
-  vram_strategy:
-    prefer_quality: true
-    allow_tiling: true
-    allow_cpu_offload: true
-
-balanced:
-  description: "90% quality, 75% faster"
-  refinement:
+    rules:
+      - condition: "resolution > 4096"
+        preset: "fast"  # Large images need speed
+      - condition: "aspect_ratio_change > 4"
+        preset: "high"  # Extreme changes need quality
+      - condition: "vram_available < 4000"
+        preset: "fast"  # Low VRAM needs efficiency
+        
+  # Quality scaling based on system resources
+  adaptive_quality:
     enabled: true
-    passes: 2
-    multi_pass_enabled: false
-    denoising_strength: 0.35
-    steps: 50
-  
-  artifact_detection: "light"
-  seam_repair_attempts: 1
-  
-  upscaling:
-    model: "RealESRGAN_x4plus"
-    tile_size: 1024
-    fp32: false
-  
-  progressive_outpainting:
-    denoising_strength_decay: 0.85
-    extra_boundary_width: 5
-  
-  vram_strategy:
-    prefer_quality: false
-    allow_tiling: true
-    allow_cpu_offload: true
-
-fast:
-  description: "85% quality, maximum speed"
-  refinement:
-    enabled: true
-    passes: 1
-    multi_pass_enabled: false
-    denoising_strength: 0.30
-    steps: 30
-  
-  artifact_detection: "disabled"
-  seam_repair_attempts: 0
-  
-  upscaling:
-    model: "RealESRGAN_x2plus"
-    tile_size: 1536
-    fp32: false
-  
-  progressive_outpainting:
-    denoising_strength_decay: 0.80
-    extra_boundary_width: 0
-  
-  vram_strategy:
-    prefer_quality: false
-    allow_tiling: true
-    allow_cpu_offload: true
+    min_steps: 15  # Never go below this
+    max_steps: 100  # Never exceed this
+    vram_scaling: true  # Adjust based on VRAM
+    
+  # Validation overrides
+  validation:
+    always_validate_ultra: true  # Always validate ultra preset
+    skip_validation_on_error: false  # Don't skip on errors
+    
+  # Output quality settings
+  output:
+    preserve_metadata: true  # Keep EXIF/metadata
+    optimize_filesize: false  # Quality over size
+    max_dimension: 16384  # Safety limit

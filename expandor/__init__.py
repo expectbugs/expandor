@@ -2,12 +2,12 @@
 Expandor - Universal Image Resolution Adaptation System
 """
 
-from .core.expandor import Expandor
 from .core.config import ExpandorConfig
-from .core.exceptions import ExpandorError, VRAMError, StrategyError, QualityError
+from .core.exceptions import ExpandorError, QualityError, StrategyError, VRAMError
+from .core.expandor import Expandor
 from .core.result import ExpandorResult, StageResult
 
-__version__ = "0.1.0"
+__version__ = "0.5.0"
 __all__ = [
     "Expandor",
     "ExpandorConfig",
@@ -16,5 +16,5 @@ __all__ = [
     "ExpandorError",
     "VRAMError",
     "StrategyError",
-    "QualityError"
+    "QualityError",
 ]
