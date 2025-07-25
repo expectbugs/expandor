@@ -585,6 +585,27 @@ class Expandor:
 
             # Pipeline registry for external models
             self.pipeline_registry = {}
+            
+            # Register pipelines from adapter
+            if self.pipeline_adapter:
+                # Common pipeline types to check
+                pipeline_types = ["inpaint", "img2img", "refiner", "upscale"]
+                for pipeline_type in pipeline_types:
+                    try:
+                        pipeline = self.pipeline_adapter.get_pipeline(pipeline_type)
+                        if pipeline:
+                            self.pipeline_registry[pipeline_type] = pipeline
+                            self.logger.info(f"Registered {pipeline_type} pipeline from adapter")
+                        else:
+                            self.logger.debug(f"No {pipeline_type} pipeline available from adapter")
+                    except Exception as e:
+                        # Adapter may not support all pipeline types
+                        self.logger.debug(f"Could not get {pipeline_type} pipeline: {e}")
+                
+                self.logger.info(f"Total pipelines registered: {len(self.pipeline_registry)}")
+                
+                # Share pipeline registry with orchestrator
+                self.orchestrator.pipeline_registry = self.pipeline_registry
 
             # Cache for loaded strategies
             self._strategy_cache = {}

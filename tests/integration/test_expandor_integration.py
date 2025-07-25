@@ -17,16 +17,16 @@ from expandor import (
     StrategyError,
     VRAMError,
 )
-from expandor.adapters.mock_pipeline import MockInpaintPipeline, MockRefinerPipeline
+from expandor.adapters.mock_pipeline_adapter import MockPipelineAdapter
 
 
 class TestExpandorIntegration:
 
     def setup_method(self):
         """Setup for each test"""
-        self.expandor = Expandor()
-        self.mock_inpaint = MockInpaintPipeline()
-        self.mock_refiner = MockRefinerPipeline()
+        # New API: Create adapter first, then Expandor
+        self.mock_adapter = MockPipelineAdapter(device="cpu", dtype="fp32")
+        self.expandor = Expandor(self.mock_adapter)
 
     def test_complete_workflow_direct_upscale(self):
         """Test complete workflow with direct upscale"""
@@ -68,16 +68,13 @@ class TestExpandorIntegration:
         assert len(result.stages) > 0
         assert len(result.boundaries) > 0
 
-    def test_complete_workflow_with_pipelines(self):
-        """Test workflow with registered pipelines"""
-        # Register pipelines
-        self.expandor.register_pipeline("inpaint", self.mock_inpaint)
-        self.expandor.register_pipeline("refiner", self.mock_refiner)
-
+    def test_complete_workflow_with_adapter(self):
+        """Test workflow with mock adapter providing pipelines"""
+        # Adapter already provides mock pipelines
         config = ExpandorConfig(
             source_image=Image.new("RGB", (512, 512)),
             target_resolution=(768, 768),
-            prompt="Test with pipelines",
+            prompt="Test with adapter pipelines",
             seed=42,
             source_metadata={"model": "test"},
         )
@@ -85,9 +82,8 @@ class TestExpandorIntegration:
         result = self.expandor.expand(config)
 
         assert result.success == True
-        # Should have used registered pipelines
-        assert "inpaint" in self.expandor.pipeline_registry
-        assert "refiner" in self.expandor.pipeline_registry
+        # Verify adapter was used
+        assert self.expandor.pipeline_adapter == self.mock_adapter
 
     def test_metadata_saved_with_result(self, temp_dir):
         """Test metadata is saved alongside result"""

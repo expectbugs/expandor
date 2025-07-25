@@ -15,6 +15,7 @@ from PIL import Image, ImageDraw
 
 from expandor import Expandor
 from expandor.adapters.mock_pipeline import MockImg2ImgPipeline, MockInpaintPipeline
+from expandor.adapters.mock_pipeline_adapter import MockPipelineAdapter
 from expandor.core.config import ExpandorConfig
 from expandor.core.exceptions import ExpandorError, VRAMError
 from expandor.core.result import ExpandorResult
@@ -43,9 +44,15 @@ class BaseIntegrationTest:
         shutil.rmtree(temp_dir, ignore_errors=True)
 
     @pytest.fixture
-    def expandor(self, temp_dir):
+    def mock_adapter(self):
+        """Create mock pipeline adapter for testing"""
+        return MockPipelineAdapter(device="cpu", dtype="fp32")
+
+    @pytest.fixture
+    def expandor(self, mock_adapter, temp_dir):
         """Create Expandor instance for testing"""
-        expandor = Expandor()
+        # New API: Expandor requires adapter
+        expandor = Expandor(mock_adapter)
         # Override temp directory for testing
         expandor._temp_base = temp_dir
         return expandor
@@ -144,9 +151,6 @@ class BaseIntegrationTest:
             "quality_preset": "high",
             "save_stages": True,
             "stage_dir": kwargs.get("temp_dir", Path("temp/stages")),
-            "auto_refine": True,
-            "allow_tiled": True,
-            "allow_cpu_offload": True,
         }
 
         # Override with provided kwargs

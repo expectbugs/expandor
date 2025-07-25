@@ -2,6 +2,42 @@
 
 All notable changes to Expandor are documented here.
 
+## [0.5.1] - 2025-07-25
+
+### 🐛 Fixed
+- **Progressive Outpaint Strategy**: Fixed hardcoded denoising strength of 0.75 that was causing harsh visible seams
+  - Now properly reads `config.denoising_strength` for adaptive strength
+  - Now properly reads `config.num_inference_steps` for adaptive steps
+  - Now properly reads `config.guidance_scale` for adaptive guidance
+  - Seam repair now uses proportional strength (40% of main strength)
+- **Real-ESRGAN Integration**: Added Python wrapper for better integration
+  - Automatically detects and uses Real-ESRGAN installation
+  - Falls back gracefully if not available
+  
+### ✨ Added
+- **Extensive Real-World Testing**: Tested with actual SDXL models and images
+  - Ultrawide expansion (5376x768) with progressive outpainting
+  - Portrait orientation expansion (768x1344 → 2160x3840) 
+  - Direct upscale strategy with Real-ESRGAN wrapper
+  - Strategy comparison tests on complex images
+
+### 🔄 Changed
+- **Test Suite Updates**: All tests now use new mandatory adapter API
+  - Updated all integration tests to use MockPipelineAdapter
+  - Fixed pipeline registration to share adapters with orchestrator
+  - Removed unsupported config parameters from tests
+
+### 📝 Documentation
+- Added comprehensive test update summary (TEST_UPDATE_SUMMARY.md)
+- Added fix summary documenting remaining hardcoded values (fix_summary.md)
+- Updated examples to demonstrate proper denoising strength usage
+
+### 🚧 Known Issues
+- **Other Strategies**: Still have hardcoded values that need fixing:
+  - Tiled Expansion: hardcoded strength values (0.2/0.3/0.4)
+  - SWPO Strategy: hardcoded blur_radius=50, strength=0.02
+  - CPU Offload: hardcoded strength values (0.9/0.3)
+
 ## [0.5.0] - 2025-07-24
 
 ### 🚨 Breaking Changes

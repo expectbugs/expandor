@@ -168,6 +168,14 @@ class HybridAdaptiveStrategy(BaseExpansionStrategy):
                 strategy.boundary_tracker = self.boundary_tracker
                 strategy.metadata_tracker = self.metadata_tracker
                 strategy.vram_manager = self.vram_manager
+                
+                # Inject pipelines from parent
+                if hasattr(self, 'inpaint_pipeline') and self.inpaint_pipeline:
+                    strategy.inpaint_pipeline = self.inpaint_pipeline
+                if hasattr(self, 'img2img_pipeline') and self.img2img_pipeline:
+                    strategy.img2img_pipeline = self.img2img_pipeline
+                if hasattr(self, 'refiner_pipeline') and self.refiner_pipeline:
+                    strategy.refiner_pipeline = self.refiner_pipeline
 
                 # Execute step
                 step_result = strategy.execute(step_config, context)

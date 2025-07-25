@@ -40,19 +40,22 @@ class ProgressiveOutpaintStrategy(BaseExpansionStrategy):
         self.max_supported = 8.0
 
         # Outpaint settings from lines 59-68
-        self.outpaint_strength = 0.95  # High enough to generate content
+        # CRITICAL: Lower strength preserves more context
+        self.outpaint_strength = 0.75  # Balance between generation and preservation
         self.min_strength = 0.20  # Minimum strength for final passes
-        self.max_strength = 0.95  # Maximum strength
+        self.max_strength = 0.85  # Maximum strength - never go above 0.85
         self.outpaint_prompt_suffix = (
             ", seamless expansion, extended scenery, natural continuation"
         )
-        self.base_mask_blur = 32
+        # CRITICAL: Mask blur must be 40% of expansion size minimum
+        self.base_mask_blur = 32  # Base value, will be scaled up
         self.base_steps = 60
 
-        # Expansion ratios from lines 75-79 - REDUCED for maximum context
-        self.first_step_ratio = 1.4  # Was 2.0
-        self.middle_step_ratio = 1.25  # Was 1.5
-        self.final_step_ratio = 1.15  # Was 1.3
+        # Expansion ratios - restore original values for better context
+        # Smaller ratios = more steps = more context loss
+        self.first_step_ratio = 2.0  # Original value
+        self.middle_step_ratio = 1.5  # Original value  
+        self.final_step_ratio = 1.3  # Original value
 
     def _analyze_edge_colors(
         self, image: Image.Image, edge: str, sample_width: int = 50
@@ -105,6 +108,14 @@ class ProgressiveOutpaintStrategy(BaseExpansionStrategy):
     ) -> Dict[str, Any]:
         """Execute progressive outpainting strategy"""
         self._context = context or {}
+        
+        # Apply config values
+        self.outpaint_strength = config.denoising_strength if hasattr(config, 'denoising_strength') else 0.75
+        self.base_steps = config.num_inference_steps if hasattr(config, 'num_inference_steps') else 50
+        self.guidance_scale = config.guidance_scale if hasattr(config, 'guidance_scale') else 7.5
+        
+        # Store config for use in helper methods
+        self._current_config = config
 
         # IMPORTANT: This method needs access to inpaint_pipeline
         # Pipeline should be injected by orchestrator
@@ -265,25 +276,41 @@ class ProgressiveOutpaintStrategy(BaseExpansionStrategy):
         canvas = self._prefill_canvas_with_edge_colors(
             canvas, image, pad_left, pad_top, current_w, current_h
         )
-
-        # Enhance prompt
-        enhanced_prompt = prompt + self.outpaint_prompt_suffix
+        
+        # Analyze image for context-aware prompt enhancement
+        image_context = self._analyze_image_context(image)
+        
+        # Enhance prompt with image-specific context
+        enhanced_prompt = self._enhance_prompt_with_context(
+            prompt, image_context, step_info
+        )
 
         # Get adaptive parameters
         num_steps = self._get_adaptive_steps(step_info)
         guidance = self._get_adaptive_guidance(step_info)
+        
+        # Adaptive strength based on step type
+        strength = self._get_adaptive_strength(step_info)
 
         # Execute pipeline
         result = self.inpaint_pipeline(
             prompt=enhanced_prompt,
             image=canvas,
             mask_image=mask,
-            strength=self.outpaint_strength,
+            strength=strength,
             num_inference_steps=num_steps,
             guidance_scale=guidance,
             width=target_w,
             height=target_h,
         ).images[0]
+        
+        # CRITICAL: Two-pass approach for seamless blending
+        # Second pass to refine seams with lower denoising
+        if step_info.get("enable_seam_fix", True):
+            result = self._refine_seams(
+                result, canvas, mask, enhanced_prompt, 
+                current_w, current_h, pad_left, pad_top
+            )
 
         # Save result
         temp_path = self._save_temp_result(
@@ -355,30 +382,84 @@ class ProgressiveOutpaintStrategy(BaseExpansionStrategy):
         return Image.fromarray(canvas_array)
 
     def _get_adaptive_blur(self, step_info: Dict) -> int:
-        """Calculate adaptive mask blur based on expansion size"""
-        expansion_ratio = step_info.get("expansion_ratio", 1.5)
-        # Larger blur for larger expansions
-        if expansion_ratio > 1.8:
-            return int(self.base_mask_blur * 1.5)
-        elif expansion_ratio > 1.5:
-            return int(self.base_mask_blur * 1.2)
-        else:
-            return self.base_mask_blur
+        """Calculate adaptive mask blur based on expansion size
+        
+        CRITICAL: Must be 40% of new content dimension minimum
+        as per CLAUDE.md guidance for seamless blending
+        """
+        current_w, current_h = step_info["current_size"]
+        target_w, target_h = step_info["target_size"]
+        
+        # Calculate expansion dimensions
+        width_expansion = target_w - current_w
+        height_expansion = target_h - current_h
+        
+        # Get the larger expansion dimension
+        max_expansion = max(width_expansion, height_expansion)
+        
+        # CRITICAL: 40% of new content dimension minimum
+        optimal_blur = int(max_expansion * 0.4)
+        
+        # But ensure minimum blur for small expansions
+        return max(optimal_blur, self.base_mask_blur * 2)
 
     def _get_adaptive_steps(self, step_info: Dict) -> int:
         """Calculate adaptive inference steps"""
+        # Use config value if available
+        if hasattr(self, '_current_config') and hasattr(self._current_config, 'num_inference_steps'):
+            base_steps = self._current_config.num_inference_steps
+        else:
+            base_steps = self.base_steps
+            
         step_type = step_info.get("step_type", "progressive")
         if step_type == "initial":
-            return int(self.base_steps * 1.2)  # More steps for first expansion
+            return int(base_steps * 1.2)  # More steps for first expansion
         elif step_type == "final":
-            return int(self.base_steps * 0.8)  # Fewer steps for final touch
+            return int(base_steps * 0.8)  # Fewer steps for final touch
         else:
-            return self.base_steps
+            return base_steps
 
     def _get_adaptive_guidance(self, step_info: Dict) -> float:
         """Calculate adaptive guidance scale"""
+        # Use config value if available
+        if hasattr(self, '_current_config') and hasattr(self._current_config, 'guidance_scale'):
+            base_guidance = self._current_config.guidance_scale
+        else:
+            base_guidance = self.guidance_scale if hasattr(self, 'guidance_scale') else 7.5
+            
         # Lower guidance for better blending
-        return 7.5
+        return base_guidance
+    
+    def _get_adaptive_strength(self, step_info: Dict) -> float:
+        """Calculate adaptive denoising strength based on step
+        
+        CRITICAL: Must balance generation with preservation
+        Too high = disconnected content
+        Too low = no new content
+        """
+        step_type = step_info.get("step_type", "progressive")
+        expansion_ratio = step_info.get("expansion_ratio", 1.5)
+        
+        # Use config value if available, otherwise use instance default
+        if hasattr(self, '_current_config') and hasattr(self._current_config, 'denoising_strength'):
+            strength = self._current_config.denoising_strength
+        else:
+            strength = self.outpaint_strength
+        
+        # Adjust based on step type
+        if step_type == "initial":
+            # First step needs more generation
+            strength = min(strength * 1.1, self.max_strength)
+        elif step_type == "final":
+            # Final steps need more preservation
+            strength = max(strength * 0.8, self.min_strength)
+        
+        # Further adjust based on expansion size
+        if expansion_ratio > 2.0:
+            # Large expansions need careful balance
+            strength = min(strength, 0.8)
+        
+        return strength
 
     def _save_temp_result(self, image, old_w, old_h, new_w, new_h):
         """Save intermediate result"""
@@ -393,3 +474,159 @@ class ProgressiveOutpaintStrategy(BaseExpansionStrategy):
         image.save(save_path, "PNG", compress_level=0)
 
         return save_path
+    
+    def _analyze_image_context(self, image: Image.Image) -> Dict[str, Any]:
+        """Analyze image to understand its content and style for better prompting"""
+        img_array = np.array(image)
+        h, w = img_array.shape[:2]
+        
+        # Analyze color distribution
+        mean_color = np.mean(img_array, axis=(0, 1))
+        std_color = np.std(img_array, axis=(0, 1))
+        
+        # Detect if image is grayscale-ish
+        color_variance = np.std(mean_color)
+        is_monochrome = color_variance < 10
+        
+        # Analyze brightness
+        brightness = np.mean(img_array) / 255.0
+        is_dark = brightness < 0.3
+        is_bright = brightness > 0.7
+        
+        # Analyze contrast
+        contrast = np.std(img_array) / 255.0
+        is_high_contrast = contrast > 0.3
+        
+        # Edge complexity (simple metric)
+        edges = np.gradient(np.mean(img_array, axis=2))
+        edge_density = np.mean(np.abs(edges[0]) + np.abs(edges[1]))
+        is_detailed = edge_density > 20
+        
+        return {
+            "mean_color": mean_color.tolist(),
+            "is_monochrome": is_monochrome,
+            "is_dark": is_dark,
+            "is_bright": is_bright,
+            "is_high_contrast": is_high_contrast,
+            "is_detailed": is_detailed,
+            "brightness": float(brightness),
+            "contrast": float(contrast),
+            "edge_density": float(edge_density)
+        }
+    
+    def _enhance_prompt_with_context(
+        self, base_prompt: str, image_context: Dict[str, Any], step_info: Dict
+    ) -> str:
+        """Create context-aware prompt based on image analysis"""
+        # Start with base prompt
+        enhanced = base_prompt
+        
+        # Add style descriptors based on image analysis
+        style_additions = []
+        
+        if image_context["is_monochrome"]:
+            style_additions.append("monochrome")
+            style_additions.append("black and white")
+        
+        if image_context["is_dark"]:
+            style_additions.append("dark atmosphere")
+            style_additions.append("low key lighting")
+        elif image_context["is_bright"]:
+            style_additions.append("bright lighting")
+            style_additions.append("high key")
+        
+        if image_context["is_high_contrast"]:
+            style_additions.append("high contrast")
+            style_additions.append("dramatic lighting")
+        
+        if image_context["is_detailed"]:
+            style_additions.append("highly detailed")
+            style_additions.append("intricate")
+        
+        # Add style descriptors if any
+        if style_additions:
+            enhanced += ", " + ", ".join(style_additions)
+        
+        # Add expansion-specific suffixes
+        direction = step_info.get("direction", "both")
+        if direction == "horizontal":
+            enhanced += ", seamless horizontal continuation, extending scenery naturally to the sides"
+        elif direction == "vertical":
+            enhanced += ", seamless vertical expansion, natural sky and ground extension"
+        else:
+            enhanced += self.outpaint_prompt_suffix
+        
+        # Add quality descriptors
+        enhanced += ", maintaining consistent style and lighting, perfect seamless blend"
+        
+        return enhanced
+    
+    def _refine_seams(
+        self, 
+        initial_result: Image.Image,
+        original_canvas: Image.Image,
+        original_mask: Image.Image,
+        prompt: str,
+        current_w: int,
+        current_h: int,
+        pad_left: int,
+        pad_top: int
+    ) -> Image.Image:
+        """Second pass to refine seams with targeted inpainting"""
+        # Create a mask that focuses on the transition area
+        seam_mask = Image.new("L", initial_result.size, 0)
+        mask_draw = ImageDraw.Draw(seam_mask)
+        
+        # Define seam region (40% of expansion area as per CLAUDE.md)
+        seam_width = int(max(pad_left, pad_top) * 0.4)
+        if seam_width < 64:
+            seam_width = 64  # Minimum seam width
+        
+        # Create seam mask based on padding direction
+        if pad_left > 0:  # Left padding
+            mask_draw.rectangle(
+                [pad_left - seam_width//2, 0, 
+                 pad_left + current_w + seam_width//2, initial_result.height],
+                fill=255
+            )
+        if pad_top > 0:  # Top padding  
+            mask_draw.rectangle(
+                [0, pad_top - seam_width//2,
+                 initial_result.width, pad_top + current_h + seam_width//2],
+                fill=255
+            )
+        
+        # Right side seam if expanded right
+        right_pad = initial_result.width - (pad_left + current_w)
+        if right_pad > 0:
+            mask_draw.rectangle(
+                [pad_left + current_w - seam_width//2, 0,
+                 pad_left + current_w + seam_width//2, initial_result.height],
+                fill=255
+            )
+        
+        # Bottom seam if expanded down
+        bottom_pad = initial_result.height - (pad_top + current_h)
+        if bottom_pad > 0:
+            mask_draw.rectangle(
+                [0, pad_top + current_h - seam_width//2,
+                 initial_result.width, pad_top + current_h + seam_width//2],
+                fill=255
+            )
+        
+        # Apply heavy blur to seam mask for gradual transition
+        seam_mask = seam_mask.filter(ImageFilter.GaussianBlur(seam_width // 2))
+        
+        # Refine with very low denoising to blend seams
+        refined = self.inpaint_pipeline(
+            prompt=prompt + ", perfect seamless blend, no visible edges",
+            image=initial_result,
+            mask_image=seam_mask,
+            strength=min(0.3, self.outpaint_strength * 0.4),  # Use 40% of main strength
+            num_inference_steps=30,
+            guidance_scale=5.0,  # Lower guidance for better blending
+            width=initial_result.width,
+            height=initial_result.height,
+        ).images[0]
+        
+        return refined

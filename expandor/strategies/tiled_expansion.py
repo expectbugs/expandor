@@ -28,7 +28,7 @@ class TiledExpansionStrategy(BaseExpansionStrategy):
         # Default tile settings
         self.default_tile_size = 1024
         self.overlap = 256
-        self.blend_width = 128
+        self.blend_width = 256  # Increased for smoother tile blending
         self.min_tile_size = 512
         self.max_tile_size = 2048
 
@@ -267,9 +267,9 @@ class TiledExpansionStrategy(BaseExpansionStrategy):
             result = self.refiner_pipeline(
                 prompt=prompt,
                 image=tile,
-                strength=0.3,  # Light refinement
+                strength=0.2,  # Very light refinement to preserve details
                 num_inference_steps=20,
-                guidance_scale=7.5,
+                guidance_scale=6.5,  # Lower guidance for better preservation
             ).images[0]
             return result
         except Exception as e:
@@ -282,9 +282,9 @@ class TiledExpansionStrategy(BaseExpansionStrategy):
             result = self.img2img_pipeline(
                 prompt=prompt,
                 image=tile,
-                strength=0.5,
+                strength=0.3,  # Lower strength to preserve tile coherence
                 num_inference_steps=30,
-                guidance_scale=7.5,
+                guidance_scale=7.0,
             ).images[0]
             return result
         except Exception as e:
@@ -301,9 +301,9 @@ class TiledExpansionStrategy(BaseExpansionStrategy):
                 prompt=prompt,
                 image=tile,
                 mask_image=mask,
-                strength=0.7,
+                strength=0.4,  # Much lower for tile processing
                 num_inference_steps=40,
-                guidance_scale=7.5,
+                guidance_scale=7.0,
             ).images[0]
             return result
         except Exception as e:

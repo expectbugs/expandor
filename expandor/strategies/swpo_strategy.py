@@ -65,9 +65,9 @@ class SWPOStrategy(BaseExpansionStrategy):
         self.default_window_size = strategy_config.get("window_size", 200)
         self.default_overlap_ratio = strategy_config.get("overlap_ratio", 0.8)
         self.default_denoising_strength = strategy_config.get(
-            "denoising_strength", 0.95
+            "denoising_strength", 0.75  # Lower for better context preservation
         )
-        self.default_edge_blur_width = strategy_config.get("edge_blur_width", 20)
+        self.default_edge_blur_width = strategy_config.get("edge_blur_width", 50)  # Increased for smoother transitions
         self.clear_cache_every_n_windows = strategy_config.get("clear_cache_every", 5)
 
     def validate_requirements(self):
@@ -590,9 +590,16 @@ class SWPOStrategy(BaseExpansionStrategy):
                         gradient_np
                     )
                 mask = Image.fromarray(mask_np)
+        
+        # CRITICAL: Apply differential diffusion concept
+        # Use varying mask opacity for better blending
+        mask = self._apply_differential_mask(mask, window.expansion_type)
 
         # Apply edge blur for seamless transition
-        edge_blur = getattr(config, "edge_blur_radius", self.default_edge_blur_width)
+        # CRITICAL: Calculate blur based on expansion size (40% minimum)
+        expansion_size = window.expansion_size
+        optimal_blur = max(int(expansion_size * 0.4), self.default_edge_blur_width)
+        edge_blur = getattr(config, "edge_blur_radius", optimal_blur)
         mask = mask.filter(ImageFilter.GaussianBlur(edge_blur))
 
         # Edge analysis for color continuity
@@ -605,16 +612,25 @@ class SWPOStrategy(BaseExpansionStrategy):
         # Add noise to masked areas (improves generation)
         canvas = self._add_noise_to_mask(canvas, mask, strength=0.02)
 
+        # Analyze source image context for better prompting
+        source_context = self._analyze_source_context(canvas, mask)
+        
+        # Enhance prompt with context and direction
+        enhanced_prompt = self._enhance_window_prompt(
+            config.prompt, source_context, window
+        )
+        
         # Execute inpainting
         try:
             result = self.inpaint_pipeline(
-                prompt=config.prompt,
+                prompt=enhanced_prompt,
                 image=canvas,
                 mask_image=mask,
                 height=window_h,
                 width=window_w,
-                strength=getattr(
-                    config, "denoising_strength", self.default_denoising_strength
+                # Adaptive strength based on window properties
+                strength=self._calculate_window_strength(
+                    window, getattr(config, "denoising_strength", self.default_denoising_strength)
                 ),
                 num_inference_steps=self._calculate_steps(window.expansion_size),
                 guidance_scale=self._calculate_guidance_scale(window.expansion_size),
@@ -816,12 +832,164 @@ class SWPOStrategy(BaseExpansionStrategy):
 
     def _calculate_guidance_scale(self, expansion_size: int) -> float:
         """Calculate guidance scale based on expansion size"""
-        # Higher guidance for larger expansions
+        # Moderate guidance for better blending
         if expansion_size < 100:
-            return 7.0
+            return 6.5
         elif expansion_size < 300:
-            return 7.5
+            return 7.0
         elif expansion_size < 500:
-            return 8.0
+            return 7.5
         else:
-            return 8.5
+            return 8.0
+    
+    def _calculate_window_strength(self, window: SWPOWindow, base_strength: float) -> float:
+        """Calculate adaptive strength for each window
+        
+        CRITICAL: Balance generation with preservation
+        First windows need more generation, later windows need more preservation
+        """
+        # Start with base
+        strength = base_strength
+        
+        # Adjust based on window position
+        if window.is_first:
+            # First window needs more generation but not too much
+            strength = min(strength * 1.05, 0.85)
+        elif window.is_last:
+            # Last window needs more preservation
+            strength = max(strength * 0.9, 0.6)
+        else:
+            # Middle windows balance both
+            strength = min(strength, 0.75)
+        
+        # Further adjust based on overlap
+        if window.overlap_size > 0:
+            # More overlap = need more preservation
+            overlap_ratio = window.overlap_size / window.expansion_size
+            if overlap_ratio > 0.5:
+                strength *= 0.95
+        
+        return strength
+    
+    def _analyze_source_context(self, image: Image.Image, mask: Image.Image) -> Dict[str, Any]:
+        """Analyze the source content near expansion area for context"""
+        img_array = np.array(image)
+        mask_array = np.array(mask)
+        
+        # Find edge region (where mask transitions)
+        edge_mask = np.zeros_like(mask_array)
+        kernel_size = 20
+        
+        # Dilate and subtract to find edge
+        from scipy import ndimage
+        dilated = ndimage.binary_dilation(mask_array > 128, iterations=kernel_size//2)
+        eroded = ndimage.binary_erosion(mask_array < 128, iterations=kernel_size//2)
+        edge_mask = dilated & eroded
+        
+        # Sample colors from edge region
+        edge_pixels = img_array[edge_mask]
+        
+        if len(edge_pixels) > 0:
+            edge_mean = np.mean(edge_pixels, axis=0)
+            edge_std = np.std(edge_pixels, axis=0)
+            
+            # Analyze texture complexity
+            gray_edge = np.mean(edge_pixels, axis=1)
+            texture_variance = np.var(gray_edge)
+            
+            return {
+                "edge_color_mean": edge_mean.tolist(),
+                "edge_color_std": edge_std.tolist(),
+                "texture_complexity": float(texture_variance),
+                "has_high_frequency": texture_variance > 500,
+                "is_smooth": texture_variance < 100
+            }
+        
+        return {"edge_color_mean": [128, 128, 128], "texture_complexity": 0}
+    
+    def _enhance_window_prompt(
+        self, base_prompt: str, context: Dict[str, Any], window: SWPOWindow
+    ) -> str:
+        """Enhance prompt based on window position and image context"""
+        enhanced = base_prompt
+        
+        # Add texture descriptors
+        if context.get("has_high_frequency", False):
+            enhanced += ", detailed texture, high frequency details preserved"
+        elif context.get("is_smooth", False):
+            enhanced += ", smooth gradients, soft transitions"
+        
+        # Add direction-specific guidance
+        if window.expansion_type == "horizontal":
+            if window.is_first:
+                enhanced += ", seamless left/right expansion, natural horizontal continuation"
+            else:
+                enhanced += ", continuing horizontal flow, maintaining perspective"
+        else:  # vertical
+            if window.is_first:
+                enhanced += ", seamless top/bottom expansion, natural vertical continuation"
+            else:
+                enhanced += ", continuing vertical elements, consistent lighting"
+        
+        # Add window-specific guidance
+        if not window.is_first:
+            enhanced += ", perfectly matching existing content, no visible seams"
+        
+        # Always end with quality emphasis
+        enhanced += ", ultra high quality, photorealistic blending"
+        
+        return enhanced
+    
+    def _apply_differential_mask(self, mask: Image.Image, expansion_type: str) -> Image.Image:
+        """Apply differential diffusion concept with varying mask opacity
+        
+        Based on latest research showing that varying mask opacity
+        creates better blends than binary masks
+        """
+        mask_np = np.array(mask, dtype=np.float32) / 255.0
+        
+        # Create differential zones
+        # Zone 1: Full generation (white - 255)
+        # Zone 2: High blend (light gray - 200)  
+        # Zone 3: Medium blend (gray - 150)
+        # Zone 4: Light blend (dark gray - 100)
+        # Zone 5: Preserve (black - 0)
+        
+        # Find transition regions
+        h, w = mask_np.shape
+        
+        # Apply multi-level opacity based on distance from edge
+        for y in range(h):
+            for x in range(w):
+                if mask_np[y, x] > 0.9:  # Full generation area
+                    # Find distance to nearest black pixel
+                    dist_to_edge = self._min_distance_to_black(mask_np, x, y, max_dist=100)
+                    
+                    if dist_to_edge < 20:
+                        mask_np[y, x] = 0.78  # ~200/255 - high blend
+                    elif dist_to_edge < 40:
+                        mask_np[y, x] = 0.9   # ~230/255 - very high blend
+                    # else keep at 1.0 for full generation
+        
+        # Convert back to image
+        return Image.fromarray((mask_np * 255).astype(np.uint8))
+    
+    def _min_distance_to_black(self, mask: np.ndarray, x: int, y: int, max_dist: int) -> int:
+        """Find minimum distance to a black (preserved) pixel"""
+        h, w = mask.shape
+        
+        for d in range(1, max_dist):
+            # Check square perimeter at distance d
+            for dx in range(-d, d+1):
+                for dy in [-d, d]:  # Top and bottom edges
+                    nx, ny = x + dx, y + dy
+                    if 0 <= nx < w and 0 <= ny < h and mask[ny, nx] < 0.1:
+                        return d
+            
+            for dy in range(-d+1, d):  # Left and right edges (excluding corners)
+                for dx in [-d, d]:
+                    nx, ny = x + dx, y + dy
+                    if 0 <= nx < w and 0 <= ny < h and mask[ny, nx] < 0.1:
+                        return d
+        
+        return max_dist

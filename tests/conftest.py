@@ -16,6 +16,7 @@ from expandor.adapters.mock_pipeline import (
     MockInpaintPipeline,
     MockRefinerPipeline,
 )
+from expandor.adapters.mock_pipeline_adapter import MockPipelineAdapter
 
 
 @pytest.fixture
@@ -114,16 +115,18 @@ def expandor_config(test_image_square):
 
 
 @pytest.fixture
-def expandor_with_mocks(mock_pipelines):
-    """Create Expandor instance with mock pipelines"""
+def mock_adapter():
+    """Create mock pipeline adapter for testing"""
+    return MockPipelineAdapter(device="cpu", dtype="fp32")
+
+
+@pytest.fixture
+def expandor_with_mocks(mock_adapter):
+    """Create Expandor instance with mock adapter"""
     from expandor import Expandor
 
-    expandor = Expandor()
-
-    # Register mock pipelines
-    for name, pipeline in mock_pipelines.items():
-        expandor.register_pipeline(name, pipeline)
-
+    # New API: Expandor requires an adapter
+    expandor = Expandor(mock_adapter)
     return expandor
 
 

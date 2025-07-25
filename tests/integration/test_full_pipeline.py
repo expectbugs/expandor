@@ -9,7 +9,6 @@ import pytest
 from PIL import ImageDraw
 
 from expandor import Expandor
-from expandor.adapters.mock_pipeline import MockImg2ImgPipeline, MockInpaintPipeline
 from expandor.core.config import ExpandorConfig
 from expandor.core.exceptions import ExpandorError, VRAMError
 
@@ -20,16 +19,14 @@ class TestFullPipelineIntegration(BaseIntegrationTest):
     """Test complete expansion pipelines"""
 
     def test_simple_upscale(
-        self, expandor, test_image_small, mock_img2img_pipeline, temp_dir
+        self, expandor, test_image_small, temp_dir
     ):
         """Test simple 2x upscale"""
-        # Register the mock pipeline to make it available
-        expandor.register_pipeline("img2img", mock_img2img_pipeline)
+        # Pipelines are now provided by the adapter
 
         config = self.create_config(
             source_image=test_image_small,
             target_resolution=(1024, 1024),  # 2x upscale
-            img2img_pipeline=mock_img2img_pipeline,
             stage_dir=temp_dir / "stages",
         )
 
@@ -56,13 +53,12 @@ class TestFullPipelineIntegration(BaseIntegrationTest):
         self.check_no_artifacts(result)
 
     def test_progressive_expansion(
-        self, expandor, test_image_1080p, mock_inpaint_pipeline, temp_dir
+        self, expandor, test_image_1080p, temp_dir
     ):
         """Test progressive outpainting for aspect ratio change"""
         config = self.create_config(
             source_image=test_image_1080p,
             target_resolution=(2560, 1440),  # 16:9 to 16:9 with expansion
-            inpaint_pipeline=mock_inpaint_pipeline,
             quality_preset="high",
             stage_dir=temp_dir / "stages",
         )
@@ -84,13 +80,12 @@ class TestFullPipelineIntegration(BaseIntegrationTest):
         )
 
     def test_extreme_aspect_ratio_change(
-        self, expandor, test_image_1080p, mock_inpaint_pipeline, temp_dir
+        self, expandor, test_image_1080p, temp_dir
     ):
         """Test extreme aspect ratio change (16:9 to 32:9)"""
         config = self.create_config(
             source_image=test_image_1080p,
             target_resolution=(3840, 1080),  # Double width
-            inpaint_pipeline=mock_inpaint_pipeline,
             quality_preset="balanced",
             window_size=300,
             overlap_ratio=0.8,
@@ -112,7 +107,7 @@ class TestFullPipelineIntegration(BaseIntegrationTest):
         ]
 
     def test_vram_constrained_expansion(
-        self, expandor, test_image_4k, mock_inpaint_pipeline, temp_dir, monkeypatch
+        self, expandor, test_image_4k, temp_dir, monkeypatch
     ):
         """Test expansion with limited VRAM"""
 
@@ -127,7 +122,6 @@ class TestFullPipelineIntegration(BaseIntegrationTest):
         config = self.create_config(
             source_image=test_image_4k,
             target_resolution=(7680, 4320),  # 8K target
-            inpaint_pipeline=mock_inpaint_pipeline,
             allow_tiled=True,
             allow_cpu_offload=True,
             stage_dir=temp_dir / "stages",
@@ -162,7 +156,7 @@ class TestFullPipelineIntegration(BaseIntegrationTest):
         # Should have clear error message
         assert "pipeline" in str(exc_info.value).lower()
 
-    def test_quality_enforcement(self, expandor, mock_inpaint_pipeline, temp_dir):
+    def test_quality_enforcement(self, expandor, temp_dir):
         """Test quality enforcement with auto-refinement"""
         # Create image with intentional seam
         img = self.create_test_image(512, 512, pattern="solid")
@@ -173,7 +167,6 @@ class TestFullPipelineIntegration(BaseIntegrationTest):
         config = self.create_config(
             source_image=img,
             target_resolution=(1024, 512),  # Horizontal expansion
-            inpaint_pipeline=mock_inpaint_pipeline,
             quality_preset="ultra",
             auto_refine=True,
             stage_dir=temp_dir / "stages",
@@ -190,7 +183,7 @@ class TestFullPipelineIntegration(BaseIntegrationTest):
         )
 
     def test_stage_saving(
-        self, expandor, test_image_small, mock_inpaint_pipeline, temp_dir
+        self, expandor, test_image_small, temp_dir
     ):
         """Test that stages are saved correctly"""
         stage_dir = temp_dir / "stages"
@@ -198,7 +191,6 @@ class TestFullPipelineIntegration(BaseIntegrationTest):
         config = self.create_config(
             source_image=test_image_small,
             target_resolution=(768, 768),  # Requires processing
-            inpaint_pipeline=mock_inpaint_pipeline,
             save_stages=True,
             stage_dir=stage_dir,
         )
@@ -218,13 +210,12 @@ class TestFullPipelineIntegration(BaseIntegrationTest):
             assert img.size[0] > 0 and img.size[1] > 0
 
     def test_metadata_completeness(
-        self, expandor, test_image_small, mock_inpaint_pipeline, temp_dir
+        self, expandor, test_image_small, temp_dir
     ):
         """Test that metadata is complete"""
         config = self.create_config(
             source_image=test_image_small,
             target_resolution=(1024, 768),
-            inpaint_pipeline=mock_inpaint_pipeline,
             stage_dir=temp_dir / "stages",
         )
 
