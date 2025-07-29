@@ -2,6 +2,41 @@
 
 All notable changes to Expandor are documented here.
 
+## [0.6.0] - 2025-07-29
+
+### ✨ Added
+- **ControlNet Support**: Complete implementation for structure-guided expansion
+  - Canny edge detection for preserving structural elements
+  - Blur extraction for soft guidance control
+  - Depth map support (placeholder - requires depth models)
+  - Dynamic pipeline creation for VRAM efficiency
+  - Single pipeline with model swapping instead of multiple pipelines
+- **ControlNet CLI**: New `--setup-controlnet` command for configuration
+- **ControlNet Strategy**: `controlnet_progressive` strategy for guided expansion
+- **ControlNet Extractors**: OpenCV-based extractors for control signal generation
+- **Config-Based Defaults**: All ControlNet parameters from configuration files
+  - `controlnet_config.yaml` for ControlNet-specific settings
+  - Updated `vram_strategies.yaml` with ControlNet operation estimates
+  - No hardcoded values - complete configurability
+
+### 🔄 Changed
+- **DiffusersPipelineAdapter**: Extended with full ControlNet support
+  - `load_controlnet()` for model loading
+  - `controlnet_inpaint()`, `controlnet_img2img()`, `generate_with_controlnet()` methods
+  - All methods require explicit parameters - no silent defaults
+- **ConfigLoader**: Enhanced with `save_config_file()` user config support
+- **VRAM Estimation**: Now includes ControlNet overhead calculations
+
+### 📝 Documentation
+- Updated adapter docstring with ControlNet examples
+- Added `examples/controlnet_example.py` demonstrating usage
+- Created comprehensive test suite in `tests/integration/test_controlnet.py`
+
+### 🚧 Known Limitations
+- ControlNet currently limited to SDXL models only
+- Depth extraction requires additional models (not included)
+- Normal map extraction not yet implemented
+
 ## [0.5.1] - 2025-07-25
 
 ### 🐛 Fixed

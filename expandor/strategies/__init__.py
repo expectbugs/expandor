@@ -16,6 +16,7 @@ STRATEGY_REGISTRY = {
     "swpo": "swpo_strategy.SWPOStrategy",
     "cpu_offload": "cpu_offload.CPUOffloadStrategy",
     "hybrid_adaptive": "experimental.hybrid_adaptive.HybridAdaptiveStrategy",
+    "controlnet_progressive": "controlnet_progressive.ControlNetProgressiveStrategy",
 }
 
 
@@ -71,6 +72,15 @@ from .progressive_outpaint import ProgressiveOutpaintStrategy
 from .direct_upscale import DirectUpscaleStrategy
 # from .tiled_expansion import TiledExpansionStrategy  # Not implemented yet
 
+# Optional ControlNet strategy - only available if ControlNet extractors are available
+try:
+    from .controlnet_progressive import ControlNetProgressiveStrategy
+    HAS_CONTROLNET_STRATEGY = True
+except ImportError:
+    # This is NOT an error - ControlNet is optional
+    HAS_CONTROLNET_STRATEGY = False
+    ControlNetProgressiveStrategy = None
+
 __all__ = [
     "BaseExpansionStrategy",
     "ProgressiveOutpaintStrategy",
@@ -80,3 +90,7 @@ __all__ = [
     "STRATEGY_REGISTRY",
     "get_strategy_class",
 ]
+
+# Only add to exports if available
+if HAS_CONTROLNET_STRATEGY:
+    __all__.append("ControlNetProgressiveStrategy")

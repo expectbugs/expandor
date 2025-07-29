@@ -1,6 +1,6 @@
 # Expandor: Universal Image Resolution Adaptation System
 
-[![Version](https://img.shields.io/badge/version-0.4.0-blue.svg)](https://github.com/yourusername/expandor)
+[![Version](https://img.shields.io/badge/version-0.6.0-blue.svg)](https://github.com/yourusername/expandor)
 [![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -10,6 +10,7 @@ Expandor is a powerful, model-agnostic image resolution and aspect ratio adaptat
 
 - **Universal Compatibility**: Works with any image generation pipeline (Diffusers, ComfyUI, A1111, custom)
 - **Intelligent Strategy Selection**: Automatically chooses the best expansion method based on your hardware and requirements
+- **ControlNet Support**: Structure-guided expansion using Canny edges, blur, and depth maps
 - **VRAM-Aware Processing**: Adapts to available GPU memory with automatic fallback strategies
 - **Extreme Aspect Ratio Support**: Handle expansions up to 8x with specialized algorithms
 - **Production-Ready CLI**: Full-featured command-line interface with batch processing
@@ -48,6 +49,9 @@ pip install expandor[diffusers]
 
 # All features
 pip install expandor[all]
+
+# With ControlNet support
+pip install expandor[diffusers] opencv-python
 
 # Development
 pip install expandor[dev]
@@ -124,16 +128,23 @@ expandor --test
 expandor --version
 ```
 
-## What's New in v0.4.0
+## What's New in v0.6.0
 
-- ✅ Production-ready CLI interface
-- ✅ Automatic model management
-- ✅ Smart VRAM handling
-- ✅ LoRA support
-- ✅ Better error messages
-- ❌ Breaking: Requires adapter for initialization
+- ✅ Full ControlNet implementation for structure-guided expansion
+- ✅ Canny edge detection for preserving structural elements
+- ✅ Blur and depth extraction support
+- ✅ ControlNetProgressiveStrategy for guided expansion
+- ✅ Dynamic pipeline management for VRAM efficiency
+- ✅ CLI setup command: `expandor --setup-controlnet`
+- ✅ Comprehensive test suite and examples
 
 See [CHANGELOG.md](CHANGELOG.md) for details.
+
+# ControlNet setup
+expandor --setup-controlnet
+
+# Structure-preserving expansion
+expandor building.jpg -r 4K --strategy controlnet_progressive
 
 # With LoRA stacking
 expandor input.jpg --resolution 4K --lora style_anime --lora detail_enhance
@@ -164,35 +175,43 @@ Run `expandor --help` for full options.
 ### Python API
 
 ```python
-from expandor import Expandor
-from expandor.core.config import ExpandorConfig
+from expandor import Expandor, ExpandorConfig
 from expandor.adapters import DiffusersPipelineAdapter
 
 # Basic expansion
-expandor = Expandor(
-    pipeline_adapter=DiffusersPipelineAdapter(),
-    config=ExpandorConfig(target_width=3840, target_height=2160)
+adapter = DiffusersPipelineAdapter(
+    model_id="stabilityai/stable-diffusion-xl-base-1.0"
 )
-result = expandor.expand(image)
+expandor = Expandor(adapter)
 
-# With custom pipeline parameters
 config = ExpandorConfig(
-    target_width=2560,
-    target_height=1440,
-    custom_pipeline_params={
-        'guidance_scale': 7.5,
-        'num_inference_steps': 50
+    source_image="photo.jpg",
+    target_resolution=(3840, 2160),
+    quality_preset="high"
+)
+result = expandor.expand(config)
+
+# ControlNet expansion (structure-guided)
+adapter.load_controlnet("diffusers/controlnet-canny-sdxl-1.0", "canny")
+
+config = ExpandorConfig(
+    source_image="architecture.jpg",
+    target_resolution=(3840, 2160),
+    strategy="controlnet_progressive",
+    prompt="high quality architectural photograph",
+    strategy_params={
+        "controlnet_config": {
+            "control_type": "canny",
+            "controlnet_strength": 0.8,
+            "extract_at_each_step": True,
+            "canny_low_threshold": 100,
+            "canny_high_threshold": 200,
+            "canny_dilate": False,
+            "canny_l2_gradient": False
+        }
     }
 )
-
-# Memory-efficient processing
-config = ExpandorConfig(
-    target_width=7680,
-    target_height=4320,
-    strategy='tiled',
-    tile_size=512,
-    enable_memory_efficient=True
-)
+result = expandor.expand(config)
 ```
 
 ## ⚙️ Configuration
@@ -257,6 +276,12 @@ Expandor includes multiple expansion strategies:
 - Sliding window approach with overlap
 - Perfect for ultrawide conversions
 
+### ControlNet Progressive
+- Best for: Structure-preserving expansions
+- Uses edge detection or other control signals
+- Maintains architectural and geometric integrity
+- Supports Canny, blur, and depth guidance
+
 ### Tiled Processing
 - Best for: Limited VRAM situations
 - Processes image in tiles
@@ -268,6 +293,7 @@ Let Expandor choose the optimal strategy based on:
 - Aspect ratio change
 - Available VRAM
 - Quality requirements
+- ControlNet availability
 
 ## 📚 Examples
 
@@ -277,12 +303,13 @@ Check the `examples/` directory for comprehensive examples:
 - `batch_processing.py`: Processing multiple images
 - `custom_config.py`: Advanced configuration
 - `advanced_features.py`: LoRA stacking, metadata, debugging
+- `controlnet_example.py`: Structure-guided expansion with ControlNet
 
 ## 🔧 Pipeline Adapters
 
 ### Supported Adapters
 
-- **DiffusersPipelineAdapter**: For Hugging Face Diffusers
+- **DiffusersPipelineAdapter**: For Hugging Face Diffusers (with ControlNet support)
 - **ComfyUIPipelineAdapter**: For ComfyUI integration (coming soon)
 - **A1111PipelineAdapter**: For Automatic1111 WebUI (coming soon)
 - **MockPipelineAdapter**: For testing and development

@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-Expandor is a standalone, model-agnostic image resolution and aspect ratio adaptation system that transforms ANY image to ANY resolution with maximum quality using AI enhancement. Currently at v0.4.0 with Phase 4 complete, it provides intelligent strategy selection, seamless integration with AI models, and maintains the project's core philosophy of "quality over all" with no silent failures.
+Expandor is a standalone, model-agnostic image resolution and aspect ratio adaptation system that transforms ANY image to ANY resolution with maximum quality using AI enhancement. Currently at v0.6.0 with Phase 5 (ControlNet) complete, it provides intelligent strategy selection, seamless integration with AI models, structure-guided expansion via ControlNet, and maintains the project's core philosophy of "quality over all" with no silent failures.
 
 ## Current Status
 
@@ -27,18 +27,29 @@ Expandor is a standalone, model-agnostic image resolution and aspect ratio adapt
 - Quality thresholds configurable via YAML
 
 **Partial Features (As Designed):**
-- ControlNet: Can load models but not generate (Phase 5)
-- ComfyUI/A1111: Documented placeholder adapters (Phase 5)
+- ComfyUI/A1111: Documented placeholder adapters (Phase 6)
 
 **Known Limitations:**
-- API mismatch between tests and core (Phase 5)
-- 712 flake8 style warnings (no functional impact)
+- 166 flake8 style warnings (77% reduction from 712)
+- ControlNet currently limited to SDXL models only
+- Depth extraction requires additional models
 
-### 📋 Phase 5: Planned
-- Align ExpandorConfig API with core implementation
-- Full ControlNet generation support
+### ✅ Phase 5: ControlNet Implementation (Complete)
+**Implemented:**
+- Full ControlNet generation support for structure-guided expansion
+- Canny edge detection for structure preservation
+- Blur extraction for soft guidance control
+- Depth extraction support (requires depth models)
+- ControlNetProgressiveStrategy for guided expansion
+- Dynamic pipeline management for VRAM efficiency
+- Configuration system via controlnet_config.yaml
+- CLI setup command: `expandor --setup-controlnet`
+- Comprehensive test suite and examples
+- Aligned ExpandorConfig API across codebase
+
+### 📋 Phase 6: Planned
 - Complete ComfyUI and A1111 adapter implementations
-- Fix all code style issues
+- Fix remaining code style issues
 - Performance benchmarks and optimizations
 
 ## Core Philosophy
@@ -102,6 +113,12 @@ expandor *.jpg --batch output/ -r 2x
 
 # With specific model
 expandor image.png --model sdxl --strategy progressive
+
+# Setup ControlNet
+expandor --setup-controlnet
+
+# Use ControlNet for structure-preserving expansion
+expandor architecture.jpg -r 4K --strategy controlnet_progressive
 ```
 
 ### Python API
@@ -115,13 +132,35 @@ adapter = DiffusersPipelineAdapter(
 )
 expandor = Expandor(adapter)
 
-# Expand
+# Basic expansion
 from expandor.core.config import ExpandorConfig
 
 config = ExpandorConfig(
     source_image="photo.jpg",
     target_resolution=(3840, 2160),
     quality_preset="ultra"
+)
+result = expandor.expand(config)
+
+# ControlNet expansion (structure-guided)
+adapter.load_controlnet("diffusers/controlnet-canny-sdxl-1.0", "canny")
+
+config = ExpandorConfig(
+    source_image="architecture.jpg",
+    target_resolution=(3840, 2160),
+    strategy="controlnet_progressive",
+    prompt="high quality architectural photograph",
+    strategy_params={
+        "controlnet_config": {
+            "control_type": "canny",
+            "controlnet_strength": 0.8,
+            "extract_at_each_step": True,
+            "canny_low_threshold": 100,
+            "canny_high_threshold": 200,
+            "canny_dilate": False,
+            "canny_l2_gradient": False
+        }
+    }
 )
 result = expandor.expand(config)
 ```
@@ -136,10 +175,12 @@ Fix critical issues and complete CLI:
 4. Complete testing scripts
 5. Update documentation
 
-### Phase 5: ControlNet Integration (1 week)
+### Phase 5: ControlNet Integration (✅ Complete)
 - Full ControlNet implementation for structure-guided expansion
 - Control extractors (Canny, Depth, Blur)
 - Controlled progressive strategies
+- Dynamic pipeline management
+- Complete configuration system
 
 ### Phase 6: Real Adapters (3-4 days)
 - Complete ComfyUI adapter
@@ -167,10 +208,11 @@ Fix critical issues and complete CLI:
 
 ## Known Limitations
 
-1. **ControlNet**: Model loading only, generation in Phase 5
-2. **ComfyUI/A1111**: Placeholder adapters for Phase 5
-3. **Real-ESRGAN**: Requires separate installation
-4. **SD 3.5**: Planned for Phase 7
+1. **ControlNet**: Currently limited to SDXL models only
+2. **Depth Extraction**: Requires separate depth estimation models
+3. **ComfyUI/A1111**: Placeholder adapters for Phase 6
+4. **Real-ESRGAN**: Requires separate installation
+5. **SD 3.5**: Planned for Phase 7
 
 ## Getting Started
 

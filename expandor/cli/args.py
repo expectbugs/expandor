@@ -231,6 +231,14 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--setup", action="store_true", help="Run interactive setup wizard"
     )
+    
+    parser.add_argument(
+        "--setup-controlnet", action="store_true", help="Set up ControlNet configuration files"
+    )
+    
+    parser.add_argument(
+        "--force", action="store_true", help="Force overwrite existing configuration files (used with --setup-controlnet)"
+    )
 
     parser.add_argument(
         "--test", action="store_true", help="Test configuration and model availability"

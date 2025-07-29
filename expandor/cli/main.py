@@ -30,6 +30,77 @@ from .utils import (
 )
 
 
+def setup_controlnet(args, logger):
+    """Set up ControlNet configuration files"""
+    from ..utils.config_loader import ConfigLoader
+    from ..utils.config_defaults import (
+        create_default_controlnet_config,
+        update_vram_strategies_with_defaults
+    )
+    
+    # Determine config directory
+    config_dir = args.config.parent if args.config else (Path.home() / ".config" / "expandor")
+    config_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Initialize config loader
+    config_loader = ConfigLoader(config_dir, logger=logger)
+    
+    # Check existing files
+    controlnet_config_path = config_dir / "controlnet_config.yaml"
+    vram_config_path = config_dir / "vram_strategies.yaml"
+    
+    # Handle ControlNet config
+    force = hasattr(args, 'force') and args.force
+    if controlnet_config_path.exists() and not force:
+        logger.warning(f"ControlNet config already exists: {controlnet_config_path}")
+        logger.info("Use --force to overwrite")
+    else:
+        try:
+            config = create_default_controlnet_config()
+            config_loader.save_config_file(
+                "controlnet_config.yaml",
+                config,
+                user_config=True
+            )
+            logger.info(f"✓ Created ControlNet config: {controlnet_config_path}")
+        except Exception as e:
+            logger.error(f"Failed to create ControlNet config: {e}")
+            return 1
+    
+    # Update VRAM strategies if needed
+    try:
+        if vram_config_path.exists():
+            # Load existing config
+            vram_config = config_loader.load_config_file("vram_strategies.yaml")
+            
+            # Check if operation_estimates exists
+            if "operation_estimates" not in vram_config:
+                logger.info("Adding operation_estimates to vram_strategies.yaml")
+                updates = update_vram_strategies_with_defaults()
+                vram_config.update(updates)
+                
+                config_loader.save_config_file(
+                    "vram_strategies.yaml",
+                    vram_config,
+                    user_config=True
+                )
+                logger.info("✓ Updated VRAM strategies config")
+            else:
+                logger.info("VRAM strategies already has operation_estimates")
+        else:
+            logger.warning(
+                f"vram_strategies.yaml not found at {vram_config_path}\n"
+                "Run 'expandor --setup' to create base configuration first"
+            )
+    except Exception as e:
+        logger.error(f"Failed to update VRAM config: {e}")
+        return 1
+    
+    logger.info("\n✓ ControlNet setup complete!")
+    logger.info("You can now use ControlNet features with Expandor")
+    return 0
+
+
 def main():
     """Main CLI entry point"""
     # Parse arguments
@@ -45,6 +116,9 @@ def main():
         wizard = SetupWizard()
         wizard.run()
         return 0
+    
+    if hasattr(args, 'setup_controlnet') and args.setup_controlnet:
+        return setup_controlnet(args, logger)
 
     if args.test:
         success = test_configuration(args.config)
