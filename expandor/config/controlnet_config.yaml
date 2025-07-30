@@ -1,0 +1,82 @@
+# ControlNet Configuration
+# All values have sensible defaults but can be customized
+
+# Default parameter values for all ControlNet operations
+defaults:
+  negative_prompt: ""
+  controlnet_strength: 1.0
+  strength: 0.8
+  num_inference_steps: 50
+  guidance_scale: 7.5
+
+# Extractor settings
+extractors:
+  canny:
+    # Threshold values with sensible defaults
+    low_threshold_min: 0
+    low_threshold_max: 255
+    high_threshold_min: 0
+    high_threshold_max: 255
+    # Default Canny thresholds
+    default_low_threshold: 100
+    default_high_threshold: 200
+    # Kernel parameters for dilation
+    kernel_size: 3
+    dilation_iterations: 1
+    
+  blur:
+    # Blur types
+    valid_types: ["gaussian", "box", "motion"]
+    # Motion blur parameters with defaults
+    motion_kernel_multiplier: 2
+    motion_kernel_offset: 1
+    # Default blur radius
+    default_radius: 5
+    
+  depth:
+    # Model for depth extraction
+    model_id: "Intel/dpt-large"
+    # Depth normalization
+    normalize: true
+    invert: false
+    
+  resampling:
+    # PIL resampling method
+    method: "LANCZOS"
+
+# Pipeline settings
+pipelines:
+  # SDXL dimension requirements
+  dimension_multiple: 8
+  # FAIL LOUD on invalid dimensions - NO AUTO-RESIZE
+  validate_dimensions: true
+
+# Model references - these are defaults that can be customized
+# Users can change these to use different ControlNet models
+# Example: "canny": "your-username/your-custom-canny-model"
+models:
+  sdxl:
+    # Default HuggingFace model IDs - CUSTOMIZABLE
+    canny: "diffusers/controlnet-canny-sdxl-1.0"
+    depth: "diffusers/controlnet-depth-sdxl-1.0" 
+    openpose: "diffusers/controlnet-openpose-sdxl-1.0"
+    # Add custom models here:
+    # custom_type: "your-model-id"
+  # Add support for other model types:
+  # sd15:
+  #   canny: "lllyasviel/sd-controlnet-canny"
+  #   ...
+
+# Strategy settings
+strategy:
+  # Default values for strategies - users can override
+  default_extract_at_each_step: true
+
+# VRAM overhead estimates (MB)
+vram_overhead:
+  model_load: 2000  # Per ControlNet model
+  operation_active: 1500  # Additional for active operations
+
+# Calculation constants
+calculations:
+  megapixel_divisor: 1000000  # 1e6 for MP calculations

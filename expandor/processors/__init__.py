@@ -3,7 +3,7 @@ Processors module for artifact detection and quality enhancement
 """
 
 # Core processors - always available
-from .artifact_detector_enhanced import ArtifactDetectorEnhanced
+from .artifact_detector_enhanced import EnhancedArtifactDetector
 from .quality_validator import QualityValidator
 from .seam_repair import SeamRepairProcessor
 from .tiled_processor import TiledProcessor
@@ -20,7 +20,7 @@ except ImportError:
     ControlNetExtractor = None
 
 __all__ = [
-    "ArtifactDetectorEnhanced",
+    "EnhancedArtifactDetector",
     "QualityValidator",
     "SeamRepairProcessor",
     "TiledProcessor",

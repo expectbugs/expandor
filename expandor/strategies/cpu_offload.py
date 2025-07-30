@@ -67,7 +67,7 @@ class CPUOffloadStrategy(BaseExpansionStrategy):
         """
         # Calculate tile size based on available memory
         tile_size = self.vram_manager.get_safe_tile_size(
-            model_type="sdxl", safety_factor=0.6  # More conservative for CPU offload
+            model_type="sdxl", safety_factor=self.config.get('parameters', {}).get('safety_factor', 0.6)  # More conservative for CPU offload
         )
 
         # Estimate for single tile processing
@@ -75,7 +75,7 @@ class CPUOffloadStrategy(BaseExpansionStrategy):
         tile_vram_mb = (tile_pixels * 4 * 3 * 2) / (1024**2)
 
         # Minimal pipeline memory with offloading
-        pipeline_vram = 1024  # 1GB max with offloading
+        pipeline_vram = self.config.get('parameters', {}).get('pipeline_vram', 1024)  # 1GB max with offloading
 
         return {
             "base_vram_mb": tile_vram_mb,
@@ -268,7 +268,7 @@ class CPUOffloadStrategy(BaseExpansionStrategy):
         tile_size = self.vram_manager.get_safe_tile_size(
             available_mb=available_vram_mb,
             model_type="sdxl",
-            safety_factor=0.5,  # Very conservative for CPU offload
+            safety_factor=self.config.get('parameters', {}).get('conservative_safety_factor', 0.5),  # Very conservative for CPU offload
         )
 
         # Clamp to our limits
@@ -299,7 +299,7 @@ class CPUOffloadStrategy(BaseExpansionStrategy):
             intermediate_h = source_h
 
             # Gradual aspect adjustment
-            steps = 3  # Multiple small steps
+            steps = self.config.get('parameters', {}).get('processing_steps', 3)  # Multiple small steps
             for i in range(steps):
                 progress = (i + 1) / steps
                 new_w = int(source_w + (target_w - source_w) * progress)
@@ -402,9 +402,9 @@ class CPUOffloadStrategy(BaseExpansionStrategy):
                             prompt=config.prompt,
                             image=tile_img,
                             mask_image=mask,
-                            strength=0.9,
-                            num_inference_steps=25,  # Fewer steps for speed
-                            guidance_scale=7.0,
+                            strength=self.config.get('parameters', {}).get('tile_generation_strength', 0.9),
+                            num_inference_steps=self.config.get('parameters', {}).get('tile_generation_steps', 25),  # Fewer steps for speed
+                            guidance_scale=self.config.get('parameters', {}).get('tile_generation_guidance', 7.0),
                             generator=torch.Generator().manual_seed(
                                 (config.seed or 0) + stage_index
                             ),
@@ -460,9 +460,9 @@ class CPUOffloadStrategy(BaseExpansionStrategy):
                         result = self.img2img_pipeline(
                             prompt=config.prompt + ", high quality, sharp details",
                             image=upscaled,
-                            strength=0.3,
-                            num_inference_steps=20,
-                            guidance_scale=7.0,
+                            strength=self.config.get('parameters', {}).get('tile_refinement_strength', 0.3),
+                            num_inference_steps=self.config.get('parameters', {}).get('tile_refinement_steps', 20),
+                            guidance_scale=self.config.get('parameters', {}).get('tile_refinement_guidance', 7.0),
                             generator=torch.Generator().manual_seed(
                                 (config.seed or 0) + stage_index
                             ),

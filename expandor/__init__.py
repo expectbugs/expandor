@@ -7,7 +7,7 @@ from .core.exceptions import ExpandorError, QualityError, StrategyError, VRAMErr
 from .core.expandor import Expandor
 from .core.result import ExpandorResult, StageResult
 
-__version__ = "0.5.0"
+__version__ = "0.6.1"
 __all__ = [
     "Expandor",
     "ExpandorConfig",

@@ -84,6 +84,15 @@ class EnhancedArtifactDetector(ArtifactDetector):
             )
             self.min_quality_score = float(preset_config.get("min_quality_score", 0.75))
             self.edge_sensitivity = float(preset_config.get("edge_sensitivity", 0.80))
+            
+            # Load processing params
+            proc_config = loader.load_config("processing_params.yaml")
+            if proc_config and 'artifact_detection' in proc_config:
+                self.gradient_deviation_allowed = float(
+                    proc_config['artifact_detection'].get('gradient_deviation_allowed', 0.1)
+                )
+            else:
+                raise ValueError("Missing processing_params.yaml or artifact_detection config")
 
             self.logger.info(
                 f"Initialized artifact detector with '{quality_preset}' preset: "
@@ -97,14 +106,14 @@ class EnhancedArtifactDetector(ArtifactDetector):
             self.logger.error(f"Failed to load quality thresholds: {e}")
             self.logger.warning("Using default thresholds")
 
-            # Fallback to hardcoded defaults
-            self.skip_validation = False
-            self.seam_threshold = 0.25
-            self.color_threshold = 30
-            self.gradient_threshold = 0.25
-            self.frequency_threshold = 0.35
-            self.min_quality_score = 0.75
-            self.edge_sensitivity = 0.80
+            # Fail loud - configuration is required
+            raise QualityError(
+                f"Failed to load quality thresholds configuration: {e}",
+                details={
+                    "error": str(e),
+                    "solution": "Ensure quality_thresholds.yaml exists and is valid"
+                }
+            )
 
     def detect_artifacts_comprehensive(
         self,
@@ -357,7 +366,8 @@ class EnhancedArtifactDetector(ArtifactDetector):
         # Check for gradient-like behavior first
         # In a gradient, the difference should be proportional to distance
         is_gradient = True
-        gradient_threshold = 0.1  # Allow 10% deviation
+        # Use gradient deviation threshold (should be loaded in __init__)
+        gradient_threshold = getattr(self, 'gradient_deviation_allowed', 0.1)
 
         # Check for repeating patterns at different scales
         for shift in [64, 128, 256]:

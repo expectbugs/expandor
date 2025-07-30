@@ -67,16 +67,38 @@ def process_single_image(
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         # Handle different output formats
+        # Load output quality config
+        try:
+            from ..utils.config_loader import ConfigLoader
+            loader = ConfigLoader()
+            quality_config = loader.load_config("output_quality.yaml")
+        except:
+            raise ValueError("Failed to load output quality configuration")
+        
         if args.output_format and args.output_format != "png":
             if args.output_format in ["jpg", "jpeg"]:
-                result.final_image.save(output_path, "JPEG", quality=95, optimize=True)
+                jpeg_config = quality_config.get('jpeg', {})
+                result.final_image.save(
+                    output_path, "JPEG", 
+                    quality=jpeg_config.get('quality', 95), 
+                    optimize=jpeg_config.get('optimize', True)
+                )
             elif args.output_format == "webp":
-                result.final_image.save(output_path, "WEBP", quality=95, lossless=False)
+                webp_config = quality_config.get('webp', {})
+                result.final_image.save(
+                    output_path, "WEBP", 
+                    quality=webp_config.get('quality', 95), 
+                    lossless=webp_config.get('lossless', False)
+                )
             else:
                 result.final_image.save(output_path, args.output_format.upper())
         else:
             # PNG by default
-            result.final_image.save(output_path, "PNG", compress_level=1)
+            png_config = quality_config.get('png', {})
+            result.final_image.save(
+                output_path, "PNG", 
+                compress_level=png_config.get('compress_level', 1)
+            )
 
         # Save metadata if requested
         if config.save_metadata:
@@ -84,7 +106,8 @@ def process_single_image(
             import json
 
             with open(metadata_path, "w") as f:
-                json.dump(result.metadata, f, indent=2)
+                json_config = quality_config.get('json', {})
+                json.dump(result.metadata, f, indent=json_config.get('indent', 2))
             logger.debug(f"Saved metadata to: {metadata_path}")
 
         # Report results

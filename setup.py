@@ -2,14 +2,20 @@
 Expandor - Universal Image Resolution Adaptation System
 """
 
+import os
+import sys
 from setuptools import setup, find_packages
+
+# Add the expandor directory to path so we can import the version
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'expandor'))
+from __init__ import __version__
 
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setup(
     name="expandor",
-    version="0.5.0",
+    version=__version__,
     author="Your Name",
     author_email="your.email@example.com",
     description="Universal image resolution and aspect ratio adaptation system",

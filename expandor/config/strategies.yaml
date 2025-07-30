@@ -40,6 +40,18 @@ strategies:
       # Edge handling
       edge_blend_width: 64  # Pixels to blend at edges
       pre_fill_mode: "mirror"  # or "stretch", "wrap"
+      # From hardcoded values
+      max_supported: 8.0       # Maximum aspect ratio change supported
+      min_strength_value: 0.20 # Minimum strength for operations
+      max_strength_value: 0.85 # Maximum strength for operations
+      first_step_ratio_value: 2.0  # First expansion ratio
+      middle_step_ratio_value: 1.5 # Middle step expansion ratio
+      final_step_ratio_value: 1.3  # Final step expansion ratio
+      base_mask_blur: 32       # Base blur value for masks
+      base_steps: 60           # Base inference steps
+      # Seam repair parameters
+      seam_repair_steps: 30    # Steps for seam repair
+      seam_repair_guidance: 5.0  # Lower guidance for blending
     constraints:
       max_aspect_ratio_change: 8.0  # Maximum ratio change
       min_dimension: 512  # Don't shrink below this
@@ -61,6 +73,24 @@ strategies:
       # Memory management
       process_batch_size: 1  # Tiles to process simultaneously
       clear_cache_every: 4  # Clear VRAM every N tiles
+      # From hardcoded values
+      default_tile_size: 1024  # Default tile size
+      min_tile_size: 512       # Minimum tile size
+      max_tile_size: 2048      # Maximum tile size
+      overlap: 256             # Tile overlap size
+      blend_width: 256         # Width of blending region between tiles
+      # Refinement parameters
+      refinement_strength: 0.2        # Very light refinement to preserve details
+      refinement_steps: 20            # Steps for refinement
+      refinement_guidance: 6.5        # Lower guidance for preservation
+      # Edge fixing
+      edge_fix_strength: 0.3          # Lower strength to preserve tile coherence
+      edge_fix_steps: 30              # Steps for edge fixing
+      edge_fix_guidance: 7.0          # Guidance for edge fixing
+      # Final pass
+      final_pass_strength: 0.4        # Much lower for tile processing
+      final_pass_steps: 40            # Steps for final pass
+      final_pass_guidance: 7.0        # Guidance for final pass
     constraints:
       max_image_size: 16384  # Maximum dimension
       min_tile_size: 512
@@ -88,6 +118,15 @@ strategies:
       # Final unification
       unification_pass: true
       unification_strength: 0.3
+      # From hardcoded values
+      blur_radius: 50                 # Radius for edge filling
+      noise_strength: 0.02            # Strength for noise addition to mask
+      # Light touch parameters
+      light_touch_steps: 30           # Steps for light touch
+      light_touch_guidance: 7.0       # Guidance scale
+      # Edge detection
+      edge_sampling_width: 10         # Width for edge sampling
+      max_edge_distance: 100          # Maximum distance for edge detection
     constraints:
       min_aspect_ratio_change: 2.0  # Only use for significant changes
       max_windows_per_direction: 50
@@ -112,6 +151,20 @@ strategies:
       # Processing adjustments
       batch_size: 1  # Reduce batch size
       gradient_checkpointing: true
+      # VRAM management (from hardcoded values)
+      safety_factor: 0.6       # VRAM safety factor for CPU offload
+      pipeline_vram: 1024      # Max VRAM with offloading (1GB)
+      conservative_safety_factor: 0.5  # Very conservative for CPU offload
+      # Processing parameters
+      processing_steps: 3      # Multiple small steps for processing
+      # Tile generation
+      tile_generation_strength: 0.9   # For initial tile generation
+      tile_generation_steps: 25       # Fewer steps for speed
+      tile_generation_guidance: 7.0   # Guidance scale for generation
+      # Tile refinement
+      tile_refinement_strength: 0.3   # For refining tile edges
+      tile_refinement_steps: 20       # Steps for refinement
+      tile_refinement_guidance: 7.0   # Guidance scale for refinement
     constraints:
       max_resolution: 2048  # CPU is slower, limit size
       

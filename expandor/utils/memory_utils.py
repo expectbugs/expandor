@@ -291,12 +291,31 @@ def estimate_model_memory(model: Any, include_gradients: bool = True) -> float:
 
         # Add gradient storage if needed
         if include_gradients and param.requires_grad:
-            param_bytes *= 2
+            # Load gradient multiplier from config
+            try:
+                from .config_loader import ConfigLoader
+                loader = ConfigLoader()
+                proc_config = loader.load_config("processing_params.yaml")
+                gradient_multiplier = proc_config.get('memory_params', {}).get('gradient_memory_multiplier', 2)
+            except:
+                raise ValueError("Failed to load memory parameters configuration")
+            param_bytes *= gradient_multiplier
 
         total_bytes += param_bytes
 
     # Add buffer for activations (rough estimate)
-    activation_multiplier = 4 if include_gradients else 2
+    # Load activation multipliers from config
+    try:
+        from .config_loader import ConfigLoader
+        loader = ConfigLoader()
+        proc_config = loader.load_config("processing_params.yaml")
+        mem_params = proc_config.get('memory_params', {})
+        activation_multiplier = (
+            mem_params.get('activation_multiplier_with_grad', 4) if include_gradients 
+            else mem_params.get('activation_multiplier_no_grad', 2)
+        )
+    except:
+        raise ValueError("Failed to load memory parameters configuration")
     total_bytes *= activation_multiplier
 
     total_mb = total_bytes / (1024**2)

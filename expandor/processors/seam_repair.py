@@ -19,7 +19,8 @@ class SeamRepairProcessor:
     """
 
     def __init__(
-        self, pipelines: Dict[str, Any], logger: Optional[logging.Logger] = None
+        self, pipelines: Dict[str, Any], logger: Optional[logging.Logger] = None,
+        config: Optional[Dict[str, Any]] = None
     ):
         """
         Initialize seam repair processor
@@ -27,9 +28,11 @@ class SeamRepairProcessor:
         Args:
             pipelines: Dictionary of available pipelines (inpaint, refiner, etc)
             logger: Logger instance
+            config: Configuration dictionary
         """
         self.pipelines = pipelines
         self.logger = logger or logging.getLogger(__name__)
+        self.config = config or {}
 
         # Determine available repair methods
         self.has_inpaint = "inpaint" in pipelines
@@ -133,7 +136,7 @@ class SeamRepairProcessor:
         mask_image = Image.fromarray((expanded_mask * 255).astype(np.uint8))
 
         # Apply slight blur to mask edges
-        mask_image = mask_image.filter(ImageFilter.GaussianBlur(radius=5))
+        mask_image = mask_image.filter(ImageFilter.GaussianBlur(radius=self.config.get('mask_blur_radius', 5)))
 
         # Enhance prompt for repair
         repair_prompt = prompt + ", seamless, continuous, smooth transitions"
@@ -144,9 +147,9 @@ class SeamRepairProcessor:
             prompt=repair_prompt,
             image=image,
             mask_image=mask_image,
-            strength=0.8,  # High strength for seam repair
-            guidance_scale=7.5,
-            num_inference_steps=50,
+            strength=self.config.get('seam_repair_strength', 0.8),  # High strength for seam repair
+            guidance_scale=self.config.get('seam_repair_guidance', 7.5),
+            num_inference_steps=self.config.get('seam_repair_steps', 50),
             width=image.width,
             height=image.height,
         )
@@ -168,16 +171,16 @@ class SeamRepairProcessor:
 
         # Create strength map from mask
         # Higher strength where artifacts are detected
-        base_strength = 0.2
-        artifact_strength = 0.5
+        base_strength = self.config.get('base_blur_strength', 0.2)
+        artifact_strength = self.config.get('artifact_repair_strength', 0.5)
 
         # Process with refiner
         result = pipeline(
             prompt=prompt + ", high quality, refined details",
             image=image,
             strength=artifact_strength,  # Use higher strength
-            guidance_scale=7.5,
-            num_inference_steps=30,
+            guidance_scale=self.config.get('artifact_repair_guidance', 7.5),
+            num_inference_steps=self.config.get('artifact_repair_steps', 30),
         )
 
         # Blend based on mask
@@ -213,9 +216,9 @@ class SeamRepairProcessor:
         result = pipeline(
             prompt=prompt + ", seamless, high quality",
             image=image,
-            strength=0.4,
-            guidance_scale=7.5,
-            num_inference_steps=40,
+            strength=self.config.get('final_blend_strength', 0.4),
+            guidance_scale=self.config.get('final_blend_guidance', 7.5),
+            num_inference_steps=self.config.get('final_blend_steps', 40),
         )
 
         # Blend based on mask
@@ -261,10 +264,10 @@ class SeamRepairProcessor:
 
         # Create smooth blend mask
         blend_mask = Image.fromarray((artifact_mask * 255).astype(np.uint8))
-        blend_mask = blend_mask.filter(ImageFilter.GaussianBlur(radius=10))
+        blend_mask = blend_mask.filter(ImageFilter.GaussianBlur(radius=self.config.get('blend_mask_blur_radius', 10)))
 
         # Blend with slightly blurred version
-        blurred = result.filter(ImageFilter.GaussianBlur(radius=2))
+        blurred = result.filter(ImageFilter.GaussianBlur(radius=self.config.get('final_blur_radius', 2)))
         result = Image.composite(blurred, result, blend_mask)
 
         return result

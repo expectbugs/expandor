@@ -42,13 +42,30 @@ class EdgeAnalyzer:
     - Artifact severity assessment
     """
 
-    def __init__(self, logger: Optional[logging.Logger] = None):
+    def __init__(self, logger: Optional[logging.Logger] = None, config: Optional[Dict[str, Any]] = None):
         self.logger = logger or logging.getLogger(__name__)
+        
+        if config is None:
+            # Load from processing_params.yaml
+            try:
+                from ..utils.config_loader import ConfigLoader
+                from pathlib import Path
+                config_dir = Path(__file__).parent.parent / "config"
+                loader = ConfigLoader(config_dir)
+                proc_config = loader.load_config_file("processing_params.yaml")
+                if proc_config and 'edge_analysis' in proc_config:
+                    config = proc_config['edge_analysis']
+                else:
+                    raise ValueError("Missing edge_analysis config in processing_params.yaml")
+            except Exception as e:
+                # Fail loud - config required
+                raise ValueError(f"Failed to load edge analysis configuration: {e}")
 
-        # Detection thresholds
-        self.edge_threshold = 0.1
-        self.seam_threshold = 0.3
-        self.artifact_threshold = 0.5
+        # Detection thresholds from config
+        self.edge_threshold = config.get('edge_detection_sensitivity', 0.1)
+        self.seam_threshold = config.get('seam_detection_sensitivity', 0.3)
+        self.artifact_threshold = config.get('artifact_detection_sensitivity', 0.5)
+        self.edge_threshold_hough = config.get('edge_threshold_hough', 100)
 
     def analyze_image(
         self, image: Image.Image, boundaries: Optional[List[Dict]] = None
@@ -203,7 +220,7 @@ class EdgeAnalyzer:
                 edges,
                 1,
                 np.pi / 180,
-                threshold=100,
+                threshold=getattr(self, 'edge_threshold_hough', 100),
                 minLineLength=min(width, height) // 4,
                 maxLineGap=10,
             )

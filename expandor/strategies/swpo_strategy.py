@@ -607,10 +607,10 @@ class SWPOStrategy(BaseExpansionStrategy):
 
         # Pre-fill with edge colors (helps with coherence)
         if edge_colors:
-            canvas = self._apply_edge_fill(canvas, mask, edge_colors, blur_radius=50)
+            canvas = self._apply_edge_fill(canvas, mask, edge_colors, blur_radius=self.config.get('parameters', {}).get('blur_radius', 50))
 
         # Add noise to masked areas (improves generation)
-        canvas = self._add_noise_to_mask(canvas, mask, strength=0.02)
+        canvas = self._add_noise_to_mask(canvas, mask, strength=self.config.get('parameters', {}).get('noise_strength', 0.02))
 
         # Analyze source image context for better prompting
         source_context = self._analyze_source_context(canvas, mask)
@@ -721,8 +721,8 @@ class SWPOStrategy(BaseExpansionStrategy):
                 + ", seamless, unified composition, perfect quality",
                 image=image,
                 strength=strength,
-                num_inference_steps=30,  # Fewer steps for light touch
-                guidance_scale=7.0,
+                num_inference_steps=self.config.get('parameters', {}).get('light_touch_steps', 30),  # Fewer steps for light touch
+                guidance_scale=self.config.get('parameters', {}).get('light_touch_guidance', 7.0),
                 generator=torch.Generator().manual_seed(config.seed + 9999),
             )
 
@@ -753,7 +753,7 @@ class SWPOStrategy(BaseExpansionStrategy):
             for x in range(img_array.shape[1] - 1, -1, -1):
                 if np.mean(mask_array[:, x]) < 128:  # Found edge
                     edge_colors["primary"] = extract_edge_colors(
-                        image, "right", width=10
+                        image, "right", width=self.config.get('parameters', {}).get('edge_sampling_width', 10)
                     )
                     break
         else:  # vertical
@@ -761,7 +761,7 @@ class SWPOStrategy(BaseExpansionStrategy):
             for y in range(img_array.shape[0] - 1, -1, -1):
                 if np.mean(mask_array[y, :]) < 128:  # Found edge
                     edge_colors["primary"] = extract_edge_colors(
-                        image, "bottom", width=10
+                        image, "bottom", width=self.config.get('parameters', {}).get('edge_sampling_width', 10)
                     )
                     break
 
@@ -963,7 +963,7 @@ class SWPOStrategy(BaseExpansionStrategy):
             for x in range(w):
                 if mask_np[y, x] > 0.9:  # Full generation area
                     # Find distance to nearest black pixel
-                    dist_to_edge = self._min_distance_to_black(mask_np, x, y, max_dist=100)
+                    dist_to_edge = self._min_distance_to_black(mask_np, x, y, max_dist=self.config.get('parameters', {}).get('max_edge_distance', 100))
                     
                     if dist_to_edge < 20:
                         mask_np[y, x] = 0.78  # ~200/255 - high blend

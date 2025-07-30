@@ -2,6 +2,54 @@
 
 All notable changes to Expandor are documented here.
 
+## [0.6.1] - 2025-07-30
+
+### 🚨 Breaking Changes
+- **Complete Removal of Hardcoded Values**: All hardcoded values have been moved to configuration files
+  - This may affect custom configurations that relied on previous defaults
+  - All parameters must now be explicitly configured or use config defaults
+
+### ✨ Added
+- **New Configuration Files**:
+  - `processing_params.yaml`: All image processing, memory, and adapter parameters
+  - `output_quality.yaml`: Output format quality settings (JPEG, WebP, PNG, JSON)
+  - Enhanced `strategy_defaults.yaml` with comprehensive strategy parameters
+- **Zero Hardcoded Values**: Achieved complete configurability across entire codebase
+  - 250+ hardcoded values removed and externalized
+  - All parameters now loaded from YAML configuration files
+
+### 🔄 Changed
+- **ConfigLoader**: Updated to load new configuration files
+- **All Strategies**: Now load parameters from configuration files
+  - CPUOffloadStrategy: safety factors, processing steps, tile parameters
+  - TiledExpansionStrategy: tile sizes, refinement parameters
+  - SWPOStrategy: blur radius, noise strength, edge parameters
+  - ProgressiveOutpaintStrategy: expansion ratios, seam repair parameters
+- **All Processors**: Now load parameters from configuration files
+  - SeamRepairProcessor: blur radii, repair strengths
+  - EnhancedArtifactDetector: no fallback values, strict config loading
+  - EdgeAnalyzer: detection thresholds
+  - SmartRefiner: refinement parameters
+- **Adapters & Utilities**: Configuration-driven parameters
+  - DiffusersPipelineAdapter: dimension constraints, enhancement strength
+  - VRAMManager: min/max dimensions
+  - memory_utils: gradient multipliers, activation factors
+  - dimension_calculator: rounding multiples
+  - CLI process: output quality settings
+
+### 🐛 Fixed
+- **Configuration Loading**: Fixed path issues in EdgeAnalyzer and VRAMManager
+- **Import Issues**: Proper configuration directory resolution
+
+### 📝 Documentation
+- Updated README.md to highlight zero hardcoded values feature
+- Enhanced CONFIGURATION.md with new config file documentation
+- Added processing parameters and output quality sections
+
+### 🧪 Testing
+- Added comprehensive configuration loading test
+- Verified all configurations load and apply correctly
+
 ## [0.6.0] - 2025-07-29
 
 ### ✨ Added

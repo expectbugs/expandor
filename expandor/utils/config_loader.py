@@ -56,6 +56,9 @@ class ConfigLoader:
             "quality_presets.yaml",
             "vram_strategies.yaml",
             "model_constraints.yaml",
+            "strategy_defaults.yaml",
+            "processing_params.yaml",
+            "output_quality.yaml",
         ]
 
         for config_file in config_files:
@@ -83,6 +86,12 @@ class ConfigLoader:
                                 config["vram_strategies"] = file_config
                             elif config_file == "model_constraints.yaml":
                                 config["model_constraints"] = file_config
+                            elif config_file == "strategy_defaults.yaml":
+                                config["strategy_defaults"] = file_config
+                            elif config_file == "processing_params.yaml":
+                                config["processing_params"] = file_config
+                            elif config_file == "output_quality.yaml":
+                                config["output_quality"] = file_config
                             else:
                                 config.update(file_config)
 

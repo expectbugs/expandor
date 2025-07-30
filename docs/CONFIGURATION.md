@@ -12,9 +12,11 @@
 8. [Model Configuration](#model-configuration)
 9. [LoRA Configuration](#lora-configuration)
 10. [Pipeline Parameters](#pipeline-parameters)
-11. [Performance Tuning](#performance-tuning)
-12. [Environment Variables](#environment-variables)
-13. [Examples](#examples)
+11. [Processing Parameters](#processing-parameters)
+12. [Output Quality Settings](#output-quality-settings)
+13. [Performance Tuning](#performance-tuning)
+14. [Environment Variables](#environment-variables)
+15. [Examples](#examples)
 
 ## Overview
 
@@ -38,7 +40,26 @@ Configuration sources are applied in the following order (later sources override
 
 ## Configuration Files
 
-### Default Locations
+### System Configuration Files
+
+The following configuration files are distributed with Expandor:
+
+```
+expandor/config/
+├── default_config.yaml      # Basic defaults for CLI operation
+├── strategies.yaml          # Strategy definitions and constraints
+├── strategy_defaults.yaml   # Default parameters for all strategies
+├── quality_presets.yaml     # Quality preset definitions
+├── quality_thresholds.yaml  # Detection thresholds by quality preset
+├── vram_strategies.yaml     # VRAM management strategies
+├── model_constraints.yaml   # Model-specific constraints
+├── resolution_presets.yaml  # Common resolution presets
+├── processing_params.yaml   # All processing parameters (NEW)
+├── output_quality.yaml      # Output format quality settings (NEW)
+└── controlnet_config.yaml   # ControlNet configuration
+```
+
+### User Configuration Locations
 
 ```
 ~/.config/expandor/
@@ -592,6 +613,93 @@ operation_parameters:
     strength: 0.7
     guidance_scale: 5.0
     num_inference_steps: 30
+```
+
+## Processing Parameters
+
+The `processing_params.yaml` file contains all processing-related configuration:
+
+```yaml
+# Artifact Detection Parameters
+artifact_detection:
+  min_quality_score: 0.75
+  seam_threshold: 0.25
+  color_threshold: 30
+  gradient_threshold: 0.25
+  frequency_threshold: 0.35
+  gradient_deviation_allowed: 0.1
+  severe_artifact_penalty: 0.2
+  moderate_artifact_penalty: 0.1
+  minor_artifact_penalty: 0.05
+
+# Edge Analysis Parameters
+edge_analysis:
+  edge_threshold: 100
+  edge_threshold_hough: 100
+  edge_refinement_strength: 0.8
+  soft_edge_strength: 0.5
+  edge_detection_sensitivity: 0.1
+  seam_detection_sensitivity: 0.3
+  artifact_detection_sensitivity: 0.5
+
+# Memory Parameters
+memory_params:
+  memory_safety_factor: 1.2
+  batch_size_safety_factor: 0.8
+  gradient_memory_multiplier: 2
+  activation_multiplier_with_grad: 4
+  activation_multiplier_no_grad: 2
+  bytes_per_pixel: 12
+  tile_overlap: 64
+  min_tile_size: 256
+  max_tile_size: 2048
+```
+
+## Output Quality Settings
+
+The `output_quality.yaml` file controls all output format settings:
+
+```yaml
+# JPEG Output Settings
+jpeg:
+  quality: 95
+  optimize: true
+  
+# WebP Output Settings
+webp:
+  quality: 95
+  lossless: false
+  
+# PNG Output Settings
+png:
+  compress_level: 1  # 0-9, 0=no compression
+  optimize: false
+  
+# JSON Output Settings
+json:
+  indent: 2
+
+# Quality Presets
+quality_presets:
+  ultra:
+    jpeg_quality: 100
+    webp_quality: 100
+    png_compress_level: 0
+    
+  high:
+    jpeg_quality: 95
+    webp_quality: 95
+    png_compress_level: 1
+    
+  balanced:
+    jpeg_quality: 90
+    webp_quality: 90
+    png_compress_level: 6
+    
+  fast:
+    jpeg_quality: 85
+    webp_quality: 85
+    png_compress_level: 9
 ```
 
 ## Performance Tuning

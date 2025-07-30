@@ -57,6 +57,7 @@ class SmartRefiner:
         max_iterations: int = 3,
         quality_threshold: float = 0.85,
         logger: Optional[logging.Logger] = None,
+        config: Optional[Dict[str, Any]] = None,
     ):
         """
         Initialize smart refiner.
@@ -65,16 +66,40 @@ class SmartRefiner:
             max_iterations: Maximum refinement passes
             quality_threshold: Target quality score
             logger: Logger instance
+            config: Configuration dictionary
         """
         self.max_iterations = max_iterations
         self.quality_threshold = quality_threshold
         self.logger = logger or logging.getLogger(__name__)
         self.edge_analyzer = EdgeAnalyzer(logger=self.logger)
+        
+        if config is None:
+            # Load from processing_params.yaml
+            try:
+                from ...utils.config_loader import ConfigLoader
+                loader = ConfigLoader()
+                proc_config = loader.load_config("processing_params.yaml")
+                if proc_config and 'smart_refiner' in proc_config:
+                    config = proc_config['smart_refiner']
+                else:
+                    raise ValueError("Missing smart_refiner config in processing_params.yaml")
+            except Exception as e:
+                # Fail loud - config required
+                raise ValueError(f"Failed to load smart refiner configuration: {e}")
 
-        # Refinement parameters
-        self.base_strength = 0.4
+        # Refinement parameters from config
+        self.base_strength = config.get('base_strength', 0.4)
         self.strength_multiplier = 1.5  # Increase per severity level
-        self.min_region_size = 32  # Minimum size for refinement region
+        self.min_region_size = config.get('min_region_size', 32)  # Minimum size for refinement region
+        
+        # Blur radii from config
+        self.large_boundary_blur = config.get('large_boundary_blur', 32)
+        self.medium_boundary_blur = config.get('medium_boundary_blur', 16)
+        self.small_boundary_blur = config.get('small_boundary_blur', 24)
+        
+        # Other parameters from config
+        self.refinement_steps = config.get('refinement_steps', 30)
+        self.refinement_guidance = config.get('refinement_guidance', 7.5)
 
     def refine_image(
         self,
@@ -284,13 +309,13 @@ class SmartRefiner:
                 strength = min(
                     0.9, self.base_strength * self.strength_multiplier * severity
                 )
-                blur = 32
+                blur = getattr(self, 'large_boundary_blur', 32)
             elif artifact_type == "pattern":
                 strength = min(0.7, self.base_strength * severity)
-                blur = 16
+                blur = getattr(self, 'medium_boundary_blur', 16)
             else:
                 strength = min(0.6, self.base_strength * severity)
-                blur = 24
+                blur = getattr(self, 'small_boundary_blur', 24)
 
             region = RefinementRegion(
                 bounds=(x1, y1, x2, y2),
@@ -363,8 +388,8 @@ class SmartRefiner:
                 image=image,
                 mask_image=mask,
                 strength=region.refinement_strength,
-                num_inference_steps=30,  # Fewer steps for refinement
-                guidance_scale=7.5,
+                num_inference_steps=self.refinement_steps,  # Fewer steps for refinement
+                guidance_scale=self.refinement_guidance,
             )
 
             if hasattr(result, "images") and result.images:

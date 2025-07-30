@@ -1,0 +1,73 @@
+# Output Quality Configuration
+# All output format and quality settings must be configured here
+# NO HARDCODED VALUES in output implementations
+
+# JPEG Output Settings
+jpeg:
+  quality: 95              # JPEG quality (0-100)
+  optimize: true           # Enable JPEG optimization
+  
+# WebP Output Settings
+webp:
+  quality: 95              # WebP quality (0-100)
+  lossless: false          # Use lossy compression
+  
+# PNG Output Settings
+png:
+  compress_level: 1        # PNG compression level (0-9, 0=no compression)
+  optimize: false          # PNG optimization (disabled for quality)
+  
+# JSON Output Settings
+json:
+  indent: 2                # JSON indentation spaces
+  
+# File Format Selection
+format_selection:
+  # Default format based on quality priority
+  default_format: "png"    # Default to PNG for maximum quality
+  
+# Quality Presets
+quality_presets:
+  ultra:
+    jpeg_quality: 100
+    webp_quality: 100
+    png_compress_level: 0   # No compression for ultra quality
+    
+  high:
+    jpeg_quality: 95
+    webp_quality: 95
+    png_compress_level: 1
+    
+  balanced:
+    jpeg_quality: 90
+    webp_quality: 90
+    png_compress_level: 6
+    
+  fast:
+    jpeg_quality: 85
+    webp_quality: 85
+    png_compress_level: 9   # Max compression for speed
+    
+# Direct Upscale Strategy Output
+direct_upscale:
+  # PNG output for maximum quality
+  png_compress_level: 0    # No compression
+  png_optimize: false      # No optimization
+  
+# Configuration Output Settings
+config_output:
+  # YAML formatting
+  yaml_width: 120          # YAML output width
+  
+# Setup Wizard Constraints
+setup_wizard:
+  # VRAM constraints
+  min_vram: 1024           # Minimum VRAM for setup (1GB)
+  max_vram: 49152          # Maximum VRAM for setup (48GB)
+  # LoRA weight constraints
+  min_lora_weight: 0.1     # Minimum LoRA weight
+  max_lora_weight: 2.0     # Maximum LoRA weight
+  
+# Clear Cache Settings
+cache_management:
+  clear_cache_frequency: 5  # Clear cache every N operations

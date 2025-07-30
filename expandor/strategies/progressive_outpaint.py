@@ -34,28 +34,31 @@ class ProgressiveOutpaintStrategy(BaseExpansionStrategy):
         self.model_metadata = {}  # Initialize for boundary tracking
 
         # Configuration from AspectAdjuster __init__ (lines 47-79)
-        # NOTE: Original loads from ConfigManager, we're hardcoding defaults
+        # Load from configuration
+        params = self.config.get('parameters', {})
+        
         # Progressive outpainting config
         self.prog_enabled = True
-        self.max_supported = 8.0
+        self.max_supported = params.get('max_supported', 8.0)
 
         # Outpaint settings from lines 59-68
         # CRITICAL: Lower strength preserves more context
-        self.outpaint_strength = 0.75  # Balance between generation and preservation
-        self.min_strength = 0.20  # Minimum strength for final passes
-        self.max_strength = 0.85  # Maximum strength - never go above 0.85
+        self.outpaint_strength = params.get('base_strength', 0.75)  # Balance between generation and preservation
+        self.min_strength = params.get('min_strength_value', 0.20)  # Minimum strength for final passes
+        self.max_strength = params.get('max_strength_value', 0.85)  # Maximum strength - never go above 0.85
+        self.first_step_ratio = params.get('first_step_ratio_value', 2.0)  # First expansion step ratio
+        
         self.outpaint_prompt_suffix = (
             ", seamless expansion, extended scenery, natural continuation"
         )
         # CRITICAL: Mask blur must be 40% of expansion size minimum
-        self.base_mask_blur = 32  # Base value, will be scaled up
-        self.base_steps = 60
+        self.base_mask_blur = params.get('base_mask_blur', 32)  # Base value, will be scaled up
+        self.base_steps = params.get('base_steps', 60)
 
         # Expansion ratios - restore original values for better context
         # Smaller ratios = more steps = more context loss
-        self.first_step_ratio = 2.0  # Original value
-        self.middle_step_ratio = 1.5  # Original value  
-        self.final_step_ratio = 1.3  # Original value
+        self.middle_step_ratio = params.get('middle_step_ratio_value', 1.5)  # Original value  
+        self.final_step_ratio = params.get('final_step_ratio_value', 1.3)  # Original value
 
     def _analyze_edge_colors(
         self, image: Image.Image, edge: str, sample_width: int = 50
@@ -623,8 +626,8 @@ class ProgressiveOutpaintStrategy(BaseExpansionStrategy):
             image=initial_result,
             mask_image=seam_mask,
             strength=min(0.3, self.outpaint_strength * 0.4),  # Use 40% of main strength
-            num_inference_steps=30,
-            guidance_scale=5.0,  # Lower guidance for better blending
+            num_inference_steps=self.config.get('parameters', {}).get('seam_repair_steps', 30),
+            guidance_scale=self.config.get('parameters', {}).get('seam_repair_guidance', 5.0),  # Lower guidance for better blending
             width=initial_result.width,
             height=initial_result.height,
         ).images[0]

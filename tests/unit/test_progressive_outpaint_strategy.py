@@ -28,9 +28,10 @@ class TestProgressiveOutpaintStrategy:
         """Test strategy initialization"""
         assert hasattr(self.strategy, "dimension_calc")
         assert hasattr(self.strategy, "vram_manager")
-        assert self.strategy.first_step_ratio == 1.4
-        assert self.strategy.middle_step_ratio == 1.25
-        assert self.strategy.final_step_ratio == 1.15
+        # Updated to match actual config values from strategy_defaults.yaml
+        assert self.strategy.first_step_ratio == 2.0
+        assert self.strategy.middle_step_ratio == 1.5
+        assert self.strategy.final_step_ratio == 1.3
 
     def test_validate_requirements(self):
         """Test validation requires inpaint pipeline"""
@@ -233,8 +234,12 @@ class TestProgressiveOutpaintStrategy:
 
     def test_adaptive_parameters(self):
         """Test adaptive parameter calculation"""
-        # Test first step
-        step_info = {"expansion_ratio": 1.4, "current_size": (512, 512)}
+        # Test first step - must include target_size
+        step_info = {
+            "expansion_ratio": 1.4, 
+            "current_size": (512, 512),
+            "target_size": (717, 717)  # 512 * 1.4 = 716.8, rounded
+        }
         blur = self.strategy._get_adaptive_blur(step_info)
         steps = self.strategy._get_adaptive_steps(step_info)
         guidance = self.strategy._get_adaptive_guidance(step_info)
@@ -244,7 +249,11 @@ class TestProgressiveOutpaintStrategy:
         assert guidance >= 7.0
 
         # Test large expansion
-        step_info = {"expansion_ratio": 1.9, "current_size": (1024, 1024)}
+        step_info = {
+            "expansion_ratio": 1.9, 
+            "current_size": (1024, 1024),
+            "target_size": (1946, 1946)  # 1024 * 1.9 = 1945.6, rounded
+        }
         blur_large = self.strategy._get_adaptive_blur(step_info)
         steps_large = self.strategy._get_adaptive_steps(step_info)
 

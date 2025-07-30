@@ -25,12 +25,13 @@ class TiledExpansionStrategy(BaseExpansionStrategy):
 
     def _initialize(self):
         """Initialize tiled processing settings"""
-        # Default tile settings
-        self.default_tile_size = 1024
-        self.overlap = 256
-        self.blend_width = 256  # Increased for smoother tile blending
-        self.min_tile_size = 512
-        self.max_tile_size = 2048
+        # Default tile settings from config
+        params = self.config.get('parameters', {})
+        self.default_tile_size = params.get('default_tile_size', 1024)
+        self.overlap = params.get('overlap', 256)
+        self.blend_width = params.get('blend_width', 256)  # Increased for smoother tile blending
+        self.min_tile_size = params.get('min_tile_size', 512)
+        self.max_tile_size = params.get('max_tile_size', 2048)
 
     def validate_requirements(self):
         """Validate at least one pipeline is available"""
@@ -267,9 +268,9 @@ class TiledExpansionStrategy(BaseExpansionStrategy):
             result = self.refiner_pipeline(
                 prompt=prompt,
                 image=tile,
-                strength=0.2,  # Very light refinement to preserve details
-                num_inference_steps=20,
-                guidance_scale=6.5,  # Lower guidance for better preservation
+                strength=self.config.get('parameters', {}).get('refinement_strength', 0.2),  # Very light refinement to preserve details
+                num_inference_steps=self.config.get('parameters', {}).get('refinement_steps', 20),
+                guidance_scale=self.config.get('parameters', {}).get('refinement_guidance', 6.5),  # Lower guidance for better preservation
             ).images[0]
             return result
         except Exception as e:
@@ -282,9 +283,9 @@ class TiledExpansionStrategy(BaseExpansionStrategy):
             result = self.img2img_pipeline(
                 prompt=prompt,
                 image=tile,
-                strength=0.3,  # Lower strength to preserve tile coherence
-                num_inference_steps=30,
-                guidance_scale=7.0,
+                strength=self.config.get('parameters', {}).get('edge_fix_strength', 0.3),  # Lower strength to preserve tile coherence
+                num_inference_steps=self.config.get('parameters', {}).get('edge_fix_steps', 30),
+                guidance_scale=self.config.get('parameters', {}).get('edge_fix_guidance', 7.0),
             ).images[0]
             return result
         except Exception as e:
@@ -301,9 +302,9 @@ class TiledExpansionStrategy(BaseExpansionStrategy):
                 prompt=prompt,
                 image=tile,
                 mask_image=mask,
-                strength=0.4,  # Much lower for tile processing
-                num_inference_steps=40,
-                guidance_scale=7.0,
+                strength=self.config.get('parameters', {}).get('final_pass_strength', 0.4),  # Much lower for tile processing
+                num_inference_steps=self.config.get('parameters', {}).get('final_pass_steps', 40),
+                guidance_scale=self.config.get('parameters', {}).get('final_pass_guidance', 7.0),
             ).images[0]
             return result
         except Exception as e:

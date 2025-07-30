@@ -143,6 +143,17 @@ class DiffusersPipelineAdapter(BasePipelineAdapter):
         # Initialize pipelines
         self._initialize_pipelines()
 
+    def _get_config_value(self, section: str, key: str, default: Any) -> Any:
+        """Get configuration value from processing_params.yaml"""
+        try:
+            from ..utils.config_loader import ConfigLoader
+            loader = ConfigLoader()
+            proc_config = loader.load_config("processing_params.yaml")
+            return proc_config.get(section, {}).get(key, default)
+        except:
+            # Fail loud - config required
+            raise ValueError(f"Failed to load {section}.{key} from configuration")
+    
     def _ensure_vram_config(self) -> Dict[str, Any]:
         """Ensure VRAM config is loaded - FAIL LOUD if missing"""
         if self._vram_config is None:
@@ -531,7 +542,14 @@ class DiffusersPipelineAdapter(BasePipelineAdapter):
         """
         if not hasattr(self, "model_config") or not self.model_config:
             # If not initialized yet, use safe defaults
-            multiple = 8
+            # Load from config
+            try:
+                from ..utils.config_loader import ConfigLoader
+                loader = ConfigLoader()
+                proc_config = loader.load_config("processing_params.yaml")
+                multiple = proc_config.get('diffusers_adapter', {}).get('sdxl_dimension_multiple', 8)
+            except:
+                raise ValueError("Failed to load diffusers adapter configuration")
         else:
             multiple = self.model_config["resolution_multiple"]
 
@@ -549,8 +567,14 @@ class DiffusersPipelineAdapter(BasePipelineAdapter):
             optimal_width = max(optimal_width, 512)
             optimal_height = max(optimal_height, 512)
 
-        # Cap at reasonable maximum
-        max_dimension = 4096  # Increased for modern models
+        # Cap at reasonable maximum - load from config
+        try:
+            from ..utils.config_loader import ConfigLoader
+            loader = ConfigLoader()
+            proc_config = loader.load_config("processing_params.yaml")
+            max_dimension = proc_config.get('diffusers_adapter', {}).get('max_dimension', 4096)
+        except:
+            raise ValueError("Failed to load diffusers adapter configuration")
         optimal_width = min(optimal_width, max_dimension)
         optimal_height = min(optimal_height, max_dimension)
 
@@ -921,7 +945,8 @@ class DiffusersPipelineAdapter(BasePipelineAdapter):
             enhanced = self.img2img(
                 image=upscaled,
                 prompt=prompt,
-                strength=0.3,  # Low strength to preserve details
+                # Load enhancement strength from config
+                strength=self._get_config_value('diffusers_adapter', 'enhancement_strength', 0.3),  # Low strength to preserve details
                 **kwargs,
             )
             return enhanced

@@ -73,8 +73,17 @@ class DimensionCalculator:
         # For standalone, we adapt to use standard logging
         self.logger = logger or logging.getLogger(__name__)
 
-    def round_to_multiple(self, value: int, multiple: int = 8) -> int:
+    def round_to_multiple(self, value: int, multiple: Optional[int] = None) -> int:
         """Round value to nearest multiple"""
+        if multiple is None:
+            # Load from config
+            try:
+                from .config_loader import ConfigLoader
+                loader = ConfigLoader()
+                proc_config = loader.load_config("processing_params.yaml")
+                multiple = proc_config.get('dimension_calculation', {}).get('dimension_multiple', 8)
+            except:
+                raise ValueError("Failed to load dimension calculation configuration")
         return ((value + multiple // 2) // multiple) * multiple
 
     def get_optimal_generation_size(

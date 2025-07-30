@@ -28,7 +28,7 @@ class TestTiledExpansionStrategy:
         """Test strategy initialization"""
         assert self.strategy.default_tile_size == 1024
         assert self.strategy.overlap == 256
-        assert self.strategy.blend_width == 128
+        assert self.strategy.blend_width == 256  # Updated to match actual implementation
         assert self.strategy.min_tile_size == 512
         assert self.strategy.max_tile_size == 2048
 

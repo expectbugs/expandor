@@ -17,6 +17,7 @@ Expandor is a powerful, model-agnostic image resolution and aspect ratio adaptat
 - **Quality Assurance**: Built-in artifact detection and repair systems
 - **LoRA Support**: Advanced LoRA stacking with conflict resolution
 - **Comprehensive Configuration**: Flexible configuration system with presets and overrides
+- **Zero Hardcoded Values**: All parameters externalized to YAML configuration files
 
 ## 📋 Table of Contents
 

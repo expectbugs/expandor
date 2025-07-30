@@ -6,6 +6,8 @@ import argparse
 from pathlib import Path
 from typing import List, Optional, Tuple
 
+from .. import __version__
+
 
 def parse_resolution(
     resolution_str: str, current_resolution: Optional[Tuple[int, int]] = None
@@ -117,15 +119,16 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "input",
         type=Path,
+        nargs='?',  # Make optional for --test and --setup
         help="Input image path or pattern (supports wildcards for batch processing)",
     )
 
-    # Required arguments
+    # Required arguments (but not for --test or --setup)
     parser.add_argument(
         "-r",
         "--resolution",
         type=str,  # Changed from parse_resolution to str to allow deferred parsing
-        required=True,
+        required=False,  # Will validate in validate_args based on other flags
         help="Target resolution (e.g., 3840x2160, 4K, ultrawide, 16:9, 2x, 1.5x)",
     )
 
@@ -250,7 +253,7 @@ def create_parser() -> argparse.ArgumentParser:
         help="Use custom config file instead of ~/.config/expandor/config.yaml",
     )
 
-    parser.add_argument("--version", action="version", version="%(prog)s 0.4.0")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
 
     return parser
 
@@ -265,10 +268,20 @@ def validate_args(args: argparse.Namespace) -> None:
     Raises:
         ValueError: If arguments are invalid
     """
+    # Special cases that don't need input/resolution
+    if args.setup or args.test or (hasattr(args, 'setup_controlnet') and args.setup_controlnet):
+        return
+    
+    # For normal operation, input and resolution are required
+    if not args.input:
+        raise ValueError("Input file is required (except for --setup, --test, or --setup-controlnet)")
+    
+    if not args.resolution:
+        raise ValueError("Resolution is required (use -r or --resolution)")
+    
     # Check if input exists (unless it's a pattern)
-    if not args.setup and not args.test:
-        if "*" not in str(args.input) and not args.input.exists():
-            raise ValueError(f"Input file not found: {args.input}")
+    if "*" not in str(args.input) and not args.input.exists():
+        raise ValueError(f"Input file not found: {args.input}")
 
     # Validate output options
     if args.output and args.output_dir:

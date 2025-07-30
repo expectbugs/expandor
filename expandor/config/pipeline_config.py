@@ -116,32 +116,68 @@ class PipelineConfigurator:
 
         return kwargs
 
-    def create_adapter(self, adapter_type: str, **kwargs) -> Any:
+    def create_adapter(self, model_name: str, adapter_type: str = "auto") -> Any:
         """
-        Create a pipeline adapter based on type
+        Create a pipeline adapter for a model
 
         Args:
-            adapter_type: Type of adapter (diffusers, comfyui, a1111, mock)
-            **kwargs: Adapter-specific arguments
+            model_name: Name of the model from user config
+            adapter_type: Type of adapter (diffusers, comfyui, a1111, mock, auto)
+                         If "auto", will determine from model configuration
 
         Returns:
             Pipeline adapter instance
         """
+        # Load user config to get model details
+        user_config = self.user_config_manager.load()
+        
+        # Get model configuration
+        if model_name not in user_config.models:
+            available_models = list(user_config.models.keys())
+            raise ValueError(
+                f"Model '{model_name}' not found in configuration.\n"
+                f"Available models: {available_models}\n"
+                f"Run 'expandor --setup' to configure models."
+            )
+        
+        model_config = user_config.models[model_name]
+        if not model_config.enabled:
+            raise ValueError(
+                f"Model '{model_name}' is disabled in configuration.\n"
+                f"Enable it in your config file or run 'expandor --setup'."
+            )
+        
+        # Determine adapter type if auto
+        if adapter_type == "auto":
+            # For now, always use diffusers for HuggingFace models
+            if model_config.model_id:
+                adapter_type = "diffusers"
+            elif model_config.path and model_config.path.endswith(".safetensors"):
+                # Could be ComfyUI or A1111 format
+                adapter_type = "diffusers"  # Default to diffusers
+            else:
+                adapter_type = "diffusers"
+        
+        # Create adapter with model configuration
+        kwargs = {
+            "model_id": model_config.model_id or model_config.path,
+            "variant": model_config.variant,
+            "torch_dtype": self._get_torch_dtype(model_config.dtype),
+            "device": model_config.device,
+            "cache_dir": model_config.cache_dir,
+        }
+        
         if adapter_type == "diffusers":
             from ..adapters import DiffusersPipelineAdapter
-
             return DiffusersPipelineAdapter(**kwargs)
         elif adapter_type == "comfyui":
             from ..adapters import ComfyUIPipelineAdapter
-
             return ComfyUIPipelineAdapter(**kwargs)
         elif adapter_type == "a1111":
             from ..adapters import A1111PipelineAdapter
-
             return A1111PipelineAdapter(**kwargs)
         elif adapter_type == "mock":
             from ..adapters import MockPipelineAdapter
-
             return MockPipelineAdapter(**kwargs)
         else:
             raise ValueError(f"Unknown adapter type: {adapter_type}")

@@ -256,9 +256,18 @@ class VRAMManager:
         # Convert to square tile size
         tile_size = int(max_pixels**0.5)
 
-        # Apply constraints
-        min_size = 384
-        max_size = 2048
+        # Apply constraints - load from config
+        try:
+            from ..utils.config_loader import ConfigLoader
+            from pathlib import Path
+            config_dir = Path(__file__).parent.parent / "config"
+            loader = ConfigLoader(config_dir)
+            proc_config = loader.load_config_file("processing_params.yaml")
+            vram_config = proc_config.get('vram_management', {})
+            min_size = vram_config.get('min_dimension_size', 384)
+            max_size = vram_config.get('max_dimension_size', 2048)
+        except:
+            raise ValueError("Failed to load VRAM management configuration")
 
         # Round to multiple of 64 for better compatibility
         tile_size = max(min_size, min(tile_size, max_size))
