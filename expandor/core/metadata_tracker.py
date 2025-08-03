@@ -60,7 +60,7 @@ class MetadataTracker:
             "quality_preset": config.quality_preset,
             "prompt": (
                 config.prompt[:100] + "..."
-                if len(config.prompt) > 100
+                if config.prompt and len(config.prompt) > 100
                 else config.prompt
             ),
             "negative_prompt": config.negative_prompt,

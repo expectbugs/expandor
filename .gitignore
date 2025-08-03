@@ -8,3 +8,37 @@ temp/
 build/
 dist/
 *.chk
+
+# Additional Python ignores
+.Python
+env/
+ENV/
+.venv
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.ruff_cache/
+htmlcov/
+.tox/
+.nox/
+.coverage.*
+*.cover
+*.log
+.hypothesis/
+
+# IDE specific
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Project specific
+expandor_stages/
+test_output*.png
+/tmp/

@@ -8,6 +8,7 @@ from typing import Any, Dict, Optional
 
 import numpy as np
 
+from ..core.exceptions import QualityError
 from .artifact_removal import ArtifactDetector
 
 

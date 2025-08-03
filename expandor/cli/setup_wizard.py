@@ -89,7 +89,7 @@ class SetupWizard:
                 "   Do you have SDXL downloaded locally?")
             if use_local:
                 path = self._get_path(
-                    "   Enter path to SDXL model directory: ")
+                    "   Enter path to SDXL model directory: ", path_type="directory")
                 self.config.models["sdxl"] = ModelConfig(
                     path=str(path), dtype="fp16", device=self.config.default_device)
             else:
@@ -207,7 +207,7 @@ class SetupWizard:
         # Cache directory
         if self._confirm("Set a custom cache directory for models?"):
             cache_dir = self._get_path(
-                "Enter cache directory path: ", create=True)
+                "Enter cache directory path: ", create=True, path_type="directory")
             self.config.cache_directory = str(cache_dir)
 
     def _setup_loras(self):
@@ -226,7 +226,7 @@ class SetupWizard:
             if not name:
                 break
 
-            path = self._get_path("LoRA file path: ", must_exist=True)
+            path = self._get_path("LoRA file path: ", must_exist=True, path_type="file")
 
             weight = self._get_number(
                 "LoRA weight (0.1-2.0, default 1.0): ",
@@ -277,7 +277,7 @@ class SetupWizard:
         # Default output directory
         if self._confirm("Set a default output directory?"):
             output_dir = self._get_path(
-                "Enter output directory path: ", create=True)
+                "Enter output directory path: ", create=True, path_type="directory")
             self.config.default_output_dir = str(output_dir)
 
         # Save stages
@@ -361,9 +361,17 @@ class SetupWizard:
             self.logger.info("Invalid choice. Please try again.")
 
     def _get_path(
-        self, prompt: str, must_exist: bool = False, create: bool = False
+        self, prompt: str, must_exist: bool = False, create: bool = False,
+        path_type: str = "auto"
     ) -> Path:
-        """Get a file/directory path with validation"""
+        """Get a file/directory path with validation
+        
+        Args:
+            prompt: Prompt to show user
+            must_exist: Path must already exist
+            create: Create path if it doesn't exist
+            path_type: 'file', 'directory', or 'auto' (default)
+        """
         while True:
             path_str = input(prompt).strip()
 

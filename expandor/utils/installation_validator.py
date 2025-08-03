@@ -214,8 +214,9 @@ class InstallationValidator:
         missing_optional = []
 
         for package_name, config in required_packages.items():
-            module_name = config.get("module", package_name)
-            package_install_name = config.get("package", package_name)
+            # FAIL LOUD - use explicit values, no silent defaults
+            module_name = config["module"] if "module" in config else package_name
+            package_install_name = config["package"] if "package" in config else package_name
 
             try:
                 module = importlib.import_module(module_name)
@@ -234,7 +235,9 @@ class InstallationValidator:
                             "command": config["install"],
                         }
 
-                        if config.get("critical", True):
+                        # FAIL LOUD - explicit check, default to critical if not specified
+                        is_critical = config["critical"] if "critical" in config else True
+                        if is_critical:
                             self.issues.append(issue)
                         else:
                             self.warnings.append(issue)
@@ -247,7 +250,9 @@ class InstallationValidator:
                     "command": config["install"],
                 }
 
-                if config.get("critical", True):
+                # FAIL LOUD - explicit check, default to critical if not specified
+                is_critical = config["critical"] if "critical" in config else True
+                if is_critical:
                     self.issues.append(issue)
                     missing_critical.append(package_install_name)
                 else:

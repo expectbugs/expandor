@@ -118,7 +118,6 @@ def main():
         return setup_controlnet(args, logger)
 
     if args.init_config:
-        from pathlib import Path
         import shutil
         import yaml
         

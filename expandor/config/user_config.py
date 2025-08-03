@@ -164,25 +164,49 @@ class UserConfig:
 
             config_data["loras"] = loras
 
-        # Validate all other fields
+        # Filter to only valid fields (ignore extra fields from system configs)
         valid_fields = {f.name for f in cls.__dataclass_fields__.values()}
-        invalid_fields = set(config_data.keys()) - valid_fields
-
-        if invalid_fields:
+        
+        # Log what we're ignoring for debugging
+        extra_fields = set(config_data.keys()) - valid_fields
+        if extra_fields:
+            logger = setup_logger(__name__)
+            logger.debug(f"Ignoring non-user config fields: {', '.join(extra_fields)}")
+        
+        # Filter config_data to only include valid fields
+        filtered_data = {k: v for k, v in config_data.items() if k in valid_fields}
+        
+        # Check if we're accidentally trying to load a system config
+        system_fields = {'paths', 'quality_thresholds', 'processing', 'quality_global', 
+                         'version', 'quality_presets', 'system', 'output', 'strategies', 'vram'}
+        if any(field in config_data for field in system_fields):
+            logger = setup_logger(__name__)
+            logger.warning(
+                "It looks like you're trying to load a system configuration file as user config. "
+                "User config should only contain user-specific settings like models, quality preferences, etc."
+            )
+        
+        # Replace config_data with filtered data
+        config_data = filtered_data
+        
+        # Old validation code - now only checks if ALL fields were invalid
+        if not config_data:
+            # If we filtered out everything, that's a problem
+            original_keys = set(data.keys())
+            
             # Check for common mistakes
             suggestions = []
-            if 'defaults' in invalid_fields:
+            if 'defaults' in original_keys:
                 suggestions.append(
                     "'defaults' -> Use specific fields like 'default_quality'")
-            if 'vram_management' in invalid_fields:
+            if 'vram_management' in original_keys:
                 suggestions.append(
                     "'vram_management' -> Use 'max_vram_usage_mb'")
 
             raise ValueError(
-                f"Unknown configuration fields: {
-                    ', '.join(invalid_fields)}\n" f"Valid fields: {
-                    ', '.join(
-                        sorted(valid_fields))}\n" +
+                f"No valid user configuration fields found in file.\n"
+                f"Found fields: {', '.join(sorted(original_keys))}\n"
+                f"Valid fields: {', '.join(sorted(valid_fields))}\n" +
                 (
                     "\nSuggestions:\n" +
                     "\n".join(

@@ -521,7 +521,7 @@ class HybridAdaptiveStrategy(BaseExpansionStrategy):
             # Get boundaries for artifact detection
             # Validate boundaries exist in result
             if "boundaries" not in result:
-                self.logger.warning(f"No boundaries returned from {step_name}, using empty list")
+                self.logger.warning("No boundaries returned from expansion process, using empty list")
                 boundaries = []
             else:
                 boundaries = result["boundaries"]

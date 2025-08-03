@@ -86,6 +86,9 @@ def process_single_image(
         # Use ConfigurationManager for all output settings - NO HARDCODED VALUES
         from ..core.configuration_manager import ConfigurationManager
         config_manager = ConfigurationManager()
+        
+        # Get quality configuration for current preset
+        quality_config = config_manager.get_value(f'quality_presets.{config.quality_preset}')
 
         if args.output_format and args.output_format != "png":
             if args.output_format in ["jpg", "jpeg"]:
