@@ -1,0 +1,88 @@
+# Base default values for ExpandorConfig
+# These apply when no quality preset is selected
+# ALL values that could change must be defined here - NO HARDCODED VALUES IN CODE
+
+expandor_defaults:
+  # Core settings
+  quality_preset: "custom"
+  strategy: "auto"
+  
+  # Generation defaults (match custom preset)
+  denoising_strength: 0.7
+  guidance_scale: 7.5
+  num_inference_steps: 30
+  scheduler: "EulerAncestralDiscreteScheduler"
+  use_karras_sigmas: false
+  
+  # Quality control
+  enable_artifacts_check: true
+  artifact_detection_threshold: 0.1
+  max_artifact_repair_attempts: 3
+  enable_seam_detection: true
+  seam_threshold: 0.1
+  
+  # Processing
+  save_stages: false
+  verbose: false
+  use_cpu_offload: false
+  batch_size: 1
+  
+  # Expansion parameters
+  overlap_ratio: 0.7
+  mask_blur_ratio: 0.4
+  edge_blend_pixels: 96
+  
+  # VRAM management
+  vram_limit_mb: null
+  enable_xformers: true
+  gradient_checkpointing: false
+  
+  # Model settings
+  controlnet_strength: 0.25
+  refiner_strength: 0.3
+  prefer_refiner: false
+  
+  # Tiling parameters
+  tile_processing: false
+  tile_size: 1024
+  tile_overlap: 48
+  
+  # Output settings
+  output_format: "png"
+  compression_level: 0
+  save_intermediate: false
+  
+  # Strategy-specific defaults
+  progressive_outpaint:
+    max_steps: 3
+    strength_decay: [0.75, 0.65, 0.55]
+    
+  swpo:
+    window_size: 256
+    overlap_ratio: 0.8
+    final_unification: true
+    
+  tiled_expansion:
+    max_tiles: 50
+    refinement_strength: 0.15
+    edge_fix_strength: 0.25
+    
+  # Advanced settings
+  seed: null
+  prompt: null
+  negative_prompt: null
+  
+  # Upscaling
+  upscale_method: "real-esrgan"
+  upscale_denoise: 0.2
+  
+  # Validation thresholds
+  texture_corruption_threshold: 0.15
+  high_freq_ratio: 0.3
+  vram_usage_limit: 0.95
+  max_generation_time: 600  # 10 minutes
+  
+  # File paths (must be configured per installation)
+  cache_dir: null
+  output_dir: null
+  temp_dir: null

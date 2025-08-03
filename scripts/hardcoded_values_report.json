@@ -1,0 +1,6060 @@
+{
+  "stats": {
+    "files_scanned": 68,
+    "total_findings": 848,
+    "findings_ast_constant": 416,
+    "findings_direct_assignment": 37,
+    "findings_field_default": 117,
+    "findings_math_operations": 93,
+    "findings_get_with_default": 97,
+    "findings_function_default": 37,
+    "findings_get_default": 38,
+    "findings_if_comparison": 9,
+    "findings_range_calls": 3,
+    "findings_or_pattern": 1
+  },
+  "findings": {
+    "core/vram_manager.py": [
+      {
+        "file": "core/vram_manager.py",
+        "line": 215,
+        "type": "ast_constant",
+        "description": "Numeric constant: 4",
+        "code": "overlap = max(min_overlap, tile_size // 4)"
+      },
+      {
+        "file": "core/vram_manager.py",
+        "line": 335,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1000000",
+        "code": "mb_per_pixel = mb_per_megapixel / 1_000_000"
+      },
+      {
+        "file": "core/vram_manager.py",
+        "line": 354,
+        "type": "ast_constant",
+        "description": "Numeric constant: 64",
+        "code": "tile_size = (tile_size // 64) * 64"
+      },
+      {
+        "file": "core/vram_manager.py",
+        "line": 354,
+        "type": "ast_constant",
+        "description": "Numeric constant: 64",
+        "code": "tile_size = (tile_size // 64) * 64"
+      },
+      {
+        "file": "core/vram_manager.py",
+        "line": 379,
+        "type": "direct_assignment",
+        "description": "direct_assignment: available",
+        "code": "available = 0  # CPU mode"
+      },
+      {
+        "file": "core/vram_manager.py",
+        "line": 250,
+        "type": "field_default",
+        "description": "field_default: pipeline_type",
+        "code": "self, pipeline_type: str = \"sdxl\", include_vae: bool = True"
+      },
+      {
+        "file": "core/vram_manager.py",
+        "line": 250,
+        "type": "field_default",
+        "description": "field_default: include_vae",
+        "code": "self, pipeline_type: str = \"sdxl\", include_vae: bool = True"
+      },
+      {
+        "file": "core/vram_manager.py",
+        "line": 65,
+        "type": "math_operations",
+        "description": "math_operations: 76",
+        "code": "Copy implementation from lines 22-76 of vram_calculator.py"
+      },
+      {
+        "file": "core/vram_manager.py",
+        "line": 135,
+        "type": "math_operations",
+        "description": "math_operations: 92",
+        "code": "\"\"\"Get available VRAM in MB - from lines 78-92\"\"\""
+      },
+      {
+        "file": "core/vram_manager.py",
+        "line": 215,
+        "type": "math_operations",
+        "description": "math_operations: 4",
+        "code": "overlap = max(min_overlap, tile_size // 4)"
+      },
+      {
+        "file": "core/vram_manager.py",
+        "line": 354,
+        "type": "math_operations",
+        "description": "math_operations: 64",
+        "code": "tile_size = (tile_size // 64) * 64"
+      },
+      {
+        "file": "core/vram_manager.py",
+        "line": 354,
+        "type": "math_operations",
+        "description": "math_operations: 64",
+        "code": "tile_size = (tile_size // 64) * 64"
+      }
+    ],
+    "core/config.py": [
+      {
+        "file": "core/config.py",
+        "line": 140,
+        "type": "get_with_default",
+        "description": "get_with_default: yaml_field_name",
+        "code": "field_name = field_mapping.get(yaml_field_name, yaml_field_name)"
+      },
+      {
+        "file": "core/config.py",
+        "line": 156,
+        "type": "get_with_default",
+        "description": "get_with_default: yaml_field_name",
+        "code": "field_name = field_mapping.get(yaml_field_name, yaml_field_name)"
+      },
+      {
+        "file": "core/config.py",
+        "line": 387,
+        "type": "get_with_default",
+        "description": "get_with_default: effective",
+        "code": "return self.strategy_map.get(effective, effective)"
+      }
+    ],
+    "core/exceptions.py": [
+      {
+        "file": "core/exceptions.py",
+        "line": 33,
+        "type": "field_default",
+        "description": "field_default: message",
+        "code": "message: str = \"\"):"
+      },
+      {
+        "file": "core/exceptions.py",
+        "line": 28,
+        "type": "function_default",
+        "description": "function_default: \"\"",
+        "code": "def __init__("
+      }
+    ],
+    "core/expandor.py": [
+      {
+        "file": "core/expandor.py",
+        "line": 270,
+        "type": "get_default",
+        "description": ".get() with default: 0",
+        "code": "base_vram, strategy_estimate.get(\"peak_vram_mb\", 0)"
+      },
+      {
+        "file": "core/expandor.py",
+        "line": 303,
+        "type": "ast_constant",
+        "description": "Numeric constant: 65536",
+        "code": "if target_w > 65536 or target_h > 65536:"
+      },
+      {
+        "file": "core/expandor.py",
+        "line": 303,
+        "type": "ast_constant",
+        "description": "Numeric constant: 65536",
+        "code": "if target_w > 65536 or target_h > 65536:"
+      },
+      {
+        "file": "core/expandor.py",
+        "line": 453,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "free_before = torch.cuda.mem_get_info()[0] / (1024**2)"
+      },
+      {
+        "file": "core/expandor.py",
+        "line": 454,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "total_vram = torch.cuda.mem_get_info()[1] / (1024**2)"
+      },
+      {
+        "file": "core/expandor.py",
+        "line": 476,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "free_after = torch.cuda.mem_get_info()[0] / (1024**2)"
+      },
+      {
+        "file": "core/expandor.py",
+        "line": 531,
+        "type": "ast_constant",
+        "description": "Numeric constant: 10",
+        "code": "reduced_metadata['artifact_repair_steps'] = max(10, normal_steps // 2)  # Half steps, min 10"
+      },
+      {
+        "file": "core/expandor.py",
+        "line": 532,
+        "type": "ast_constant",
+        "description": "Numeric constant: 0.2",
+        "code": "reduced_metadata['artifact_repair_strength'] = max(0.2, normal_strength * 0.6)  # 60% strength, min 0.2"
+      },
+      {
+        "file": "core/expandor.py",
+        "line": 532,
+        "type": "ast_constant",
+        "description": "Numeric constant: 0.6",
+        "code": "reduced_metadata['artifact_repair_strength'] = max(0.2, normal_strength * 0.6)  # 60% strength, min 0.2"
+      },
+      {
+        "file": "core/expandor.py",
+        "line": 649,
+        "type": "ast_constant",
+        "description": "Numeric constant: 60",
+        "code": "self.logger.error(\"=\" * 60)"
+      },
+      {
+        "file": "core/expandor.py",
+        "line": 660,
+        "type": "ast_constant",
+        "description": "Numeric constant: 60",
+        "code": "self.logger.error(\"=\" * 60)"
+      },
+      {
+        "file": "core/expandor.py",
+        "line": 338,
+        "type": "get_with_default",
+        "description": "get_with_default: {}",
+        "code": "available_presets = list(self.config.get(\"quality_presets\", {}).keys())"
+      },
+      {
+        "file": "core/expandor.py",
+        "line": 482,
+        "type": "get_with_default",
+        "description": "get_with_default: {}",
+        "code": "config=self.config.get('processing_params', {})"
+      },
+      {
+        "file": "core/expandor.py",
+        "line": 528,
+        "type": "get_with_default",
+        "description": "get_with_default: seam_config['seam_repair_steps']",
+        "code": "normal_steps = seam_config.get('artifact_repair_steps', seam_config['seam_repair_steps'])"
+      },
+      {
+        "file": "core/expandor.py",
+        "line": 529,
+        "type": "get_with_default",
+        "description": "get_with_default: seam_config['seam_repair_strength']",
+        "code": "normal_strength = seam_config.get('artifact_repair_strength', seam_config['seam_repair_strength'])"
+      },
+      {
+        "file": "core/expandor.py",
+        "line": 846,
+        "type": "get_with_default",
+        "description": "get_with_default: {}",
+        "code": "quality_threshold = preset_config.get('validation', {}).get('quality_threshold', orchestrator_config['quality_threshold'])"
+      },
+      {
+        "file": "core/expandor.py",
+        "line": 846,
+        "type": "get_with_default",
+        "description": "get_with_default: orchestrator_config['quality_threshold']",
+        "code": "quality_threshold = preset_config.get('validation', {}).get('quality_threshold', orchestrator_config['quality_threshold'])"
+      },
+      {
+        "file": "core/expandor.py",
+        "line": 303,
+        "type": "if_comparison",
+        "description": "if_comparison: 65536",
+        "code": "if target_w > 65536 or target_h > 65536:"
+      },
+      {
+        "file": "core/expandor.py",
+        "line": 649,
+        "type": "math_operations",
+        "description": "math_operations: 60",
+        "code": "self.logger.error(\"=\" * 60)"
+      },
+      {
+        "file": "core/expandor.py",
+        "line": 660,
+        "type": "math_operations",
+        "description": "math_operations: 60",
+        "code": "self.logger.error(\"=\" * 60)"
+      }
+    ],
+    "core/result.py": [
+      {
+        "file": "core/result.py",
+        "line": 19,
+        "type": "field_default",
+        "description": "field_default: vram_used_mb",
+        "code": "vram_used_mb: float = 0.0"
+      },
+      {
+        "file": "core/result.py",
+        "line": 20,
+        "type": "field_default",
+        "description": "field_default: artifacts_detected",
+        "code": "artifacts_detected: int = 0"
+      },
+      {
+        "file": "core/result.py",
+        "line": 44,
+        "type": "field_default",
+        "description": "field_default: success",
+        "code": "success: bool = True"
+      },
+      {
+        "file": "core/result.py",
+        "line": 51,
+        "type": "field_default",
+        "description": "field_default: seams_detected",
+        "code": "seams_detected: int = 0"
+      },
+      {
+        "file": "core/result.py",
+        "line": 52,
+        "type": "field_default",
+        "description": "field_default: artifacts_fixed",
+        "code": "artifacts_fixed: int = 0"
+      },
+      {
+        "file": "core/result.py",
+        "line": 53,
+        "type": "field_default",
+        "description": "field_default: refinement_passes",
+        "code": "refinement_passes: int = 0"
+      },
+      {
+        "file": "core/result.py",
+        "line": 54,
+        "type": "field_default",
+        "description": "field_default: quality_score",
+        "code": "quality_score: float = 1.0"
+      },
+      {
+        "file": "core/result.py",
+        "line": 57,
+        "type": "field_default",
+        "description": "field_default: vram_peak_mb",
+        "code": "vram_peak_mb: float = 0.0"
+      },
+      {
+        "file": "core/result.py",
+        "line": 58,
+        "type": "field_default",
+        "description": "field_default: total_duration_seconds",
+        "code": "total_duration_seconds: float = 0.0"
+      },
+      {
+        "file": "core/result.py",
+        "line": 59,
+        "type": "field_default",
+        "description": "field_default: strategy_used",
+        "code": "strategy_used: str = \"\""
+      },
+      {
+        "file": "core/result.py",
+        "line": 60,
+        "type": "field_default",
+        "description": "field_default: fallback_count",
+        "code": "fallback_count: int = 0"
+      }
+    ],
+    "core/metadata_tracker.py": [
+      {
+        "file": "core/metadata_tracker.py",
+        "line": 31,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1000",
+        "code": "self.operation_id = f\"op_{int(time.time() * 1000)}\""
+      },
+      {
+        "file": "core/metadata_tracker.py",
+        "line": 73,
+        "type": "get_default",
+        "description": ".get() with default: 'unknown'",
+        "code": "\"model_type\": config.source_metadata.get(\"model\", \"unknown\"),"
+      },
+      {
+        "file": "core/metadata_tracker.py",
+        "line": 133,
+        "type": "get_default",
+        "description": ".get() with default: 0",
+        "code": "\"duration\": self.stage_timings.get(self.current_stage, 0),"
+      },
+      {
+        "file": "core/metadata_tracker.py",
+        "line": 73,
+        "type": "get_with_default",
+        "description": "get_with_default: \"unknown\"",
+        "code": "\"model_type\": config.source_metadata.get(\"model\", \"unknown\"),"
+      },
+      {
+        "file": "core/metadata_tracker.py",
+        "line": 115,
+        "type": "field_default",
+        "description": "field_default: success",
+        "code": "def exit_stage(self, success: bool = True, error: Optional[str] = None):"
+      },
+      {
+        "file": "core/metadata_tracker.py",
+        "line": 31,
+        "type": "math_operations",
+        "description": "math_operations: 1000",
+        "code": "self.operation_id = f\"op_{int(time.time() * 1000)}\""
+      }
+    ],
+    "core/boundary_tracker.py": [
+      {
+        "file": "core/boundary_tracker.py",
+        "line": 239,
+        "type": "ast_constant",
+        "description": "Numeric constant: 10",
+        "code": "self, width: int, height: int, padding: int = 10"
+      },
+      {
+        "file": "core/boundary_tracker.py",
+        "line": 57,
+        "type": "field_default",
+        "description": "field_default: method",
+        "code": "method: str = \"unknown\","
+      },
+      {
+        "file": "core/boundary_tracker.py",
+        "line": 150,
+        "type": "field_default",
+        "description": "field_default: method",
+        "code": "method: str = \"progressive\","
+      },
+      {
+        "file": "core/boundary_tracker.py",
+        "line": 239,
+        "type": "field_default",
+        "description": "field_default: padding",
+        "code": "self, width: int, height: int, padding: int = 10"
+      },
+      {
+        "file": "core/boundary_tracker.py",
+        "line": 49,
+        "type": "function_default",
+        "description": "function_default: \"unknown\"",
+        "code": "def add_boundary("
+      },
+      {
+        "file": "core/boundary_tracker.py",
+        "line": 145,
+        "type": "function_default",
+        "description": "function_default: \"progressive\"",
+        "code": "def add_progressive_boundaries("
+      },
+      {
+        "file": "core/boundary_tracker.py",
+        "line": 238,
+        "type": "function_default",
+        "description": "function_default: 10",
+        "code": "def get_boundary_regions("
+      }
+    ],
+    "core/strategy_selector.py": [
+      {
+        "file": "core/strategy_selector.py",
+        "line": 216,
+        "type": "get_default",
+        "description": ".get() with default: 'unknown'",
+        "code": "model_type = config.source_metadata.get(\"model\", \"unknown\")"
+      },
+      {
+        "file": "core/strategy_selector.py",
+        "line": 314,
+        "type": "get_default",
+        "description": ".get() with default: True",
+        "code": "if swpo_config.get(\"enabled\", True):"
+      },
+      {
+        "file": "core/strategy_selector.py",
+        "line": 325,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1.1",
+        "code": "aspect_tolerance = 1.1  # This is a tolerance value, kept as algorithmic constant"
+      },
+      {
+        "file": "core/strategy_selector.py",
+        "line": 327,
+        "type": "ast_constant",
+        "description": "Numeric constant: 4",
+        "code": "massive_expansion = moderate_expansion * 4  # 16 if moderate is 4"
+      },
+      {
+        "file": "core/strategy_selector.py",
+        "line": 339,
+        "type": "get_default",
+        "description": ".get() with default: True",
+        "code": "if prog_config.get(\"enabled\", True):"
+      },
+      {
+        "file": "core/strategy_selector.py",
+        "line": 122,
+        "type": "get_with_default",
+        "description": "get_with_default: user_strategy",
+        "code": "mapped_strategy = strategy_mapping.get("
+      },
+      {
+        "file": "core/strategy_selector.py",
+        "line": 216,
+        "type": "get_with_default",
+        "description": "get_with_default: \"unknown\"",
+        "code": "model_type = config.source_metadata.get(\"model\", \"unknown\")"
+      },
+      {
+        "file": "core/strategy_selector.py",
+        "line": 313,
+        "type": "get_with_default",
+        "description": "get_with_default: {}",
+        "code": "swpo_config = self.strategy_config.get(\"swpo\", {})"
+      },
+      {
+        "file": "core/strategy_selector.py",
+        "line": 337,
+        "type": "get_with_default",
+        "description": "get_with_default: {}",
+        "code": "prog_config = self.strategy_config.get("
+      },
+      {
+        "file": "core/strategy_selector.py",
+        "line": 390,
+        "type": "get_with_default",
+        "description": "get_with_default: {}",
+        "code": "strategy_config = self.strategy_config.get(strategy_name, {})"
+      },
+      {
+        "file": "core/strategy_selector.py",
+        "line": 393,
+        "type": "get_with_default",
+        "description": "get_with_default: {}",
+        "code": "strategy_params = self.strategy_parameters.get(strategy_name, {})"
+      },
+      {
+        "file": "core/strategy_selector.py",
+        "line": 325,
+        "type": "direct_assignment",
+        "description": "direct_assignment: aspect_tolerance",
+        "code": "aspect_tolerance = 1.1  # This is a tolerance value, kept as algorithmic constant"
+      },
+      {
+        "file": "core/strategy_selector.py",
+        "line": 144,
+        "type": "field_default",
+        "description": "field_default: dry_run",
+        "code": "def select(self, config, dry_run: bool = False) -> BaseExpansionStrategy:"
+      }
+    ],
+    "core/pipeline_orchestrator.py": [
+      {
+        "file": "core/pipeline_orchestrator.py",
+        "line": 321,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "\"tiled_large\": (\"tiled_expansion\", {\"tile_size\": 1024}),"
+      },
+      {
+        "file": "core/pipeline_orchestrator.py",
+        "line": 322,
+        "type": "ast_constant",
+        "description": "Numeric constant: 768",
+        "code": "\"tiled_medium\": (\"tiled_expansion\", {\"tile_size\": 768}),"
+      },
+      {
+        "file": "core/pipeline_orchestrator.py",
+        "line": 323,
+        "type": "ast_constant",
+        "description": "Numeric constant: 512",
+        "code": "\"tiled_small\": (\"tiled_expansion\", {\"tile_size\": 512}),"
+      },
+      {
+        "file": "core/pipeline_orchestrator.py",
+        "line": 357,
+        "type": "get_with_default",
+        "description": "get_with_default: {}",
+        "code": "global_defaults = self.config.get(\"global_defaults\", {})"
+      },
+      {
+        "file": "core/pipeline_orchestrator.py",
+        "line": 360,
+        "type": "get_with_default",
+        "description": "get_with_default: {}",
+        "code": "strategies_config = self.config.get(\"strategies\", {})"
+      },
+      {
+        "file": "core/pipeline_orchestrator.py",
+        "line": 361,
+        "type": "get_with_default",
+        "description": "get_with_default: {}",
+        "code": "strategy_defaults = strategies_config.get(strategy_name, {})"
+      },
+      {
+        "file": "core/pipeline_orchestrator.py",
+        "line": 364,
+        "type": "get_with_default",
+        "description": "get_with_default: {}",
+        "code": "user_overrides = self.config.get(\"user_overrides\", {})"
+      },
+      {
+        "file": "core/pipeline_orchestrator.py",
+        "line": 365,
+        "type": "get_with_default",
+        "description": "get_with_default: {}",
+        "code": "user_config = user_overrides.get(strategy_name, {})"
+      },
+      {
+        "file": "core/pipeline_orchestrator.py",
+        "line": 462,
+        "type": "get_with_default",
+        "description": "get_with_default: []",
+        "code": "stages=raw_result.get(\"stages\", []),  # Optional - stages may be empty"
+      },
+      {
+        "file": "core/pipeline_orchestrator.py",
+        "line": 463,
+        "type": "get_with_default",
+        "description": "get_with_default: []",
+        "code": "boundaries=raw_result.get(\"boundaries\", []),  # Optional - boundaries may be empty"
+      },
+      {
+        "file": "core/pipeline_orchestrator.py",
+        "line": 465,
+        "type": "get_with_default",
+        "description": "get_with_default: {}",
+        "code": "metadata=raw_result.get(\"metadata\", {}),  # Optional - metadata may be empty"
+      },
+      {
+        "file": "core/pipeline_orchestrator.py",
+        "line": 103,
+        "type": "direct_assignment",
+        "description": "direct_assignment: fallback_count",
+        "code": "fallback_count = 0"
+      }
+    ],
+    "core/configuration_manager.py": [
+      {
+        "file": "core/configuration_manager.py",
+        "line": 176,
+        "type": "get_default",
+        "description": ".get() with default: ''",
+        "code": "Path(os.environ.get(\"EXPANDOR_CONFIG_PATH\", \"\")),"
+      },
+      {
+        "file": "core/configuration_manager.py",
+        "line": 202,
+        "type": "ast_constant",
+        "description": "Numeric constant: 9",
+        "code": "config_path = key[9:].lower().replace(\"_\", \".\")"
+      },
+      {
+        "file": "core/configuration_manager.py",
+        "line": 348,
+        "type": "get_default",
+        "description": ".get() with default: '1.0'",
+        "code": "config_version = config.get('version', '1.0')"
+      },
+      {
+        "file": "core/configuration_manager.py",
+        "line": 99,
+        "type": "get_with_default",
+        "description": "get_with_default: {}",
+        "code": "self._schema_resolver = RefResolver(base_uri, self._schemas.get('base_schema', {}))"
+      },
+      {
+        "file": "core/configuration_manager.py",
+        "line": 176,
+        "type": "get_with_default",
+        "description": "get_with_default: \"\"",
+        "code": "Path(os.environ.get(\"EXPANDOR_CONFIG_PATH\", \"\")),"
+      },
+      {
+        "file": "core/configuration_manager.py",
+        "line": 304,
+        "type": "get_with_default",
+        "description": "get_with_default: {}",
+        "code": "f\"Available strategies: {list(self._config_cache.get('strategies', {}).keys())}\""
+      },
+      {
+        "file": "core/configuration_manager.py",
+        "line": 315,
+        "type": "get_with_default",
+        "description": "get_with_default: {}",
+        "code": "f\"Available processors: {list(self._config_cache.get('processors', {}).keys())}\""
+      },
+      {
+        "file": "core/configuration_manager.py",
+        "line": 97,
+        "type": "field_default",
+        "description": "field_default: _schemas",
+        "code": "if self._schemas:"
+      },
+      {
+        "file": "core/configuration_manager.py",
+        "line": 318,
+        "type": "field_default",
+        "description": "field_default: create",
+        "code": "def get_path(self, path_key: str, create: bool = True,"
+      },
+      {
+        "file": "core/configuration_manager.py",
+        "line": 319,
+        "type": "field_default",
+        "description": "field_default: path_type",
+        "code": "path_type: str = \"directory\") -> Path:"
+      },
+      {
+        "file": "core/configuration_manager.py",
+        "line": 318,
+        "type": "function_default",
+        "description": "function_default: \"directory\"",
+        "code": "def get_path(self, path_key: str, create: bool = True,"
+      }
+    ],
+    "strategies/base_strategy.py": [
+      {
+        "file": "strategies/base_strategy.py",
+        "line": 137,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1.2",
+        "code": "\"peak_vram_mb\": base_req * 1.2,  # 20% buffer"
+      },
+      {
+        "file": "strategies/base_strategy.py",
+        "line": 220,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1000",
+        "code": "timestamp = int(time.time() * 1000)"
+      },
+      {
+        "file": "strategies/base_strategy.py",
+        "line": 260,
+        "type": "ast_constant",
+        "description": "Numeric constant: 5",
+        "code": "def _cleanup_temp_files(self, keep_last: int = 5):"
+      },
+      {
+        "file": "strategies/base_strategy.py",
+        "line": 76,
+        "type": "get_with_default",
+        "description": "get_with_default: self.config",
+        "code": "params = self.config.get('parameters', self.config)"
+      },
+      {
+        "file": "strategies/base_strategy.py",
+        "line": 66,
+        "type": "field_default",
+        "description": "field_default: strategy_name",
+        "code": "if 'progressiveoutpaint' in strategy_name:"
+      },
+      {
+        "file": "strategies/base_strategy.py",
+        "line": 68,
+        "type": "field_default",
+        "description": "field_default: strategy_name",
+        "code": "elif 'cpuoffload' in strategy_name:"
+      },
+      {
+        "file": "strategies/base_strategy.py",
+        "line": 70,
+        "type": "field_default",
+        "description": "field_default: strategy_name",
+        "code": "elif 'tiledexpansion' in strategy_name:"
+      },
+      {
+        "file": "strategies/base_strategy.py",
+        "line": 260,
+        "type": "field_default",
+        "description": "field_default: keep_last",
+        "code": "def _cleanup_temp_files(self, keep_last: int = 5):"
+      },
+      {
+        "file": "strategies/base_strategy.py",
+        "line": 260,
+        "type": "function_default",
+        "description": "function_default: 5",
+        "code": "def _cleanup_temp_files(self, keep_last: int = 5):"
+      },
+      {
+        "file": "strategies/base_strategy.py",
+        "line": 220,
+        "type": "math_operations",
+        "description": "math_operations: 1000",
+        "code": "timestamp = int(time.time() * 1000)"
+      }
+    ],
+    "strategies/progressive_outpaint.py": [
+      {
+        "file": "strategies/progressive_outpaint.py",
+        "line": 102,
+        "type": "ast_constant",
+        "description": "Numeric constant: 3",
+        "code": "pixels = sample.reshape(-1, 3)"
+      },
+      {
+        "file": "strategies/progressive_outpaint.py",
+        "line": 346,
+        "type": "get_default",
+        "description": ".get() with default: True",
+        "code": "if step_info.get(\"enable_seam_fix\", True):"
+      },
+      {
+        "file": "strategies/progressive_outpaint.py",
+        "line": 397,
+        "type": "ast_constant",
+        "description": "Numeric constant: 3",
+        "code": "3)"
+      },
+      {
+        "file": "strategies/progressive_outpaint.py",
+        "line": 407,
+        "type": "ast_constant",
+        "description": "Numeric constant: 3",
+        "code": "3)"
+      },
+      {
+        "file": "strategies/progressive_outpaint.py",
+        "line": 417,
+        "type": "ast_constant",
+        "description": "Numeric constant: 3",
+        "code": "3)"
+      },
+      {
+        "file": "strategies/progressive_outpaint.py",
+        "line": 425,
+        "type": "ast_constant",
+        "description": "Numeric constant: 3",
+        "code": "3)"
+      },
+      {
+        "file": "strategies/progressive_outpaint.py",
+        "line": 471,
+        "type": "get_default",
+        "description": ".get() with default: 'progressive'",
+        "code": "step_type = step_info.get(\"step_type\", \"progressive\")"
+      },
+      {
+        "file": "strategies/progressive_outpaint.py",
+        "line": 501,
+        "type": "get_default",
+        "description": ".get() with default: 'progressive'",
+        "code": "step_type = step_info.get(\"step_type\", \"progressive\")"
+      },
+      {
+        "file": "strategies/progressive_outpaint.py",
+        "line": 628,
+        "type": "get_default",
+        "description": ".get() with default: 'both'",
+        "code": "direction = step_info.get(\"direction\", \"both\")"
+      },
+      {
+        "file": "strategies/progressive_outpaint.py",
+        "line": 471,
+        "type": "get_with_default",
+        "description": "get_with_default: \"progressive\"",
+        "code": "step_type = step_info.get(\"step_type\", \"progressive\")"
+      },
+      {
+        "file": "strategies/progressive_outpaint.py",
+        "line": 501,
+        "type": "get_with_default",
+        "description": "get_with_default: \"progressive\"",
+        "code": "step_type = step_info.get(\"step_type\", \"progressive\")"
+      },
+      {
+        "file": "strategies/progressive_outpaint.py",
+        "line": 628,
+        "type": "get_with_default",
+        "description": "get_with_default: \"both\"",
+        "code": "direction = step_info.get(\"direction\", \"both\")"
+      },
+      {
+        "file": "strategies/progressive_outpaint.py",
+        "line": 71,
+        "type": "math_operations",
+        "description": "math_operations: 123",
+        "code": "Copy from lines 81-123 of aspect_adjuster.py"
+      },
+      {
+        "file": "strategies/progressive_outpaint.py",
+        "line": 263,
+        "type": "math_operations",
+        "description": "math_operations: 698",
+        "code": "Adapted from _execute_outpaint_step lines 524-698"
+      },
+      {
+        "file": "strategies/progressive_outpaint.py",
+        "line": 364,
+        "type": "math_operations",
+        "description": "math_operations: 625",
+        "code": "Adapted from lines 574-625 of aspect_adjuster.py"
+      }
+    ],
+    "strategies/direct_upscale.py": [
+      {
+        "file": "strategies/direct_upscale.py",
+        "line": 481,
+        "type": "ast_constant",
+        "description": "Numeric constant: 3",
+        "code": "\"RealESRGAN_x4plus\" if pass_scale >= 3 else \"RealESRGAN_x2plus\"),"
+      }
+    ],
+    "strategies/tiled_expansion.py": [
+      {
+        "file": "strategies/tiled_expansion.py",
+        "line": 253,
+        "type": "direct_assignment",
+        "description": "direct_assignment: y",
+        "code": "y = 0"
+      },
+      {
+        "file": "strategies/tiled_expansion.py",
+        "line": 258,
+        "type": "direct_assignment",
+        "description": "direct_assignment: x",
+        "code": ""
+      }
+    ],
+    "strategies/swpo_strategy.py": [
+      {
+        "file": "strategies/swpo_strategy.py",
+        "line": 138,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "window_vram_mb = (effective_area * channels * bytes_per_pixel * batch_size * safety_factor) / (1024**2)"
+      },
+      {
+        "file": "strategies/swpo_strategy.py",
+        "line": 891,
+        "type": "ast_constant",
+        "description": "Numeric constant: 0.02",
+        "code": "self, image: Image.Image, mask: Image.Image, strength: float = 0.02"
+      },
+      {
+        "file": "strategies/swpo_strategy.py",
+        "line": 994,
+        "type": "ast_constant",
+        "description": "Numeric constant: 128",
+        "code": "mask_array > 128, iterations=kernel_size // 2)"
+      },
+      {
+        "file": "strategies/swpo_strategy.py",
+        "line": 996,
+        "type": "ast_constant",
+        "description": "Numeric constant: 128",
+        "code": "mask_array < 128, iterations=kernel_size // 2)"
+      },
+      {
+        "file": "strategies/swpo_strategy.py",
+        "line": 1027,
+        "type": "get_default",
+        "description": ".get() with default: False",
+        "code": "if context.get(\"has_high_frequency\", False):"
+      },
+      {
+        "file": "strategies/swpo_strategy.py",
+        "line": 1029,
+        "type": "get_default",
+        "description": ".get() with default: False",
+        "code": "elif context.get(\"is_smooth\", False):"
+      },
+      {
+        "file": "strategies/swpo_strategy.py",
+        "line": 190,
+        "type": "get_with_default",
+        "description": "get_with_default: {}",
+        "code": "self._context.get(\"pipeline_registry\", {}).keys()"
+      },
+      {
+        "file": "strategies/swpo_strategy.py",
+        "line": 806,
+        "type": "get_with_default",
+        "description": "get_with_default: config.num_inference_steps",
+        "code": "num_inference_steps=self.strategy_params.get("
+      },
+      {
+        "file": "strategies/swpo_strategy.py",
+        "line": 808,
+        "type": "get_with_default",
+        "description": "get_with_default: config.guidance_scale",
+        "code": "guidance_scale=self.strategy_params.get("
+      },
+      {
+        "file": "strategies/swpo_strategy.py",
+        "line": 454,
+        "type": "direct_assignment",
+        "description": "direct_assignment: window_index",
+        "code": "window_index = 0"
+      },
+      {
+        "file": "strategies/swpo_strategy.py",
+        "line": 475,
+        "type": "direct_assignment",
+        "description": "direct_assignment: x1",
+        "code": "x1 = 0"
+      },
+      {
+        "file": "strategies/swpo_strategy.py",
+        "line": 513,
+        "type": "direct_assignment",
+        "description": "direct_assignment: y1",
+        "code": "y1 = 0"
+      },
+      {
+        "file": "strategies/swpo_strategy.py",
+        "line": 571,
+        "type": "direct_assignment",
+        "description": "direct_assignment: paste_y",
+        "code": "paste_y = 0"
+      },
+      {
+        "file": "strategies/swpo_strategy.py",
+        "line": 594,
+        "type": "direct_assignment",
+        "description": "direct_assignment: paste_x",
+        "code": "paste_x = 0"
+      },
+      {
+        "file": "strategies/swpo_strategy.py",
+        "line": 891,
+        "type": "field_default",
+        "description": "field_default: strength",
+        "code": "self, image: Image.Image, mask: Image.Image, strength: float = 0.02"
+      },
+      {
+        "file": "strategies/swpo_strategy.py",
+        "line": 890,
+        "type": "function_default",
+        "description": "function_default: 0.02",
+        "code": "def _add_noise_to_mask("
+      }
+    ],
+    "strategies/cpu_offload.py": [
+      {
+        "file": "strategies/cpu_offload.py",
+        "line": 154,
+        "type": "get_with_default",
+        "description": "get_with_default: {}",
+        "code": "self._context.get(\"pipeline_registry\", {}).keys()"
+      },
+      {
+        "file": "strategies/cpu_offload.py",
+        "line": 231,
+        "type": "get_with_default",
+        "description": "get_with_default: optimal_tile_size",
+        "code": "\"tile_size\": stage.get(\"tile_size\", optimal_tile_size),"
+      },
+      {
+        "file": "strategies/cpu_offload.py",
+        "line": 332,
+        "type": "get_with_default",
+        "description": "get_with_default: {}",
+        "code": "steps = self.config.get("
+      },
+      {
+        "file": "strategies/cpu_offload.py",
+        "line": 334,
+        "type": "get_with_default",
+        "description": "get_with_default: self.strategy_config['aspect_adjust_steps']",
+        "code": "{}).get("
+      },
+      {
+        "file": "strategies/cpu_offload.py",
+        "line": 445,
+        "type": "get_with_default",
+        "description": "get_with_default: {}",
+        "code": "num_inference_steps=self.config.get('parameters', {}).get("
+      },
+      {
+        "file": "strategies/cpu_offload.py",
+        "line": 445,
+        "type": "get_with_default",
+        "description": "get_with_default: self.strategy_config['tile_generation_steps']",
+        "code": "num_inference_steps=self.config.get('parameters', {}).get("
+      },
+      {
+        "file": "strategies/cpu_offload.py",
+        "line": 506,
+        "type": "get_with_default",
+        "description": "get_with_default: {}",
+        "code": "num_inference_steps=self.config.get("
+      },
+      {
+        "file": "strategies/cpu_offload.py",
+        "line": 508,
+        "type": "get_with_default",
+        "description": "get_with_default: self.strategy_config['tile_refinement_steps']",
+        "code": "{}).get("
+      }
+    ],
+    "strategies/strategy_selector.py": [
+      {
+        "file": "strategies/strategy_selector.py",
+        "line": 204,
+        "type": "ast_constant",
+        "description": "Numeric constant: 50",
+        "code": "priority: int = 50):"
+      },
+      {
+        "file": "strategies/strategy_selector.py",
+        "line": 49,
+        "type": "field_default",
+        "description": "field_default: quality_priority",
+        "code": "quality_priority: bool = True,"
+      },
+      {
+        "file": "strategies/strategy_selector.py",
+        "line": 204,
+        "type": "field_default",
+        "description": "field_default: priority",
+        "code": "priority: int = 50):"
+      },
+      {
+        "file": "strategies/strategy_selector.py",
+        "line": 200,
+        "type": "function_default",
+        "description": "function_default: 50",
+        "code": "def register_strategy("
+      }
+    ],
+    "strategies/controlnet_progressive.py": [
+      {
+        "file": "strategies/controlnet_progressive.py",
+        "line": 85,
+        "type": "get_default",
+        "description": ".get() with default: True",
+        "code": "self.extract_at_each_step = self.controlnet_config.get("
+      },
+      {
+        "file": "strategies/controlnet_progressive.py",
+        "line": 85,
+        "type": "get_with_default",
+        "description": "get_with_default: True  # Default to True for ControlNet\n        ",
+        "code": "self.extract_at_each_step = self.controlnet_config.get("
+      },
+      {
+        "file": "strategies/controlnet_progressive.py",
+        "line": 241,
+        "type": "get_with_default",
+        "description": "get_with_default: self.strategy_config.get('default_strength', self.strategy_config['strength_fallback']",
+        "code": "base_strength = kwargs.get("
+      },
+      {
+        "file": "strategies/controlnet_progressive.py",
+        "line": 261,
+        "type": "get_with_default",
+        "description": "get_with_default: {}",
+        "code": "controlnet_params.update(kwargs.get(\"controlnet_params\", {}))"
+      }
+    ],
+    "processors/artifact_removal.py": [
+      {
+        "file": "processors/artifact_removal.py",
+        "line": 84,
+        "type": "get_default",
+        "description": ".get() with default: False",
+        "code": "if metadata.get(\"used_tiled\", False):"
+      },
+      {
+        "file": "processors/artifact_removal.py",
+        "line": 113,
+        "type": "ast_constant",
+        "description": "Numeric constant: 255.0",
+        "code": "problem_mask = np.array(mask_pil) / 255.0"
+      },
+      {
+        "file": "processors/artifact_removal.py",
+        "line": 205,
+        "type": "ast_constant",
+        "description": "Numeric constant: 3",
+        "code": "grad_x = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)"
+      },
+      {
+        "file": "processors/artifact_removal.py",
+        "line": 206,
+        "type": "ast_constant",
+        "description": "Numeric constant: 3",
+        "code": "grad_y = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)"
+      },
+      {
+        "file": "processors/artifact_removal.py",
+        "line": 62,
+        "type": "get_with_default",
+        "description": "get_with_default: []",
+        "code": "boundaries = metadata.get(\"progressive_boundaries\", [])"
+      },
+      {
+        "file": "processors/artifact_removal.py",
+        "line": 63,
+        "type": "get_with_default",
+        "description": "get_with_default: []",
+        "code": "boundaries_v = metadata.get(\"progressive_boundaries_vertical\", [])"
+      },
+      {
+        "file": "processors/artifact_removal.py",
+        "line": 64,
+        "type": "get_with_default",
+        "description": "get_with_default: []",
+        "code": "seam_details = metadata.get(\"seam_details\", [])"
+      },
+      {
+        "file": "processors/artifact_removal.py",
+        "line": 85,
+        "type": "get_with_default",
+        "description": "get_with_default: []",
+        "code": "tile_boundaries = metadata.get(\"tile_boundaries\", [])"
+      },
+      {
+        "file": "processors/artifact_removal.py",
+        "line": 59,
+        "type": "direct_assignment",
+        "description": "direct_assignment: seam_count",
+        "code": "seam_count = 0"
+      },
+      {
+        "file": "processors/artifact_removal.py",
+        "line": 38,
+        "type": "math_operations",
+        "description": "math_operations: 115",
+        "code": "Adapted from lines 22-115 of smart_detector.py"
+      },
+      {
+        "file": "processors/artifact_removal.py",
+        "line": 113,
+        "type": "math_operations",
+        "description": "math_operations: 255.0",
+        "code": "problem_mask = np.array(mask_pil) / 255.0"
+      }
+    ],
+    "processors/quality_validator.py": [
+      {
+        "file": "processors/quality_validator.py",
+        "line": 150,
+        "type": "get_default",
+        "description": ".get() with default: 0.0",
+        "code": "score -= severity_penalties.get(severity, 0.0)"
+      },
+      {
+        "file": "processors/quality_validator.py",
+        "line": 49,
+        "type": "get_with_default",
+        "description": "get_with_default: {}",
+        "code": "self.detection_config = config.get(\"quality_validation\", {}).get("
+      },
+      {
+        "file": "processors/quality_validator.py",
+        "line": 49,
+        "type": "get_with_default",
+        "description": "get_with_default: {}\n        ",
+        "code": "self.detection_config = config.get(\"quality_validation\", {}).get("
+      },
+      {
+        "file": "processors/quality_validator.py",
+        "line": 74,
+        "type": "get_with_default",
+        "description": "get_with_default: self.detection_config.get(\"aggressive\", {}",
+        "code": "level_config = self.detection_config.get("
+      },
+      {
+        "file": "processors/quality_validator.py",
+        "line": 57,
+        "type": "field_default",
+        "description": "field_default: detection_level",
+        "code": "detection_level: str = \"aggressive\","
+      },
+      {
+        "file": "processors/quality_validator.py",
+        "line": 53,
+        "type": "function_default",
+        "description": "function_default: \"aggressive\"",
+        "code": "def validate("
+      }
+    ],
+    "processors/seam_repair.py": [
+      {
+        "file": "processors/seam_repair.py",
+        "line": 133,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1000",
+        "code": "timestamp = int(time.time() * 1000)"
+      },
+      {
+        "file": "processors/seam_repair.py",
+        "line": 133,
+        "type": "math_operations",
+        "description": "math_operations: 1000",
+        "code": "timestamp = int(time.time() * 1000)"
+      }
+    ],
+    "processors/edge_analysis.py": [
+      {
+        "file": "processors/edge_analysis.py",
+        "line": 136,
+        "type": "ast_constant",
+        "description": "Numeric constant: 3",
+        "code": "sobel_x = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)"
+      },
+      {
+        "file": "processors/edge_analysis.py",
+        "line": 137,
+        "type": "ast_constant",
+        "description": "Numeric constant: 3",
+        "code": "sobel_y = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)"
+      },
+      {
+        "file": "processors/edge_analysis.py",
+        "line": 398,
+        "type": "ast_constant",
+        "description": "Numeric constant: 5",
+        "code": "self, edges: List[EdgeInfo], image_size: Tuple[int, int], dilation: int = 5"
+      },
+      {
+        "file": "processors/edge_analysis.py",
+        "line": 317,
+        "type": "direct_assignment",
+        "description": "direct_assignment: seam_impact",
+        "code": "seam_impact = 0.0"
+      },
+      {
+        "file": "processors/edge_analysis.py",
+        "line": 321,
+        "type": "direct_assignment",
+        "description": "direct_assignment: artifact_impact",
+        "code": ""
+      },
+      {
+        "file": "processors/edge_analysis.py",
+        "line": 17,
+        "type": "field_default",
+        "description": "field_default: ImportError",
+        "code": "except ImportError:"
+      },
+      {
+        "file": "processors/edge_analysis.py",
+        "line": 342,
+        "type": "field_default",
+        "description": "field_default: direction",
+        "code": "direction: str = \"vertical\","
+      },
+      {
+        "file": "processors/edge_analysis.py",
+        "line": 398,
+        "type": "field_default",
+        "description": "field_default: dilation",
+        "code": "self, edges: List[EdgeInfo], image_size: Tuple[int, int], dilation: int = 5"
+      },
+      {
+        "file": "processors/edge_analysis.py",
+        "line": 337,
+        "type": "function_default",
+        "description": "function_default: \"vertical\"",
+        "code": "def detect_color_discontinuity("
+      },
+      {
+        "file": "processors/edge_analysis.py",
+        "line": 397,
+        "type": "function_default",
+        "description": "function_default: 5",
+        "code": "def create_edge_mask("
+      }
+    ],
+    "processors/tiled_processor.py": [
+      {
+        "file": "processors/tiled_processor.py",
+        "line": 119,
+        "type": "direct_assignment",
+        "description": "direct_assignment: tile_idx",
+        "code": "tile_idx = 0"
+      },
+      {
+        "file": "processors/tiled_processor.py",
+        "line": 125,
+        "type": "direct_assignment",
+        "description": "direct_assignment: y",
+        "code": "y = 0"
+      },
+      {
+        "file": "processors/tiled_processor.py",
+        "line": 130,
+        "type": "direct_assignment",
+        "description": "direct_assignment: x",
+        "code": ""
+      },
+      {
+        "file": "processors/tiled_processor.py",
+        "line": 196,
+        "type": "field_default",
+        "description": "field_default: save_tiles",
+        "code": "save_tiles: bool = False,"
+      }
+    ],
+    "processors/artifact_detector_enhanced.py": [
+      {
+        "file": "processors/artifact_detector_enhanced.py",
+        "line": 25,
+        "type": "ast_constant",
+        "description": "Numeric constant: 3",
+        "code": "HIGH = 3"
+      },
+      {
+        "file": "processors/artifact_detector_enhanced.py",
+        "line": 26,
+        "type": "ast_constant",
+        "description": "Numeric constant: 4",
+        "code": "CRITICAL = 4"
+      },
+      {
+        "file": "processors/artifact_detector_enhanced.py",
+        "line": 246,
+        "type": "ast_constant",
+        "description": "Numeric constant: 5.0",
+        "code": "if severity == ArtifactSeverity.CRITICAL and artifact_percentage > 5.0:"
+      },
+      {
+        "file": "processors/artifact_detector_enhanced.py",
+        "line": 21,
+        "type": "direct_assignment",
+        "description": "direct_assignment: NONE",
+        "code": ""
+      },
+      {
+        "file": "processors/artifact_detector_enhanced.py",
+        "line": 23,
+        "type": "direct_assignment",
+        "description": "direct_assignment: LOW",
+        "code": "LOW = 1"
+      },
+      {
+        "file": "processors/artifact_detector_enhanced.py",
+        "line": 24,
+        "type": "direct_assignment",
+        "description": "direct_assignment: MEDIUM",
+        "code": "MEDIUM = 2"
+      },
+      {
+        "file": "processors/artifact_detector_enhanced.py",
+        "line": 25,
+        "type": "direct_assignment",
+        "description": "direct_assignment: HIGH",
+        "code": "HIGH = 3"
+      },
+      {
+        "file": "processors/artifact_detector_enhanced.py",
+        "line": 26,
+        "type": "direct_assignment",
+        "description": "direct_assignment: CRITICAL",
+        "code": "CRITICAL = 4"
+      }
+    ],
+    "processors/boundary_analysis.py": [
+      {
+        "file": "processors/boundary_analysis.py",
+        "line": 315,
+        "type": "get_default",
+        "description": ".get() with default: 0",
+        "code": "issue_types[issue_type] = issue_types.get(issue_type, 0) + 1"
+      },
+      {
+        "file": "processors/boundary_analysis.py",
+        "line": 316,
+        "type": "get_default",
+        "description": ".get() with default: 0",
+        "code": "severities[issue[\"severity\"]] = severities.get("
+      },
+      {
+        "file": "processors/boundary_analysis.py",
+        "line": 320,
+        "type": "get_default",
+        "description": ".get() with default: 0",
+        "code": "if issue_types.get(\"color_discontinuity\", 0) > 0:"
+      },
+      {
+        "file": "processors/boundary_analysis.py",
+        "line": 369,
+        "type": "ast_constant",
+        "description": "Numeric constant: 3",
+        "code": "rgb_map = np.zeros((height, width, 3), dtype=np.uint8)"
+      },
+      {
+        "file": "processors/boundary_analysis.py",
+        "line": 267,
+        "type": "get_with_default",
+        "description": "get_with_default: severity_values['default']\n            ",
+        "code": "severity_value = severity_values.get("
+      },
+      {
+        "file": "processors/boundary_analysis.py",
+        "line": 348,
+        "type": "get_with_default",
+        "description": "get_with_default: {}",
+        "code": "if \"color_difference\" in issue.get(\"metrics\", {})"
+      }
+    ],
+    "processors/quality_orchestrator.py": [
+      {
+        "file": "processors/quality_orchestrator.py",
+        "line": 285,
+        "type": "get_with_default",
+        "description": "get_with_default: self.processor_config['default_quality_score']",
+        "code": "score = boundary_analysis.get(\"quality_score\", self.processor_config['default_quality_score'])"
+      },
+      {
+        "file": "processors/quality_orchestrator.py",
+        "line": 296,
+        "type": "get_with_default",
+        "description": "get_with_default: self.processor_config['default_severity_penalty']",
+        "code": "score -= severity_penalty.get(detection_result.severity, self.processor_config['default_severity_penalty'])"
+      },
+      {
+        "file": "processors/quality_orchestrator.py",
+        "line": 135,
+        "type": "direct_assignment",
+        "description": "direct_assignment: refinement_passes",
+        "code": "refinement_passes = 0"
+      }
+    ],
+    "processors/controlnet_extractors.py": [
+      {
+        "file": "processors/controlnet_extractors.py",
+        "line": 133,
+        "type": "get_with_default",
+        "description": "get_with_default: {}",
+        "code": "canny_config = self.extractor_config.get(\"canny\", {})"
+      },
+      {
+        "file": "processors/controlnet_extractors.py",
+        "line": 137,
+        "type": "get_with_default",
+        "description": "get_with_default: self.processor_config['canny']['default_low_threshold']",
+        "code": "low_threshold = canny_config.get(\"default_low_threshold\","
+      },
+      {
+        "file": "processors/controlnet_extractors.py",
+        "line": 140,
+        "type": "get_with_default",
+        "description": "get_with_default: self.processor_config['canny']['default_high_threshold']",
+        "code": "high_threshold = canny_config.get(\"default_high_threshold\","
+      },
+      {
+        "file": "processors/controlnet_extractors.py",
+        "line": 249,
+        "type": "get_with_default",
+        "description": "get_with_default: {}",
+        "code": "blur_config = self.extractor_config.get(\"blur\", {})"
+      },
+      {
+        "file": "processors/controlnet_extractors.py",
+        "line": 347,
+        "type": "get_with_default",
+        "description": "get_with_default: {}",
+        "code": "depth_config = self.extractor_config.get(\"depth\", {})"
+      },
+      {
+        "file": "processors/controlnet_extractors.py",
+        "line": 113,
+        "type": "field_default",
+        "description": "field_default: dilate",
+        "code": "dilate: bool = True,"
+      },
+      {
+        "file": "processors/controlnet_extractors.py",
+        "line": 114,
+        "type": "field_default",
+        "description": "field_default: l2_gradient",
+        "code": "l2_gradient: bool = False"
+      },
+      {
+        "file": "processors/controlnet_extractors.py",
+        "line": 232,
+        "type": "field_default",
+        "description": "field_default: blur_type",
+        "code": "blur_type: str = \"gaussian\""
+      },
+      {
+        "file": "processors/controlnet_extractors.py",
+        "line": 228,
+        "type": "function_default",
+        "description": "function_default: \"gaussian\"",
+        "code": "def extract_blur("
+      }
+    ],
+    "utils/dimension_calculator.py": [
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 43,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1920",
+        "code": "\"1080p\": (1920, 1080),"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 43,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1080",
+        "code": "\"1080p\": (1920, 1080),"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 44,
+        "type": "ast_constant",
+        "description": "Numeric constant: 2560",
+        "code": "\"1440p\": (2560, 1440),"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 44,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1440",
+        "code": "\"1440p\": (2560, 1440),"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 45,
+        "type": "ast_constant",
+        "description": "Numeric constant: 3840",
+        "code": "\"4K\": (3840, 2160),"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 45,
+        "type": "ast_constant",
+        "description": "Numeric constant: 2160",
+        "code": "\"4K\": (3840, 2160),"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 46,
+        "type": "ast_constant",
+        "description": "Numeric constant: 5120",
+        "code": "\"5K\": (5120, 2880),"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 46,
+        "type": "ast_constant",
+        "description": "Numeric constant: 2880",
+        "code": "\"5K\": (5120, 2880),"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 47,
+        "type": "ast_constant",
+        "description": "Numeric constant: 7680",
+        "code": "\"8K\": (7680, 4320),"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 47,
+        "type": "ast_constant",
+        "description": "Numeric constant: 4320",
+        "code": "\"8K\": (7680, 4320),"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 48,
+        "type": "ast_constant",
+        "description": "Numeric constant: 3440",
+        "code": "\"ultrawide_1440p\": (3440, 1440),"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 48,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1440",
+        "code": "\"ultrawide_1440p\": (3440, 1440),"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 49,
+        "type": "ast_constant",
+        "description": "Numeric constant: 5120",
+        "code": "\"ultrawide_4K\": (5120, 2160),"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 49,
+        "type": "ast_constant",
+        "description": "Numeric constant: 2160",
+        "code": "\"ultrawide_4K\": (5120, 2160),"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 50,
+        "type": "ast_constant",
+        "description": "Numeric constant: 5760",
+        "code": "\"super_ultrawide\": (5760, 1080),"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 50,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1080",
+        "code": "\"super_ultrawide\": (5760, 1080),"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 51,
+        "type": "ast_constant",
+        "description": "Numeric constant: 2160",
+        "code": "\"portrait_4K\": (2160, 3840),"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 51,
+        "type": "ast_constant",
+        "description": "Numeric constant: 3840",
+        "code": "\"portrait_4K\": (2160, 3840),"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 52,
+        "type": "ast_constant",
+        "description": "Numeric constant: 2880",
+        "code": "\"square_4K\": (2880, 2880),"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 52,
+        "type": "ast_constant",
+        "description": "Numeric constant: 2880",
+        "code": "\"square_4K\": (2880, 2880),"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 57,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "(1024, 1024),  # 1:1"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 57,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "(1024, 1024),  # 1:1"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 58,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1152",
+        "code": "(1152, 896),  # 4:3.11"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 58,
+        "type": "ast_constant",
+        "description": "Numeric constant: 896",
+        "code": "(1152, 896),  # 4:3.11"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 59,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1216",
+        "code": "(1216, 832),  # 3:2.05"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 59,
+        "type": "ast_constant",
+        "description": "Numeric constant: 832",
+        "code": "(1216, 832),  # 3:2.05"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 60,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1344",
+        "code": "(1344, 768),  # 16:9.14"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 60,
+        "type": "ast_constant",
+        "description": "Numeric constant: 768",
+        "code": "(1344, 768),  # 16:9.14"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 61,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1536",
+        "code": "(1536, 640),  # 2.4:1"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 61,
+        "type": "ast_constant",
+        "description": "Numeric constant: 640",
+        "code": "(1536, 640),  # 2.4:1"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 62,
+        "type": "ast_constant",
+        "description": "Numeric constant: 768",
+        "code": "(768, 1344),  # 9:16 (portrait)"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 62,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1344",
+        "code": "(768, 1344),  # 9:16 (portrait)"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 63,
+        "type": "ast_constant",
+        "description": "Numeric constant: 896",
+        "code": "(896, 1152),  # 3:4 (portrait)"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 63,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1152",
+        "code": "(896, 1152),  # 3:4 (portrait)"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 64,
+        "type": "ast_constant",
+        "description": "Numeric constant: 640",
+        "code": "(640, 1536),  # 1:2.4 (tall portrait)"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 64,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1536",
+        "code": "(640, 1536),  # 1:2.4 (tall portrait)"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 69,
+        "type": "ast_constant",
+        "description": "Numeric constant: 16",
+        "code": "\"divisible_by\": 16,"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 70,
+        "type": "ast_constant",
+        "description": "Numeric constant: 2048",
+        "code": "\"max_dimension\": 2048,"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 71,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "\"optimal_pixels\": 1024 * 1024,  # 1MP for best quality"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 71,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "\"optimal_pixels\": 1024 * 1024,  # 1MP for best quality"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 93,
+        "type": "get_default",
+        "description": ".get() with default: 8",
+        "code": "multiple = proc_config.get("
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 115,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "return (1024, 1024)"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 115,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "return (1024, 1024)"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 157,
+        "type": "ast_constant",
+        "description": "Numeric constant: 16",
+        "code": "width = (width // 16) * 16"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 157,
+        "type": "ast_constant",
+        "description": "Numeric constant: 16",
+        "code": "width = (width // 16) * 16"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 158,
+        "type": "ast_constant",
+        "description": "Numeric constant: 16",
+        "code": "height = (height // 16) * 16"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 158,
+        "type": "ast_constant",
+        "description": "Numeric constant: 16",
+        "code": "height = (height // 16) * 16"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 166,
+        "type": "ast_constant",
+        "description": "Numeric constant: 16",
+        "code": "width = (width // 16) * 16"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 166,
+        "type": "ast_constant",
+        "description": "Numeric constant: 16",
+        "code": "width = (width // 16) * 16"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 167,
+        "type": "ast_constant",
+        "description": "Numeric constant: 16",
+        "code": "height = (height // 16) * 16"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 167,
+        "type": "ast_constant",
+        "description": "Numeric constant: 16",
+        "code": "height = (height // 16) * 16"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 175,
+        "type": "ast_constant",
+        "description": "Numeric constant: 2.0",
+        "code": "max_expansion_per_step: float = 2.0,"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 196,
+        "type": "ast_constant",
+        "description": "Numeric constant: 0.05",
+        "code": "if abs(current_aspect - target_aspect) < 0.05:"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 203,
+        "type": "ast_constant",
+        "description": "Numeric constant: 8.0",
+        "code": "if aspect_change_ratio > 8.0:"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 225,
+        "type": "ast_constant",
+        "description": "Numeric constant: 2.0",
+        "code": "if total_expansion >= 2.0:"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 226,
+        "type": "ast_constant",
+        "description": "Numeric constant: 2.0",
+        "code": "next_w = min(int(temp_w * 2.0), target_w)"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 246,
+        "type": "ast_constant",
+        "description": "Numeric constant: 0.95",
+        "code": "while temp_w < target_w * 0.95:"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 247,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1.5",
+        "code": "if temp_w * 1.5 <= target_w:"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 248,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1.5",
+        "code": "next_w = int(temp_w * 1.5)"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 270,
+        "type": "ast_constant",
+        "description": "Numeric constant: 10",
+        "code": "if step_num > 10:"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 306,
+        "type": "ast_constant",
+        "description": "Numeric constant: 2.0",
+        "code": "if total_expansion >= 2.0:"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 307,
+        "type": "ast_constant",
+        "description": "Numeric constant: 2.0",
+        "code": "next_h = min(int(temp_h * 2.0), target_h)"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 327,
+        "type": "ast_constant",
+        "description": "Numeric constant: 0.95",
+        "code": "while temp_h < target_h * 0.95:"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 328,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1.5",
+        "code": "if temp_h * 1.5 <= target_h:"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 329,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1.5",
+        "code": "next_h = int(temp_h * 1.5)"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 351,
+        "type": "ast_constant",
+        "description": "Numeric constant: 10",
+        "code": "if step_num > 10:"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 379,
+        "type": "ast_constant",
+        "description": "Numeric constant: 200",
+        "code": "window_size: int = 200,"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 380,
+        "type": "ast_constant",
+        "description": "Numeric constant: 0.8",
+        "code": "overlap_ratio: float = 0.8,"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 93,
+        "type": "get_with_default",
+        "description": "get_with_default: {}",
+        "code": "multiple = proc_config.get("
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 245,
+        "type": "direct_assignment",
+        "description": "direct_assignment: step_num",
+        "code": "step_num = 2"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 326,
+        "type": "direct_assignment",
+        "description": "direct_assignment: step_num",
+        "code": "step_num = 2"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 409,
+        "type": "direct_assignment",
+        "description": "direct_assignment: window_num",
+        "code": "window_num = 1"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 456,
+        "type": "direct_assignment",
+        "description": "direct_assignment: window_num",
+        "code": "window_num = 1"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 175,
+        "type": "field_default",
+        "description": "field_default: max_expansion_per_step",
+        "code": "max_expansion_per_step: float = 2.0,"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 379,
+        "type": "field_default",
+        "description": "field_default: window_size",
+        "code": "window_size: int = 200,"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 380,
+        "type": "field_default",
+        "description": "field_default: overlap_ratio",
+        "code": "overlap_ratio: float = 0.8,"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 171,
+        "type": "function_default",
+        "description": "function_default: 2.0",
+        "code": "def calculate_progressive_strategy("
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 375,
+        "type": "function_default",
+        "description": "function_default: 0.8",
+        "code": "def calculate_sliding_window_strategy("
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 196,
+        "type": "if_comparison",
+        "description": "if_comparison: 0.05",
+        "code": "if abs(current_aspect - target_aspect) < 0.05:"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 225,
+        "type": "if_comparison",
+        "description": "if_comparison: 2.0",
+        "code": "if total_expansion >= 2.0:"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 270,
+        "type": "if_comparison",
+        "description": "if_comparison: 10",
+        "code": "if step_num > 10:"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 306,
+        "type": "if_comparison",
+        "description": "if_comparison: 2.0",
+        "code": "if total_expansion >= 2.0:"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 351,
+        "type": "if_comparison",
+        "description": "if_comparison: 10",
+        "code": "if step_num > 10:"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 71,
+        "type": "math_operations",
+        "description": "math_operations: 1024",
+        "code": "\"optimal_pixels\": 1024 * 1024,  # 1MP for best quality"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 105,
+        "type": "math_operations",
+        "description": "math_operations: 93",
+        "code": "Copy implementation from lines 70-93"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 122,
+        "type": "math_operations",
+        "description": "math_operations: 118",
+        "code": "\"\"\"Copy from lines 95-118\"\"\""
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 146,
+        "type": "math_operations",
+        "description": "math_operations: 142",
+        "code": "\"\"\"Copy from lines 120-142\"\"\""
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 157,
+        "type": "math_operations",
+        "description": "math_operations: 16",
+        "code": "width = (width // 16) * 16"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 157,
+        "type": "math_operations",
+        "description": "math_operations: 16",
+        "code": "width = (width // 16) * 16"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 158,
+        "type": "math_operations",
+        "description": "math_operations: 16",
+        "code": "height = (height // 16) * 16"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 158,
+        "type": "math_operations",
+        "description": "math_operations: 16",
+        "code": "height = (height // 16) * 16"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 166,
+        "type": "math_operations",
+        "description": "math_operations: 16",
+        "code": "width = (width // 16) * 16"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 166,
+        "type": "math_operations",
+        "description": "math_operations: 16",
+        "code": "width = (width // 16) * 16"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 167,
+        "type": "math_operations",
+        "description": "math_operations: 16",
+        "code": "height = (height // 16) * 16"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 167,
+        "type": "math_operations",
+        "description": "math_operations: 16",
+        "code": "height = (height // 16) * 16"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 179,
+        "type": "math_operations",
+        "description": "math_operations: 405",
+        "code": "Copy core logic from lines 223-405 of resolution_manager.py"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 226,
+        "type": "math_operations",
+        "description": "math_operations: 2.0",
+        "code": "next_w = min(int(temp_w * 2.0), target_w)"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 246,
+        "type": "math_operations",
+        "description": "math_operations: 0.95",
+        "code": "while temp_w < target_w * 0.95:"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 247,
+        "type": "math_operations",
+        "description": "math_operations: 1.5",
+        "code": "if temp_w * 1.5 <= target_w:"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 248,
+        "type": "math_operations",
+        "description": "math_operations: 1.5",
+        "code": "next_w = int(temp_w * 1.5)"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 307,
+        "type": "math_operations",
+        "description": "math_operations: 2.0",
+        "code": "next_h = min(int(temp_h * 2.0), target_h)"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 327,
+        "type": "math_operations",
+        "description": "math_operations: 0.95",
+        "code": "while temp_h < target_h * 0.95:"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 328,
+        "type": "math_operations",
+        "description": "math_operations: 1.5",
+        "code": "if temp_h * 1.5 <= target_h:"
+      },
+      {
+        "file": "utils/dimension_calculator.py",
+        "line": 329,
+        "type": "math_operations",
+        "description": "math_operations: 1.5",
+        "code": "next_h = int(temp_h * 1.5)"
+      }
+    ],
+    "utils/config_loader.py": [
+      {
+        "file": "utils/config_loader.py",
+        "line": 328,
+        "type": "ast_constant",
+        "description": "Numeric constant: 80",
+        "code": "\"inference_steps\": 80,"
+      },
+      {
+        "file": "utils/config_loader.py",
+        "line": 329,
+        "type": "ast_constant",
+        "description": "Numeric constant: 7.5",
+        "code": "\"cfg_scale\": 7.5,"
+      },
+      {
+        "file": "utils/config_loader.py",
+        "line": 330,
+        "type": "ast_constant",
+        "description": "Numeric constant: 0.95",
+        "code": "\"denoise_strength\": 0.95,"
+      },
+      {
+        "file": "utils/config_loader.py",
+        "line": 331,
+        "type": "ast_constant",
+        "description": "Numeric constant: 300",
+        "code": "\"blur_radius\": 300,"
+      },
+      {
+        "file": "utils/config_loader.py",
+        "line": 334,
+        "type": "ast_constant",
+        "description": "Numeric constant: 60",
+        "code": "\"inference_steps\": 60,"
+      },
+      {
+        "file": "utils/config_loader.py",
+        "line": 335,
+        "type": "ast_constant",
+        "description": "Numeric constant: 7.0",
+        "code": "\"cfg_scale\": 7.0,"
+      },
+      {
+        "file": "utils/config_loader.py",
+        "line": 336,
+        "type": "ast_constant",
+        "description": "Numeric constant: 0.9",
+        "code": "\"denoise_strength\": 0.9,"
+      },
+      {
+        "file": "utils/config_loader.py",
+        "line": 337,
+        "type": "ast_constant",
+        "description": "Numeric constant: 200",
+        "code": "\"blur_radius\": 200,"
+      },
+      {
+        "file": "utils/config_loader.py",
+        "line": 340,
+        "type": "ast_constant",
+        "description": "Numeric constant: 40",
+        "code": "\"inference_steps\": 40,"
+      },
+      {
+        "file": "utils/config_loader.py",
+        "line": 341,
+        "type": "ast_constant",
+        "description": "Numeric constant: 6.5",
+        "code": "\"cfg_scale\": 6.5,"
+      },
+      {
+        "file": "utils/config_loader.py",
+        "line": 342,
+        "type": "ast_constant",
+        "description": "Numeric constant: 0.85",
+        "code": "\"denoise_strength\": 0.85,"
+      },
+      {
+        "file": "utils/config_loader.py",
+        "line": 343,
+        "type": "ast_constant",
+        "description": "Numeric constant: 150",
+        "code": "\"blur_radius\": 150,"
+      },
+      {
+        "file": "utils/config_loader.py",
+        "line": 346,
+        "type": "ast_constant",
+        "description": "Numeric constant: 25",
+        "code": "\"inference_steps\": 25,"
+      },
+      {
+        "file": "utils/config_loader.py",
+        "line": 347,
+        "type": "ast_constant",
+        "description": "Numeric constant: 6.0",
+        "code": "\"cfg_scale\": 6.0,"
+      },
+      {
+        "file": "utils/config_loader.py",
+        "line": 348,
+        "type": "ast_constant",
+        "description": "Numeric constant: 0.8",
+        "code": "\"denoise_strength\": 0.8,"
+      },
+      {
+        "file": "utils/config_loader.py",
+        "line": 104,
+        "type": "get_with_default",
+        "description": "get_with_default: file_config\n                                ",
+        "code": "config[\"quality_presets\"] = file_config.get("
+      },
+      {
+        "file": "utils/config_loader.py",
+        "line": 378,
+        "type": "get_with_default",
+        "description": "get_with_default: []",
+        "code": "required_keys = schema.get('required', [])"
+      },
+      {
+        "file": "utils/config_loader.py",
+        "line": 183,
+        "type": "field_default",
+        "description": "field_default: user_config",
+        "code": "user_config: bool = False) -> Path:"
+      }
+    ],
+    "utils/logging_utils.py": [
+      {
+        "file": "utils/logging_utils.py",
+        "line": 24,
+        "type": "get_with_default",
+        "description": "get_with_default: self.RESET",
+        "code": "log_color = self.COLORS.get(record.levelname, self.RESET)"
+      }
+    ],
+    "utils/image_utils.py": [
+      {
+        "file": "utils/image_utils.py",
+        "line": 122,
+        "type": "ast_constant",
+        "description": "Numeric constant: 255.0",
+        "code": "arr1 = np.array(img1, dtype=np.float32) / 255.0"
+      },
+      {
+        "file": "utils/image_utils.py",
+        "line": 123,
+        "type": "ast_constant",
+        "description": "Numeric constant: 255.0",
+        "code": "arr2 = np.array(img2, dtype=np.float32) / 255.0"
+      },
+      {
+        "file": "utils/image_utils.py",
+        "line": 124,
+        "type": "ast_constant",
+        "description": "Numeric constant: 255.0",
+        "code": "mask_arr = np.array(mask, dtype=np.float32) / 255.0"
+      },
+      {
+        "file": "utils/image_utils.py",
+        "line": 190,
+        "type": "ast_constant",
+        "description": "Numeric constant: 3",
+        "code": "result = np.zeros((edge_pixels.shape[0], 3))"
+      },
+      {
+        "file": "utils/image_utils.py",
+        "line": 192,
+        "type": "ast_constant",
+        "description": "Numeric constant: 3",
+        "code": "for c in range(3):"
+      },
+      {
+        "file": "utils/image_utils.py",
+        "line": 198,
+        "type": "ast_constant",
+        "description": "Numeric constant: 3",
+        "code": "result = np.zeros((edge_pixels.shape[1], 3))"
+      },
+      {
+        "file": "utils/image_utils.py",
+        "line": 200,
+        "type": "ast_constant",
+        "description": "Numeric constant: 3",
+        "code": "for c in range(3):"
+      },
+      {
+        "file": "utils/image_utils.py",
+        "line": 273,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1e-08",
+        "code": "noise = (noise - noise.min()) / (noise.max() - noise.min() + 1e-8)"
+      },
+      {
+        "file": "utils/image_utils.py",
+        "line": 329,
+        "type": "ast_constant",
+        "description": "Numeric constant: 4.0",
+        "code": "sigma = size / 4.0"
+      },
+      {
+        "file": "utils/image_utils.py",
+        "line": 332,
+        "type": "ast_constant",
+        "description": "Numeric constant: 2.0",
+        "code": "center = size / 2.0"
+      },
+      {
+        "file": "utils/image_utils.py",
+        "line": 25,
+        "type": "field_default",
+        "description": "field_default: fade_start",
+        "code": "fade_start: float = 0.0) -> Image.Image:"
+      },
+      {
+        "file": "utils/image_utils.py",
+        "line": 88,
+        "type": "field_default",
+        "description": "field_default: mode",
+        "code": "mode: str = \"normal\") -> Image.Image:"
+      },
+      {
+        "file": "utils/image_utils.py",
+        "line": 146,
+        "type": "field_default",
+        "description": "field_default: width",
+        "code": "image: Image.Image, edge: str, width: int = 1, method: str = \"average\""
+      },
+      {
+        "file": "utils/image_utils.py",
+        "line": 146,
+        "type": "field_default",
+        "description": "field_default: method",
+        "code": "image: Image.Image, edge: str, width: int = 1, method: str = \"average\""
+      },
+      {
+        "file": "utils/image_utils.py",
+        "line": 278,
+        "type": "field_default",
+        "description": "field_default: feather",
+        "code": "size: Tuple[int, int], center: Tuple[int, int], radius: int, feather: int = 0"
+      },
+      {
+        "file": "utils/image_utils.py",
+        "line": 84,
+        "type": "function_default",
+        "description": "function_default: \"normal\"",
+        "code": "def blend_images("
+      },
+      {
+        "file": "utils/image_utils.py",
+        "line": 145,
+        "type": "function_default",
+        "description": "function_default: \"average\"",
+        "code": "def extract_edge_colors("
+      },
+      {
+        "file": "utils/image_utils.py",
+        "line": 192,
+        "type": "range_calls",
+        "description": "range_calls: 3",
+        "code": "for c in range(3):"
+      },
+      {
+        "file": "utils/image_utils.py",
+        "line": 200,
+        "type": "range_calls",
+        "description": "range_calls: 3",
+        "code": "for c in range(3):"
+      },
+      {
+        "file": "utils/image_utils.py",
+        "line": 122,
+        "type": "math_operations",
+        "description": "math_operations: 255.0",
+        "code": "arr1 = np.array(img1, dtype=np.float32) / 255.0"
+      },
+      {
+        "file": "utils/image_utils.py",
+        "line": 123,
+        "type": "math_operations",
+        "description": "math_operations: 255.0",
+        "code": "arr2 = np.array(img2, dtype=np.float32) / 255.0"
+      },
+      {
+        "file": "utils/image_utils.py",
+        "line": 124,
+        "type": "math_operations",
+        "description": "math_operations: 255.0",
+        "code": "mask_arr = np.array(mask, dtype=np.float32) / 255.0"
+      },
+      {
+        "file": "utils/image_utils.py",
+        "line": 323,
+        "type": "math_operations",
+        "description": "math_operations: 4",
+        "code": "sigma: Standard deviation (default: size/4)"
+      },
+      {
+        "file": "utils/image_utils.py",
+        "line": 329,
+        "type": "math_operations",
+        "description": "math_operations: 4.0",
+        "code": "sigma = size / 4.0"
+      },
+      {
+        "file": "utils/image_utils.py",
+        "line": 332,
+        "type": "math_operations",
+        "description": "math_operations: 2.0",
+        "code": "center = size / 2.0"
+      }
+    ],
+    "utils/memory_utils.py": [
+      {
+        "file": "utils/memory_utils.py",
+        "line": 53,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "gpu_free = gpu_stats[0] / (1024**2)  # Convert to MB"
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 54,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "gpu_total = gpu_stats[1] / (1024**2)"
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 61,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "cpu_total = cpu_info.total / (1024**2)"
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 62,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "cpu_free = cpu_info.available / (1024**2)"
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 63,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "cpu_used = cpu_info.used / (1024**2)"
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 122,
+        "type": "ast_constant",
+        "description": "Numeric constant: 4",
+        "code": "torch.float32: 4,"
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 125,
+        "type": "ast_constant",
+        "description": "Numeric constant: 4",
+        "code": "torch.int32: 4,"
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 142,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "return total_bytes / (1024**2)"
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 145,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1.2",
+        "code": "self, required_mb: float, safety_factor: float = 1.2"
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 190,
+        "type": "ast_constant",
+        "description": "Numeric constant: 16",
+        "code": "max_batch_size: int = 16,"
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 191,
+        "type": "ast_constant",
+        "description": "Numeric constant: 0.8",
+        "code": "safety_factor: float = 0.8,"
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 240,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "1024**2:.1f}MB)\""
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 272,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "1024**2:.1f}MB)\""
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 312,
+        "type": "get_default",
+        "description": ".get() with default: 2",
+        "code": "gradient_multiplier = proc_config.get("
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 333,
+        "type": "get_default",
+        "description": ".get() with default: 4",
+        "code": "mem_params.get("
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 335,
+        "type": "ast_constant",
+        "description": "Numeric constant: 4",
+        "code": "4) if include_gradients else mem_params.get("
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 335,
+        "type": "get_default",
+        "description": ".get() with default: 2",
+        "code": "4) if include_gradients else mem_params.get("
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 343,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "total_mb = total_bytes / (1024**2)"
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 360,
+        "type": "ast_constant",
+        "description": "Numeric constant: 12",
+        "code": "bytes_per_pixel: float = 12,"
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 361,
+        "type": "ast_constant",
+        "description": "Numeric constant: 64",
+        "code": "overlap: int = 64,"
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 362,
+        "type": "ast_constant",
+        "description": "Numeric constant: 256",
+        "code": "min_tile: int = 256,"
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 363,
+        "type": "ast_constant",
+        "description": "Numeric constant: 2048",
+        "code": "max_tile: int = 2048,"
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 388,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "tile_memory_mb = (tile_pixels * bytes_per_pixel) / (1024**2)"
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 312,
+        "type": "get_with_default",
+        "description": "get_with_default: {}",
+        "code": "gradient_multiplier = proc_config.get("
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 331,
+        "type": "get_with_default",
+        "description": "get_with_default: {}",
+        "code": "mem_params = proc_config.get('memory_params', {})"
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 333,
+        "type": "get_with_default",
+        "description": "get_with_default: 4",
+        "code": "mem_params.get("
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 116,
+        "type": "direct_assignment",
+        "description": "direct_assignment: num_elements",
+        "code": "num_elements = 1"
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 294,
+        "type": "direct_assignment",
+        "description": "direct_assignment: total_params",
+        "code": "total_params = 0"
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 295,
+        "type": "direct_assignment",
+        "description": "direct_assignment: total_bytes",
+        "code": "total_bytes = 0"
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 85,
+        "type": "field_default",
+        "description": "field_default: aggressive",
+        "code": "def clear_cache(self, aggressive: bool = False):"
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 145,
+        "type": "field_default",
+        "description": "field_default: safety_factor",
+        "code": "self, required_mb: float, safety_factor: float = 1.2"
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 163,
+        "type": "field_default",
+        "description": "field_default: name",
+        "code": "self, name: str = \"operation\", clear_on_exit: bool = True"
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 163,
+        "type": "field_default",
+        "description": "field_default: clear_on_exit",
+        "code": "self, name: str = \"operation\", clear_on_exit: bool = True"
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 190,
+        "type": "field_default",
+        "description": "field_default: max_batch_size",
+        "code": "max_batch_size: int = 16,"
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 191,
+        "type": "field_default",
+        "description": "field_default: safety_factor",
+        "code": "safety_factor: float = 0.8,"
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 283,
+        "type": "field_default",
+        "description": "field_default: include_gradients",
+        "code": "def estimate_model_memory(model: Any, include_gradients: bool = True) -> float:"
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 360,
+        "type": "field_default",
+        "description": "field_default: bytes_per_pixel",
+        "code": "bytes_per_pixel: float = 12,"
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 361,
+        "type": "field_default",
+        "description": "field_default: overlap",
+        "code": "overlap: int = 64,"
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 362,
+        "type": "field_default",
+        "description": "field_default: min_tile",
+        "code": "min_tile: int = 256,"
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 363,
+        "type": "field_default",
+        "description": "field_default: max_tile",
+        "code": "max_tile: int = 2048,"
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 144,
+        "type": "function_default",
+        "description": "function_default: 1.2",
+        "code": "def has_sufficient_memory("
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 186,
+        "type": "function_default",
+        "description": "function_default: 0.8",
+        "code": "def get_optimal_batch_size("
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 357,
+        "type": "function_default",
+        "description": "function_default: 2048",
+        "code": "def calculate_optimal_tile_size("
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 239,
+        "type": "math_operations",
+        "description": "math_operations: 1024",
+        "code": "tensor.nelement() /"
+      },
+      {
+        "file": "utils/memory_utils.py",
+        "line": 271,
+        "type": "math_operations",
+        "description": "math_operations: 1024",
+        "code": "tensor.nelement() /"
+      }
+    ],
+    "utils/model_manager.py": [
+      {
+        "file": "utils/model_manager.py",
+        "line": 340,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "if size_bytes < 1024 * 1024:"
+      },
+      {
+        "file": "utils/model_manager.py",
+        "line": 340,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "if size_bytes < 1024 * 1024:"
+      },
+      {
+        "file": "utils/model_manager.py",
+        "line": 341,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "return f\"{size_bytes / 1024:.1f} KB\""
+      },
+      {
+        "file": "utils/model_manager.py",
+        "line": 342,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "elif size_bytes < 1024 * 1024 * 1024:"
+      },
+      {
+        "file": "utils/model_manager.py",
+        "line": 342,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "elif size_bytes < 1024 * 1024 * 1024:"
+      },
+      {
+        "file": "utils/model_manager.py",
+        "line": 342,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "elif size_bytes < 1024 * 1024 * 1024:"
+      },
+      {
+        "file": "utils/model_manager.py",
+        "line": 343,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "return f\"{size_bytes / (1024 * 1024):.1f} MB\""
+      },
+      {
+        "file": "utils/model_manager.py",
+        "line": 343,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "return f\"{size_bytes / (1024 * 1024):.1f} MB\""
+      },
+      {
+        "file": "utils/model_manager.py",
+        "line": 345,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "return f\"{size_bytes / (1024 * 1024 * 1024):.1f} GB\""
+      },
+      {
+        "file": "utils/model_manager.py",
+        "line": 345,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "return f\"{size_bytes / (1024 * 1024 * 1024):.1f} GB\""
+      },
+      {
+        "file": "utils/model_manager.py",
+        "line": 345,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "return f\"{size_bytes / (1024 * 1024 * 1024):.1f} GB\""
+      },
+      {
+        "file": "utils/model_manager.py",
+        "line": 436,
+        "type": "ast_constant",
+        "description": "Numeric constant: 0.25",
+        "code": "return int(base_size * 0.25)"
+      },
+      {
+        "file": "utils/model_manager.py",
+        "line": 442,
+        "type": "ast_constant",
+        "description": "Numeric constant: 7",
+        "code": "return 7 * 1024 * 1024 * 1024  # 7GB for SDXL models"
+      },
+      {
+        "file": "utils/model_manager.py",
+        "line": 442,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "return 7 * 1024 * 1024 * 1024  # 7GB for SDXL models"
+      },
+      {
+        "file": "utils/model_manager.py",
+        "line": 442,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "return 7 * 1024 * 1024 * 1024  # 7GB for SDXL models"
+      },
+      {
+        "file": "utils/model_manager.py",
+        "line": 442,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "return 7 * 1024 * 1024 * 1024  # 7GB for SDXL models"
+      },
+      {
+        "file": "utils/model_manager.py",
+        "line": 444,
+        "type": "ast_constant",
+        "description": "Numeric constant: 15",
+        "code": "return 15 * 1024 * 1024 * 1024  # 15GB for FLUX models"
+      },
+      {
+        "file": "utils/model_manager.py",
+        "line": 444,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "return 15 * 1024 * 1024 * 1024  # 15GB for FLUX models"
+      },
+      {
+        "file": "utils/model_manager.py",
+        "line": 444,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "return 15 * 1024 * 1024 * 1024  # 15GB for FLUX models"
+      },
+      {
+        "file": "utils/model_manager.py",
+        "line": 444,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "return 15 * 1024 * 1024 * 1024  # 15GB for FLUX models"
+      },
+      {
+        "file": "utils/model_manager.py",
+        "line": 446,
+        "type": "ast_constant",
+        "description": "Numeric constant: 5",
+        "code": "return 5 * 1024 * 1024 * 1024  # 5GB default"
+      },
+      {
+        "file": "utils/model_manager.py",
+        "line": 446,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "return 5 * 1024 * 1024 * 1024  # 5GB default"
+      },
+      {
+        "file": "utils/model_manager.py",
+        "line": 446,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "return 5 * 1024 * 1024 * 1024  # 5GB default"
+      },
+      {
+        "file": "utils/model_manager.py",
+        "line": 446,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "return 5 * 1024 * 1024 * 1024  # 5GB default"
+      },
+      {
+        "file": "utils/model_manager.py",
+        "line": 452,
+        "type": "ast_constant",
+        "description": "Numeric constant: 5",
+        "code": "return 5 * 1024 * 1024 * 1024  # 5GB default"
+      },
+      {
+        "file": "utils/model_manager.py",
+        "line": 452,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "return 5 * 1024 * 1024 * 1024  # 5GB default"
+      },
+      {
+        "file": "utils/model_manager.py",
+        "line": 452,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "return 5 * 1024 * 1024 * 1024  # 5GB default"
+      },
+      {
+        "file": "utils/model_manager.py",
+        "line": 452,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "return 5 * 1024 * 1024 * 1024  # 5GB default"
+      },
+      {
+        "file": "utils/model_manager.py",
+        "line": 65,
+        "type": "or_pattern",
+        "description": "or_pattern: \"\n                \"",
+        "code": "\"Please add 'paths.cache_dir' to your configuration file or \""
+      },
+      {
+        "file": "utils/model_manager.py",
+        "line": 75,
+        "type": "field_default",
+        "description": "field_default: force_download",
+        "code": "force_download: bool = False,"
+      },
+      {
+        "file": "utils/model_manager.py",
+        "line": 340,
+        "type": "math_operations",
+        "description": "math_operations: 1024",
+        "code": "if size_bytes < 1024 * 1024:"
+      },
+      {
+        "file": "utils/model_manager.py",
+        "line": 341,
+        "type": "math_operations",
+        "description": "math_operations: 1024",
+        "code": "return f\"{size_bytes / 1024:.1f} KB\""
+      },
+      {
+        "file": "utils/model_manager.py",
+        "line": 342,
+        "type": "math_operations",
+        "description": "math_operations: 1024",
+        "code": "elif size_bytes < 1024 * 1024 * 1024:"
+      },
+      {
+        "file": "utils/model_manager.py",
+        "line": 342,
+        "type": "math_operations",
+        "description": "math_operations: 1024",
+        "code": "elif size_bytes < 1024 * 1024 * 1024:"
+      },
+      {
+        "file": "utils/model_manager.py",
+        "line": 343,
+        "type": "math_operations",
+        "description": "math_operations: 1024",
+        "code": "return f\"{size_bytes / (1024 * 1024):.1f} MB\""
+      },
+      {
+        "file": "utils/model_manager.py",
+        "line": 345,
+        "type": "math_operations",
+        "description": "math_operations: 1024",
+        "code": "return f\"{size_bytes / (1024 * 1024 * 1024):.1f} GB\""
+      },
+      {
+        "file": "utils/model_manager.py",
+        "line": 345,
+        "type": "math_operations",
+        "description": "math_operations: 1024",
+        "code": "return f\"{size_bytes / (1024 * 1024 * 1024):.1f} GB\""
+      },
+      {
+        "file": "utils/model_manager.py",
+        "line": 436,
+        "type": "math_operations",
+        "description": "math_operations: 0.25",
+        "code": "return int(base_size * 0.25)"
+      },
+      {
+        "file": "utils/model_manager.py",
+        "line": 442,
+        "type": "math_operations",
+        "description": "math_operations: 1024",
+        "code": "return 7 * 1024 * 1024 * 1024  # 7GB for SDXL models"
+      },
+      {
+        "file": "utils/model_manager.py",
+        "line": 444,
+        "type": "math_operations",
+        "description": "math_operations: 1024",
+        "code": "return 15 * 1024 * 1024 * 1024  # 15GB for FLUX models"
+      },
+      {
+        "file": "utils/model_manager.py",
+        "line": 446,
+        "type": "math_operations",
+        "description": "math_operations: 1024",
+        "code": "return 5 * 1024 * 1024 * 1024  # 5GB default"
+      },
+      {
+        "file": "utils/model_manager.py",
+        "line": 452,
+        "type": "math_operations",
+        "description": "math_operations: 1024",
+        "code": "return 5 * 1024 * 1024 * 1024  # 5GB default"
+      },
+      {
+        "file": "utils/model_manager.py",
+        "line": 452,
+        "type": "math_operations",
+        "description": "math_operations: 1024",
+        "code": "return 5 * 1024 * 1024 * 1024  # 5GB default"
+      }
+    ],
+    "utils/installation_validator.py": [
+      {
+        "file": "utils/installation_validator.py",
+        "line": 79,
+        "type": "ast_constant",
+        "description": "Numeric constant: 3",
+        "code": "min_version = (3, 8)"
+      },
+      {
+        "file": "utils/installation_validator.py",
+        "line": 113,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "i).total_memory / (1024**3)  # GB"
+      },
+      {
+        "file": "utils/installation_validator.py",
+        "line": 113,
+        "type": "ast_constant",
+        "description": "Numeric constant: 3",
+        "code": "i).total_memory / (1024**3)  # GB"
+      },
+      {
+        "file": "utils/installation_validator.py",
+        "line": 125,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "total_vram_gb = total_vram / (1024**3)"
+      },
+      {
+        "file": "utils/installation_validator.py",
+        "line": 125,
+        "type": "ast_constant",
+        "description": "Numeric constant: 3",
+        "code": "total_vram_gb = total_vram / (1024**3)"
+      },
+      {
+        "file": "utils/installation_validator.py",
+        "line": 237,
+        "type": "get_default",
+        "description": ".get() with default: True",
+        "code": "if config.get(\"critical\", True):"
+      },
+      {
+        "file": "utils/installation_validator.py",
+        "line": 250,
+        "type": "get_default",
+        "description": ".get() with default: True",
+        "code": "if config.get(\"critical\", True):"
+      },
+      {
+        "file": "utils/installation_validator.py",
+        "line": 334,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "free_gb = disk_usage.free / (1024**3)"
+      },
+      {
+        "file": "utils/installation_validator.py",
+        "line": 334,
+        "type": "ast_constant",
+        "description": "Numeric constant: 3",
+        "code": "free_gb = disk_usage.free / (1024**3)"
+      },
+      {
+        "file": "utils/installation_validator.py",
+        "line": 336,
+        "type": "ast_constant",
+        "description": "Numeric constant: 50",
+        "code": "if free_gb < 50:"
+      },
+      {
+        "file": "utils/installation_validator.py",
+        "line": 354,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "total_ram_gb = memory.total / (1024**3)"
+      },
+      {
+        "file": "utils/installation_validator.py",
+        "line": 354,
+        "type": "ast_constant",
+        "description": "Numeric constant: 3",
+        "code": "total_ram_gb = memory.total / (1024**3)"
+      },
+      {
+        "file": "utils/installation_validator.py",
+        "line": 356,
+        "type": "ast_constant",
+        "description": "Numeric constant: 16",
+        "code": "if total_ram_gb < 16:"
+      },
+      {
+        "file": "utils/installation_validator.py",
+        "line": 380,
+        "type": "ast_constant",
+        "description": "Numeric constant: 4",
+        "code": "if strategy_count < 4:"
+      },
+      {
+        "file": "utils/installation_validator.py",
+        "line": 476,
+        "type": "ast_constant",
+        "description": "Numeric constant: 60",
+        "code": "print(\"\\n\" + \"=\" * 60)"
+      },
+      {
+        "file": "utils/installation_validator.py",
+        "line": 478,
+        "type": "ast_constant",
+        "description": "Numeric constant: 60",
+        "code": "print(\"=\" * 60)"
+      },
+      {
+        "file": "utils/installation_validator.py",
+        "line": 485,
+        "type": "get_default",
+        "description": ".get() with default: 'unknown'",
+        "code": "results.get("
+      },
+      {
+        "file": "utils/installation_validator.py",
+        "line": 497,
+        "type": "get_default",
+        "description": ".get() with default: 'unknown'",
+        "code": "print(f\"  \u2022 CUDA Version: {info.get('cuda_version', 'unknown')}\")"
+      },
+      {
+        "file": "utils/installation_validator.py",
+        "line": 498,
+        "type": "get_default",
+        "description": ".get() with default: 'unknown'",
+        "code": "print(f\"  \u2022 Total VRAM: {info.get('total_vram_gb', 'unknown')}GB\")"
+      },
+      {
+        "file": "utils/installation_validator.py",
+        "line": 535,
+        "type": "ast_constant",
+        "description": "Numeric constant: 60",
+        "code": "print(\"\\n\" + \"=\" * 60)"
+      },
+      {
+        "file": "utils/installation_validator.py",
+        "line": 540,
+        "type": "ast_constant",
+        "description": "Numeric constant: 60",
+        "code": "print(\"=\" * 60 + \"\\n\")"
+      },
+      {
+        "file": "utils/installation_validator.py",
+        "line": 217,
+        "type": "get_with_default",
+        "description": "get_with_default: package_name",
+        "code": "module_name = config.get(\"module\", package_name)"
+      },
+      {
+        "file": "utils/installation_validator.py",
+        "line": 218,
+        "type": "get_with_default",
+        "description": "get_with_default: package_name",
+        "code": "package_install_name = config.get(\"package\", package_name)"
+      },
+      {
+        "file": "utils/installation_validator.py",
+        "line": 307,
+        "type": "get_with_default",
+        "description": "get_with_default: package_name",
+        "code": "module_name = config.get(\"module\", package_name)"
+      },
+      {
+        "file": "utils/installation_validator.py",
+        "line": 485,
+        "type": "get_with_default",
+        "description": "get_with_default: {}",
+        "code": "results.get("
+      },
+      {
+        "file": "utils/installation_validator.py",
+        "line": 487,
+        "type": "get_with_default",
+        "description": "get_with_default: 'unknown'",
+        "code": "{}).get("
+      },
+      {
+        "file": "utils/installation_validator.py",
+        "line": 496,
+        "type": "get_with_default",
+        "description": "get_with_default: {}",
+        "code": "info = results.get(\"info\", {})"
+      },
+      {
+        "file": "utils/installation_validator.py",
+        "line": 497,
+        "type": "get_with_default",
+        "description": "get_with_default: 'unknown'",
+        "code": "print(f\"  \u2022 CUDA Version: {info.get('cuda_version', 'unknown')}\")"
+      },
+      {
+        "file": "utils/installation_validator.py",
+        "line": 498,
+        "type": "get_with_default",
+        "description": "get_with_default: 'unknown'",
+        "code": "print(f\"  \u2022 Total VRAM: {info.get('total_vram_gb', 'unknown')}GB\")"
+      },
+      {
+        "file": "utils/installation_validator.py",
+        "line": 500,
+        "type": "get_with_default",
+        "description": "get_with_default: []",
+        "code": "for gpu in info.get(\"gpus\", []):"
+      },
+      {
+        "file": "utils/installation_validator.py",
+        "line": 528,
+        "type": "get_with_default",
+        "description": "get_with_default: {}",
+        "code": "features = results.get(\"info\", {}).get(\"available_features\", [])"
+      },
+      {
+        "file": "utils/installation_validator.py",
+        "line": 528,
+        "type": "get_with_default",
+        "description": "get_with_default: []",
+        "code": "features = results.get(\"info\", {}).get(\"available_features\", [])"
+      },
+      {
+        "file": "utils/installation_validator.py",
+        "line": 33,
+        "type": "field_default",
+        "description": "field_default: verbose",
+        "code": "def validate_installation(self, verbose: bool = True) -> Dict[str, Any]:"
+      },
+      {
+        "file": "utils/installation_validator.py",
+        "line": 336,
+        "type": "if_comparison",
+        "description": "if_comparison: 50",
+        "code": "if free_gb < 50:"
+      },
+      {
+        "file": "utils/installation_validator.py",
+        "line": 356,
+        "type": "if_comparison",
+        "description": "if_comparison: 16",
+        "code": "if total_ram_gb < 16:"
+      },
+      {
+        "file": "utils/installation_validator.py",
+        "line": 125,
+        "type": "math_operations",
+        "description": "math_operations: 3",
+        "code": "total_vram_gb = total_vram / (1024**3)"
+      },
+      {
+        "file": "utils/installation_validator.py",
+        "line": 334,
+        "type": "math_operations",
+        "description": "math_operations: 3",
+        "code": "free_gb = disk_usage.free / (1024**3)"
+      },
+      {
+        "file": "utils/installation_validator.py",
+        "line": 354,
+        "type": "math_operations",
+        "description": "math_operations: 3",
+        "code": "total_ram_gb = memory.total / (1024**3)"
+      },
+      {
+        "file": "utils/installation_validator.py",
+        "line": 476,
+        "type": "math_operations",
+        "description": "math_operations: 60",
+        "code": "print(\"\\n\" + \"=\" * 60)"
+      },
+      {
+        "file": "utils/installation_validator.py",
+        "line": 478,
+        "type": "math_operations",
+        "description": "math_operations: 60",
+        "code": "print(\"=\" * 60)"
+      },
+      {
+        "file": "utils/installation_validator.py",
+        "line": 535,
+        "type": "math_operations",
+        "description": "math_operations: 60",
+        "code": "print(\"\\n\" + \"=\" * 60)"
+      },
+      {
+        "file": "utils/installation_validator.py",
+        "line": 540,
+        "type": "math_operations",
+        "description": "math_operations: 60",
+        "code": "print(\"=\" * 60 + \"\\n\")"
+      }
+    ],
+    "utils/vram_manager.py": [
+      {
+        "file": "utils/vram_manager.py",
+        "line": 81,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "pixel_overhead = (pixels / (1024 * 1024)) * pixel_overhead_per_megapixel"
+      },
+      {
+        "file": "utils/vram_manager.py",
+        "line": 81,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "pixel_overhead = (pixels / (1024 * 1024)) * pixel_overhead_per_megapixel"
+      },
+      {
+        "file": "utils/vram_manager.py",
+        "line": 149,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1.1",
+        "code": "return available >= required_mb * 1.1  # 10% safety margin"
+      },
+      {
+        "file": "utils/vram_manager.py",
+        "line": 51,
+        "type": "field_default",
+        "description": "field_default: model_type",
+        "code": "self, operation: str, width: int, height: int, model_type: str = \"sdxl\""
+      },
+      {
+        "file": "utils/vram_manager.py",
+        "line": 50,
+        "type": "function_default",
+        "description": "function_default: \"sdxl\"",
+        "code": "def estimate_operation_vram("
+      },
+      {
+        "file": "utils/vram_manager.py",
+        "line": 81,
+        "type": "math_operations",
+        "description": "math_operations: 1024",
+        "code": "pixel_overhead = (pixels / (1024 * 1024)) * pixel_overhead_per_megapixel"
+      }
+    ],
+    "utils/config_defaults.py": [
+      {
+        "file": "utils/config_defaults.py",
+        "line": 26,
+        "type": "ast_constant",
+        "description": "Numeric constant: 0.8",
+        "code": "\"strength\": 0.8,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 27,
+        "type": "ast_constant",
+        "description": "Numeric constant: 50",
+        "code": "\"num_inference_steps\": 50,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 28,
+        "type": "ast_constant",
+        "description": "Numeric constant: 7.5",
+        "code": "\"guidance_scale\": 7.5,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 41,
+        "type": "ast_constant",
+        "description": "Numeric constant: 200",
+        "code": "\"default_high_threshold\": 200,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 43,
+        "type": "ast_constant",
+        "description": "Numeric constant: 3",
+        "code": "\"kernel_size\": 3,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 54,
+        "type": "ast_constant",
+        "description": "Numeric constant: 5",
+        "code": "\"default_radius\": 5,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 106,
+        "type": "ast_constant",
+        "description": "Numeric constant: 2000",
+        "code": "\"model_load\": 2000,  # Per ControlNet model"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 107,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1500",
+        "code": "\"operation_active\": 1500,  # Additional for active operations"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 112,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1000000",
+        "code": "\"megapixel_divisor\": 1000000,  # 1e6 for MP calculations"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 128,
+        "type": "ast_constant",
+        "description": "Numeric constant: 6000",
+        "code": "\"generate\": 6000,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 129,
+        "type": "ast_constant",
+        "description": "Numeric constant: 5500",
+        "code": "\"inpaint\": 5500,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 130,
+        "type": "ast_constant",
+        "description": "Numeric constant: 5000",
+        "code": "\"img2img\": 5000,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 131,
+        "type": "ast_constant",
+        "description": "Numeric constant: 4000",
+        "code": "\"refine\": 4000,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 132,
+        "type": "ast_constant",
+        "description": "Numeric constant: 3500",
+        "code": "\"enhance\": 3500,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 133,
+        "type": "ast_constant",
+        "description": "Numeric constant: 8500",
+        "code": "\"controlnet_generate\": 8500,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 134,
+        "type": "ast_constant",
+        "description": "Numeric constant: 8000",
+        "code": "\"controlnet_inpaint\": 8000,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 135,
+        "type": "ast_constant",
+        "description": "Numeric constant: 7500",
+        "code": "\"controlnet_img2img\": 7500,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 139,
+        "type": "ast_constant",
+        "description": "Numeric constant: 8000",
+        "code": "\"generate\": 8000,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 140,
+        "type": "ast_constant",
+        "description": "Numeric constant: 7500",
+        "code": "\"inpaint\": 7500,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 141,
+        "type": "ast_constant",
+        "description": "Numeric constant: 7000",
+        "code": "\"img2img\": 7000,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 142,
+        "type": "ast_constant",
+        "description": "Numeric constant: 5000",
+        "code": "\"refine\": 5000,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 143,
+        "type": "ast_constant",
+        "description": "Numeric constant: 4500",
+        "code": "\"enhance\": 4500,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 144,
+        "type": "ast_constant",
+        "description": "Numeric constant: 10500",
+        "code": "\"controlnet_generate\": 10500,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 145,
+        "type": "ast_constant",
+        "description": "Numeric constant: 10000",
+        "code": "\"controlnet_inpaint\": 10000,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 146,
+        "type": "ast_constant",
+        "description": "Numeric constant: 9500",
+        "code": "\"controlnet_img2img\": 9500,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 150,
+        "type": "ast_constant",
+        "description": "Numeric constant: 12000",
+        "code": "\"generate\": 12000,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 151,
+        "type": "ast_constant",
+        "description": "Numeric constant: 11000",
+        "code": "\"inpaint\": 11000,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 152,
+        "type": "ast_constant",
+        "description": "Numeric constant: 10000",
+        "code": "\"img2img\": 10000,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 153,
+        "type": "ast_constant",
+        "description": "Numeric constant: 8000",
+        "code": "\"refine\": 8000,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 154,
+        "type": "ast_constant",
+        "description": "Numeric constant: 7000",
+        "code": "\"enhance\": 7000,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 155,
+        "type": "ast_constant",
+        "description": "Numeric constant: 14500",
+        "code": "\"controlnet_generate\": 14500,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 156,
+        "type": "ast_constant",
+        "description": "Numeric constant: 14000",
+        "code": "\"controlnet_inpaint\": 14000,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 157,
+        "type": "ast_constant",
+        "description": "Numeric constant: 13500",
+        "code": "\"controlnet_img2img\": 13500,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 161,
+        "type": "ast_constant",
+        "description": "Numeric constant: 3000",
+        "code": "\"generate\": 3000,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 162,
+        "type": "ast_constant",
+        "description": "Numeric constant: 2800",
+        "code": "\"inpaint\": 2800,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 163,
+        "type": "ast_constant",
+        "description": "Numeric constant: 2500",
+        "code": "\"img2img\": 2500,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 164,
+        "type": "ast_constant",
+        "description": "Numeric constant: 2000",
+        "code": "\"refine\": 2000,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 165,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1800",
+        "code": "\"enhance\": 1800,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 166,
+        "type": "ast_constant",
+        "description": "Numeric constant: 4500",
+        "code": "\"controlnet_generate\": 4500,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 167,
+        "type": "ast_constant",
+        "description": "Numeric constant: 4300",
+        "code": "\"controlnet_inpaint\": 4300,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 168,
+        "type": "ast_constant",
+        "description": "Numeric constant: 4000",
+        "code": "\"controlnet_img2img\": 4000,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 172,
+        "type": "ast_constant",
+        "description": "Numeric constant: 4000",
+        "code": "\"generate\": 4000,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 173,
+        "type": "ast_constant",
+        "description": "Numeric constant: 3800",
+        "code": "\"inpaint\": 3800,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 174,
+        "type": "ast_constant",
+        "description": "Numeric constant: 3500",
+        "code": "\"img2img\": 3500,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 175,
+        "type": "ast_constant",
+        "description": "Numeric constant: 2500",
+        "code": "\"refine\": 2500,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 176,
+        "type": "ast_constant",
+        "description": "Numeric constant: 2300",
+        "code": "\"enhance\": 2300,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 177,
+        "type": "ast_constant",
+        "description": "Numeric constant: 5500",
+        "code": "\"controlnet_generate\": 5500,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 178,
+        "type": "ast_constant",
+        "description": "Numeric constant: 5300",
+        "code": "\"controlnet_inpaint\": 5300,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 179,
+        "type": "ast_constant",
+        "description": "Numeric constant: 5000",
+        "code": "\"controlnet_img2img\": 5000,"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 184,
+        "type": "ast_constant",
+        "description": "Numeric constant: 150",
+        "code": "\"per_megapixel\": 150,  # Additional MB per megapixel"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 185,
+        "type": "ast_constant",
+        "description": "Numeric constant: 0.8",
+        "code": "\"batch_size_multiplier\": 0.8,  # Additional factor per batch item"
+      },
+      {
+        "file": "utils/config_defaults.py",
+        "line": 189,
+        "type": "ast_constant",
+        "description": "Numeric constant: 200",
+        "code": "\"lora_overhead\": 200,  # MB per LoRA"
+      }
+    ],
+    "utils/path_resolver.py": [
+      {
+        "file": "utils/path_resolver.py",
+        "line": 17,
+        "type": "field_default",
+        "description": "field_default: create",
+        "code": "create: bool = True,"
+      },
+      {
+        "file": "utils/path_resolver.py",
+        "line": 18,
+        "type": "field_default",
+        "description": "field_default: path_type",
+        "code": "path_type: str = \"directory\") -> Path:"
+      },
+      {
+        "file": "utils/path_resolver.py",
+        "line": 95,
+        "type": "field_default",
+        "description": "field_default: purpose",
+        "code": "purpose: str = \"data\") -> Path:"
+      },
+      {
+        "file": "utils/path_resolver.py",
+        "line": 16,
+        "type": "function_default",
+        "description": "function_default: \"directory\"",
+        "code": "def resolve_path(self, path_config: Union[str, Path],"
+      },
+      {
+        "file": "utils/path_resolver.py",
+        "line": 94,
+        "type": "function_default",
+        "description": "function_default: \"data\"",
+        "code": "def get_writable_dir(self, preferred_paths: list,"
+      }
+    ],
+    "utils/config_migrator.py": [
+      {
+        "file": "utils/config_migrator.py",
+        "line": 186,
+        "type": "ast_constant",
+        "description": "Numeric constant: 95",
+        "code": "\"output.formats.jpeg.quality\": 95,"
+      },
+      {
+        "file": "utils/config_migrator.py",
+        "line": 187,
+        "type": "ast_constant",
+        "description": "Numeric constant: 4.5",
+        "code": "\"vram.estimation.latent_multiplier\": 4.5,"
+      },
+      {
+        "file": "utils/config_migrator.py",
+        "line": 274,
+        "type": "get_default",
+        "description": ".get() with default: 'unknown'",
+        "code": "header = f\"\"\"# Expandor Configuration v{config.get('version', 'unknown')}"
+      },
+      {
+        "file": "utils/config_migrator.py",
+        "line": 284,
+        "type": "ast_constant",
+        "description": "Numeric constant: 120",
+        "code": "yaml.dump(config, f, default_flow_style=False, sort_keys=False, width=120)"
+      },
+      {
+        "file": "utils/config_migrator.py",
+        "line": 289,
+        "type": "ast_constant",
+        "description": "Numeric constant: 80",
+        "code": "print(\"=\" * 80)"
+      },
+      {
+        "file": "utils/config_migrator.py",
+        "line": 286,
+        "type": "field_default",
+        "description": "field_default: dry_run",
+        "code": "def migrate(self, dry_run: bool = False) -> bool:"
+      },
+      {
+        "file": "utils/config_migrator.py",
+        "line": 289,
+        "type": "math_operations",
+        "description": "math_operations: 80",
+        "code": "print(\"=\" * 80)"
+      }
+    ],
+    "adapters/mock_pipeline.py": [
+      {
+        "file": "adapters/mock_pipeline.py",
+        "line": 31,
+        "type": "ast_constant",
+        "description": "Numeric constant: 0.8",
+        "code": "strength: float = 0.8,"
+      },
+      {
+        "file": "adapters/mock_pipeline.py",
+        "line": 32,
+        "type": "ast_constant",
+        "description": "Numeric constant: 50",
+        "code": "num_inference_steps: int = 50,"
+      },
+      {
+        "file": "adapters/mock_pipeline.py",
+        "line": 33,
+        "type": "ast_constant",
+        "description": "Numeric constant: 7.5",
+        "code": "guidance_scale: float = 7.5,"
+      },
+      {
+        "file": "adapters/mock_pipeline.py",
+        "line": 51,
+        "type": "ast_constant",
+        "description": "Numeric constant: 255.0",
+        "code": "mask_array = np.array(mask_image) / 255.0"
+      },
+      {
+        "file": "adapters/mock_pipeline.py",
+        "line": 57,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1000",
+        "code": "seed = abs(hash(prompt)) % 1000"
+      },
+      {
+        "file": "adapters/mock_pipeline.py",
+        "line": 64,
+        "type": "ast_constant",
+        "description": "Numeric constant: 50",
+        "code": "pattern[:, :, 0] = np.random.randint(50, 100, (h, w))  # R"
+      },
+      {
+        "file": "adapters/mock_pipeline.py",
+        "line": 65,
+        "type": "ast_constant",
+        "description": "Numeric constant: 200",
+        "code": "pattern[:, :, 1] = np.random.randint(100, 200, (h, w))  # G"
+      },
+      {
+        "file": "adapters/mock_pipeline.py",
+        "line": 66,
+        "type": "ast_constant",
+        "description": "Numeric constant: 150",
+        "code": "pattern[:, :, 2] = np.random.randint(100, 150, (h, w))  # B"
+      },
+      {
+        "file": "adapters/mock_pipeline.py",
+        "line": 69,
+        "type": "ast_constant",
+        "description": "Numeric constant: 200",
+        "code": "pattern = np.random.randint(100, 200, img_array.shape)"
+      },
+      {
+        "file": "adapters/mock_pipeline.py",
+        "line": 72,
+        "type": "ast_constant",
+        "description": "Numeric constant: 3",
+        "code": "for c in range(3):"
+      },
+      {
+        "file": "adapters/mock_pipeline.py",
+        "line": 91,
+        "type": "ast_constant",
+        "description": "Numeric constant: 0.3",
+        "code": "self, prompt: str, image: Image.Image, strength: float = 0.3, **kwargs"
+      },
+      {
+        "file": "adapters/mock_pipeline.py",
+        "line": 115,
+        "type": "ast_constant",
+        "description": "Numeric constant: 10",
+        "code": "noise = np.random.normal(0, strength * 10, img_array.shape)"
+      },
+      {
+        "file": "adapters/mock_pipeline.py",
+        "line": 31,
+        "type": "field_default",
+        "description": "field_default: strength",
+        "code": "strength: float = 0.8,"
+      },
+      {
+        "file": "adapters/mock_pipeline.py",
+        "line": 32,
+        "type": "field_default",
+        "description": "field_default: num_inference_steps",
+        "code": "num_inference_steps: int = 50,"
+      },
+      {
+        "file": "adapters/mock_pipeline.py",
+        "line": 33,
+        "type": "field_default",
+        "description": "field_default: guidance_scale",
+        "code": "guidance_scale: float = 7.5,"
+      },
+      {
+        "file": "adapters/mock_pipeline.py",
+        "line": 91,
+        "type": "field_default",
+        "description": "field_default: strength",
+        "code": "self, prompt: str, image: Image.Image, strength: float = 0.3, **kwargs"
+      },
+      {
+        "file": "adapters/mock_pipeline.py",
+        "line": 108,
+        "type": "field_default",
+        "description": "field_default: strength",
+        "code": "self, prompt: str, image: Image.Image, strength: float = 0.5, **kwargs"
+      },
+      {
+        "file": "adapters/mock_pipeline.py",
+        "line": 26,
+        "type": "function_default",
+        "description": "function_default: 7.5",
+        "code": "def __call__("
+      },
+      {
+        "file": "adapters/mock_pipeline.py",
+        "line": 90,
+        "type": "function_default",
+        "description": "function_default: 0.3",
+        "code": "def __call__("
+      },
+      {
+        "file": "adapters/mock_pipeline.py",
+        "line": 72,
+        "type": "range_calls",
+        "description": "range_calls: 3",
+        "code": "for c in range(3):"
+      },
+      {
+        "file": "adapters/mock_pipeline.py",
+        "line": 51,
+        "type": "math_operations",
+        "description": "math_operations: 255.0",
+        "code": "mask_array = np.array(mask_image) / 255.0"
+      },
+      {
+        "file": "adapters/mock_pipeline.py",
+        "line": 115,
+        "type": "math_operations",
+        "description": "math_operations: 10",
+        "code": "noise = np.random.normal(0, strength * 10, img_array.shape)"
+      }
+    ],
+    "adapters/base_adapter.py": [
+      {
+        "file": "adapters/base_adapter.py",
+        "line": 119,
+        "type": "ast_constant",
+        "description": "Numeric constant: 0.8",
+        "code": "strength: float = 0.8,"
+      },
+      {
+        "file": "adapters/base_adapter.py",
+        "line": 120,
+        "type": "ast_constant",
+        "description": "Numeric constant: 50",
+        "code": "num_inference_steps: int = 50,"
+      },
+      {
+        "file": "adapters/base_adapter.py",
+        "line": 121,
+        "type": "ast_constant",
+        "description": "Numeric constant: 7.5",
+        "code": "guidance_scale: float = 7.5,"
+      },
+      {
+        "file": "adapters/base_adapter.py",
+        "line": 156,
+        "type": "ast_constant",
+        "description": "Numeric constant: 0.8",
+        "code": "strength: float = 0.8,"
+      },
+      {
+        "file": "adapters/base_adapter.py",
+        "line": 157,
+        "type": "ast_constant",
+        "description": "Numeric constant: 50",
+        "code": "num_inference_steps: int = 50,"
+      },
+      {
+        "file": "adapters/base_adapter.py",
+        "line": 158,
+        "type": "ast_constant",
+        "description": "Numeric constant: 7.5",
+        "code": "guidance_scale: float = 7.5,"
+      },
+      {
+        "file": "adapters/base_adapter.py",
+        "line": 118,
+        "type": "field_default",
+        "description": "field_default: controlnet_conditioning_scale",
+        "code": "controlnet_conditioning_scale: float = 1.0,"
+      },
+      {
+        "file": "adapters/base_adapter.py",
+        "line": 119,
+        "type": "field_default",
+        "description": "field_default: strength",
+        "code": "strength: float = 0.8,"
+      },
+      {
+        "file": "adapters/base_adapter.py",
+        "line": 120,
+        "type": "field_default",
+        "description": "field_default: num_inference_steps",
+        "code": "num_inference_steps: int = 50,"
+      },
+      {
+        "file": "adapters/base_adapter.py",
+        "line": 121,
+        "type": "field_default",
+        "description": "field_default: guidance_scale",
+        "code": "guidance_scale: float = 7.5,"
+      },
+      {
+        "file": "adapters/base_adapter.py",
+        "line": 155,
+        "type": "field_default",
+        "description": "field_default: controlnet_conditioning_scale",
+        "code": "controlnet_conditioning_scale: float = 1.0,"
+      },
+      {
+        "file": "adapters/base_adapter.py",
+        "line": 156,
+        "type": "field_default",
+        "description": "field_default: strength",
+        "code": "strength: float = 0.8,"
+      },
+      {
+        "file": "adapters/base_adapter.py",
+        "line": 157,
+        "type": "field_default",
+        "description": "field_default: num_inference_steps",
+        "code": "num_inference_steps: int = 50,"
+      },
+      {
+        "file": "adapters/base_adapter.py",
+        "line": 158,
+        "type": "field_default",
+        "description": "field_default: guidance_scale",
+        "code": "guidance_scale: float = 7.5,"
+      },
+      {
+        "file": "adapters/base_adapter.py",
+        "line": 111,
+        "type": "function_default",
+        "description": "function_default: 7.5",
+        "code": "def controlnet_inpaint("
+      },
+      {
+        "file": "adapters/base_adapter.py",
+        "line": 149,
+        "type": "function_default",
+        "description": "function_default: 7.5",
+        "code": "def controlnet_img2img("
+      }
+    ],
+    "adapters/mock_pipeline_adapter.py": [
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 60,
+        "type": "ast_constant",
+        "description": "Numeric constant: 24576",
+        "code": "self.max_vram_mb = 24576 if device == \"cuda\" else 0  # Simulate 24GB GPU"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 85,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "width: int = 1024,"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 86,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "height: int = 1024,"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 87,
+        "type": "ast_constant",
+        "description": "Numeric constant: 50",
+        "code": "num_inference_steps: int = 50,"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 88,
+        "type": "ast_constant",
+        "description": "Numeric constant: 7.5",
+        "code": "guidance_scale: float = 7.5,"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 94,
+        "type": "ast_constant",
+        "description": "Numeric constant: 50",
+        "code": "f\"Mock generating {width}x{height} image from prompt: {prompt[:50]}...\""
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 98,
+        "type": "ast_constant",
+        "description": "Numeric constant: 4",
+        "code": "vram_needed = (width * height * 4) / (1024 * 1024)  # Rough estimate"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 98,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "vram_needed = (width * height * 4) / (1024 * 1024)  # Rough estimate"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 98,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "vram_needed = (width * height * 4) / (1024 * 1024)  # Rough estimate"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 113,
+        "type": "ast_constant",
+        "description": "Numeric constant: 32",
+        "code": "np.random.seed(seed or abs(hash(prompt)) % (2**32))"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 121,
+        "type": "ast_constant",
+        "description": "Numeric constant: 0.05",
+        "code": "noise = np.random.normal(0, 0.05, (height, width))"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 141,
+        "type": "ast_constant",
+        "description": "Numeric constant: 0.8",
+        "code": "strength: float = 0.8,"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 142,
+        "type": "ast_constant",
+        "description": "Numeric constant: 50",
+        "code": "num_inference_steps: int = 50,"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 143,
+        "type": "ast_constant",
+        "description": "Numeric constant: 7.5",
+        "code": "guidance_scale: float = 7.5,"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 148,
+        "type": "ast_constant",
+        "description": "Numeric constant: 50",
+        "code": "self.logger.info(f\"Mock inpainting with prompt: {prompt[:50]}...\")"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 171,
+        "type": "ast_constant",
+        "description": "Numeric constant: 0.8",
+        "code": "strength: float = 0.8,"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 172,
+        "type": "ast_constant",
+        "description": "Numeric constant: 50",
+        "code": "num_inference_steps: int = 50,"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 173,
+        "type": "ast_constant",
+        "description": "Numeric constant: 7.5",
+        "code": "guidance_scale: float = 7.5,"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 178,
+        "type": "ast_constant",
+        "description": "Numeric constant: 50",
+        "code": "self.logger.info(f\"Mock img2img with prompt: {prompt[:50]}...\")"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 223,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1.2",
+        "code": "enhanced = sharpener.enhance(1.2)"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 240,
+        "type": "ast_constant",
+        "description": "Numeric constant: 512",
+        "code": "optimal_width = max(optimal_width, 512)"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 241,
+        "type": "ast_constant",
+        "description": "Numeric constant: 512",
+        "code": "optimal_height = max(optimal_height, 512)"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 244,
+        "type": "ast_constant",
+        "description": "Numeric constant: 2048",
+        "code": "optimal_width = min(optimal_width, 2048)"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 245,
+        "type": "ast_constant",
+        "description": "Numeric constant: 2048",
+        "code": "optimal_height = min(optimal_height, 2048)"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 254,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1000",
+        "code": "self.simulated_vram_mb = max(0, self.simulated_vram_mb - 1000)"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 284,
+        "type": "ast_constant",
+        "description": "Numeric constant: 0.8",
+        "code": "strength: float = 0.8,"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 285,
+        "type": "ast_constant",
+        "description": "Numeric constant: 50",
+        "code": "num_inference_steps: int = 50,"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 286,
+        "type": "ast_constant",
+        "description": "Numeric constant: 7.5",
+        "code": "guidance_scale: float = 7.5,"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 306,
+        "type": "ast_constant",
+        "description": "Numeric constant: 0.8",
+        "code": "strength: float = 0.8,"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 307,
+        "type": "ast_constant",
+        "description": "Numeric constant: 50",
+        "code": "num_inference_steps: int = 50,"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 308,
+        "type": "ast_constant",
+        "description": "Numeric constant: 7.5",
+        "code": "guidance_scale: float = 7.5,"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 337,
+        "type": "ast_constant",
+        "description": "Numeric constant: 4000",
+        "code": "\"generate\": 4000,"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 338,
+        "type": "ast_constant",
+        "description": "Numeric constant: 3500",
+        "code": "\"inpaint\": 3500,"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 339,
+        "type": "ast_constant",
+        "description": "Numeric constant: 3000",
+        "code": "\"img2img\": 3000,"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 340,
+        "type": "ast_constant",
+        "description": "Numeric constant: 2000",
+        "code": "\"refine\": 2000,"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 341,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1500",
+        "code": "\"enhance\": 1500,"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 344,
+        "type": "get_default",
+        "description": ".get() with default: 2000",
+        "code": "base = estimates.get(operation, 2000)"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 344,
+        "type": "ast_constant",
+        "description": "Numeric constant: 2000",
+        "code": "base = estimates.get(operation, 2000)"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 349,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "base_pixels = 1024 * 1024"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 349,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "base_pixels = 1024 * 1024"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 359,
+        "type": "ast_constant",
+        "description": "Numeric constant: 0.7",
+        "code": "self.simulated_vram_mb = self.simulated_vram_mb * 0.7"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 451,
+        "type": "ast_constant",
+        "description": "Numeric constant: 40",
+        "code": "watermark_h, watermark_w = 40, 120"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 451,
+        "type": "ast_constant",
+        "description": "Numeric constant: 120",
+        "code": "watermark_h, watermark_w = 40, 120"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 460,
+        "type": "ast_constant",
+        "description": "Numeric constant: 10",
+        "code": "img_array[10:30, 10:110] = np.clip("
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 460,
+        "type": "ast_constant",
+        "description": "Numeric constant: 30",
+        "code": "img_array[10:30, 10:110] = np.clip("
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 460,
+        "type": "ast_constant",
+        "description": "Numeric constant: 10",
+        "code": "img_array[10:30, 10:110] = np.clip("
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 460,
+        "type": "ast_constant",
+        "description": "Numeric constant: 110",
+        "code": "img_array[10:30, 10:110] = np.clip("
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 461,
+        "type": "ast_constant",
+        "description": "Numeric constant: 10",
+        "code": "img_array[10:30, 10:110] + 100, 0, 255)"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 461,
+        "type": "ast_constant",
+        "description": "Numeric constant: 30",
+        "code": "img_array[10:30, 10:110] + 100, 0, 255)"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 461,
+        "type": "ast_constant",
+        "description": "Numeric constant: 10",
+        "code": "img_array[10:30, 10:110] + 100, 0, 255)"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 461,
+        "type": "ast_constant",
+        "description": "Numeric constant: 110",
+        "code": "img_array[10:30, 10:110] + 100, 0, 255)"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 344,
+        "type": "get_with_default",
+        "description": "get_with_default: 2000",
+        "code": "base = estimates.get(operation, 2000)"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 27,
+        "type": "field_default",
+        "description": "field_default: device",
+        "code": "device: str = \"cpu\","
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 28,
+        "type": "field_default",
+        "description": "field_default: dtype",
+        "code": "dtype: str = \"fp32\","
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 85,
+        "type": "field_default",
+        "description": "field_default: width",
+        "code": "width: int = 1024,"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 86,
+        "type": "field_default",
+        "description": "field_default: height",
+        "code": "height: int = 1024,"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 87,
+        "type": "field_default",
+        "description": "field_default: num_inference_steps",
+        "code": "num_inference_steps: int = 50,"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 88,
+        "type": "field_default",
+        "description": "field_default: guidance_scale",
+        "code": "guidance_scale: float = 7.5,"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 141,
+        "type": "field_default",
+        "description": "field_default: strength",
+        "code": "strength: float = 0.8,"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 142,
+        "type": "field_default",
+        "description": "field_default: num_inference_steps",
+        "code": "num_inference_steps: int = 50,"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 143,
+        "type": "field_default",
+        "description": "field_default: guidance_scale",
+        "code": "guidance_scale: float = 7.5,"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 171,
+        "type": "field_default",
+        "description": "field_default: strength",
+        "code": "strength: float = 0.8,"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 172,
+        "type": "field_default",
+        "description": "field_default: num_inference_steps",
+        "code": "num_inference_steps: int = 50,"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 173,
+        "type": "field_default",
+        "description": "field_default: guidance_scale",
+        "code": "guidance_scale: float = 7.5,"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 209,
+        "type": "field_default",
+        "description": "field_default: scale_factor",
+        "code": "scale_factor: int = 2,"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 283,
+        "type": "field_default",
+        "description": "field_default: controlnet_conditioning_scale",
+        "code": "controlnet_conditioning_scale: float = 1.0,"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 284,
+        "type": "field_default",
+        "description": "field_default: strength",
+        "code": "strength: float = 0.8,"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 285,
+        "type": "field_default",
+        "description": "field_default: num_inference_steps",
+        "code": "num_inference_steps: int = 50,"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 286,
+        "type": "field_default",
+        "description": "field_default: guidance_scale",
+        "code": "guidance_scale: float = 7.5,"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 305,
+        "type": "field_default",
+        "description": "field_default: controlnet_conditioning_scale",
+        "code": "controlnet_conditioning_scale: float = 1.0,"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 306,
+        "type": "field_default",
+        "description": "field_default: strength",
+        "code": "strength: float = 0.8,"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 307,
+        "type": "field_default",
+        "description": "field_default: num_inference_steps",
+        "code": "num_inference_steps: int = 50,"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 308,
+        "type": "field_default",
+        "description": "field_default: guidance_scale",
+        "code": "guidance_scale: float = 7.5,"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 25,
+        "type": "function_default",
+        "description": "function_default: \"fp32\"",
+        "code": "def __init__("
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 81,
+        "type": "function_default",
+        "description": "function_default: 7.5",
+        "code": "def generate("
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 135,
+        "type": "function_default",
+        "description": "function_default: 7.5",
+        "code": "def inpaint("
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 166,
+        "type": "function_default",
+        "description": "function_default: 7.5",
+        "code": "def img2img("
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 276,
+        "type": "function_default",
+        "description": "function_default: 7.5",
+        "code": "def controlnet_inpaint("
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 299,
+        "type": "function_default",
+        "description": "function_default: 7.5",
+        "code": "def controlnet_img2img("
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 98,
+        "type": "math_operations",
+        "description": "math_operations: 4",
+        "code": "vram_needed = (width * height * 4) / (1024 * 1024)  # Rough estimate"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 98,
+        "type": "math_operations",
+        "description": "math_operations: 1024",
+        "code": "vram_needed = (width * height * 4) / (1024 * 1024)  # Rough estimate"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 113,
+        "type": "math_operations",
+        "description": "math_operations: 32",
+        "code": "np.random.seed(seed or abs(hash(prompt)) % (2**32))"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 254,
+        "type": "math_operations",
+        "description": "math_operations: 1000",
+        "code": "self.simulated_vram_mb = max(0, self.simulated_vram_mb - 1000)"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 349,
+        "type": "math_operations",
+        "description": "math_operations: 1024",
+        "code": "base_pixels = 1024 * 1024"
+      },
+      {
+        "file": "adapters/mock_pipeline_adapter.py",
+        "line": 359,
+        "type": "math_operations",
+        "description": "math_operations: 0.7",
+        "code": "self.simulated_vram_mb = self.simulated_vram_mb * 0.7"
+      }
+    ],
+    "adapters/diffusers_adapter.py": [
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 266,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "\"optimal_resolution\": (1024, 1024),"
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 266,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "\"optimal_resolution\": (1024, 1024),"
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 276,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "\"optimal_resolution\": (1024, 1024),"
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 276,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "\"optimal_resolution\": (1024, 1024),"
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 277,
+        "type": "ast_constant",
+        "description": "Numeric constant: 16",
+        "code": "\"resolution_multiple\": 16,"
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 286,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "\"optimal_resolution\": (1024, 1024),"
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 286,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "\"optimal_resolution\": (1024, 1024),"
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 287,
+        "type": "ast_constant",
+        "description": "Numeric constant: 16",
+        "code": "\"resolution_multiple\": 16,"
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 300,
+        "type": "ast_constant",
+        "description": "Numeric constant: 768",
+        "code": "\"optimal_resolution\": (768, 768),"
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 300,
+        "type": "ast_constant",
+        "description": "Numeric constant: 768",
+        "code": "\"optimal_resolution\": (768, 768),"
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 314,
+        "type": "ast_constant",
+        "description": "Numeric constant: 512",
+        "code": "\"optimal_resolution\": (512, 512),"
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 314,
+        "type": "ast_constant",
+        "description": "Numeric constant: 512",
+        "code": "\"optimal_resolution\": (512, 512),"
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 584,
+        "type": "get_default",
+        "description": ".get() with default: 8",
+        "code": "multiple = proc_config.get("
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 604,
+        "type": "ast_constant",
+        "description": "Numeric constant: 512",
+        "code": "optimal_width = max(optimal_width, 512)"
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 605,
+        "type": "ast_constant",
+        "description": "Numeric constant: 512",
+        "code": "optimal_height = max(optimal_height, 512)"
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 615,
+        "type": "get_default",
+        "description": ".get() with default: 4096",
+        "code": "max_dimension = proc_config.get("
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 617,
+        "type": "ast_constant",
+        "description": "Numeric constant: 4096",
+        "code": "'max_dimension', 4096)"
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 1046,
+        "type": "ast_constant",
+        "description": "Numeric constant: 0.3",
+        "code": "0.3),"
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 1582,
+        "type": "get_default",
+        "description": ".get() with default: ''",
+        "code": "negative_prompt = negative_prompt if negative_prompt is not None else defaults.get("
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 1584,
+        "type": "get_default",
+        "description": ".get() with default: 1.0",
+        "code": "controlnet_strength = controlnet_strength if controlnet_strength is not None else defaults.get("
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 1586,
+        "type": "get_default",
+        "description": ".get() with default: 50",
+        "code": "num_inference_steps = num_inference_steps if num_inference_steps is not None else defaults.get("
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 1587,
+        "type": "ast_constant",
+        "description": "Numeric constant: 50",
+        "code": "\"num_inference_steps\", 50)"
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 1588,
+        "type": "get_default",
+        "description": ".get() with default: 7.5",
+        "code": "guidance_scale = guidance_scale if guidance_scale is not None else defaults.get("
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 1589,
+        "type": "ast_constant",
+        "description": "Numeric constant: 7.5",
+        "code": "\"guidance_scale\", 7.5)"
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 166,
+        "type": "get_with_default",
+        "description": "get_with_default: {}",
+        "code": "return proc_config.get(section, {}).get(key, default)"
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 166,
+        "type": "get_with_default",
+        "description": "get_with_default: default",
+        "code": "return proc_config.get(section, {}).get(key, default)"
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 233,
+        "type": "get_with_default",
+        "description": "get_with_default: {}",
+        "code": "defaults = config.get(\"defaults\", {})"
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 584,
+        "type": "get_with_default",
+        "description": "get_with_default: {}",
+        "code": "multiple = proc_config.get("
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 615,
+        "type": "get_with_default",
+        "description": "get_with_default: {}",
+        "code": "max_dimension = proc_config.get("
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 616,
+        "type": "get_with_default",
+        "description": "get_with_default: 4096",
+        "code": "'diffusers_adapter', {}).get("
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 1582,
+        "type": "get_with_default",
+        "description": "get_with_default: \"\"",
+        "code": "negative_prompt = negative_prompt if negative_prompt is not None else defaults.get("
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 1586,
+        "type": "get_with_default",
+        "description": "get_with_default: 50",
+        "code": "num_inference_steps = num_inference_steps if num_inference_steps is not None else defaults.get("
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 1588,
+        "type": "get_with_default",
+        "description": "get_with_default: 7.5",
+        "code": "guidance_scale = guidance_scale if guidance_scale is not None else defaults.get("
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 68,
+        "type": "direct_assignment",
+        "description": "direct_assignment: guidance_scale",
+        "code": "guidance_scale=7.5  # REQUIRED"
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 1744,
+        "type": "direct_assignment",
+        "description": "direct_assignment: controlnet_overhead",
+        "code": "controlnet_overhead = 0"
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 510,
+        "type": "field_default",
+        "description": "field_default: refiner_source",
+        "code": "if not refiner_source:"
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 1113,
+        "type": "field_default",
+        "description": "field_default: control_type",
+        "code": "control_type: str = \"canny\","
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 1323,
+        "type": "field_default",
+        "description": "field_default: control_type",
+        "code": "control_type: str = \"canny\","
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 1489,
+        "type": "field_default",
+        "description": "field_default: controlnet_type",
+        "code": "controlnet_type: str = \"canny\"):"
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 1565,
+        "type": "field_default",
+        "description": "field_default: control_type",
+        "code": "control_type: str = \"canny\","
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 1106,
+        "type": "function_default",
+        "description": "function_default: \"canny\"",
+        "code": "def controlnet_inpaint("
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 1317,
+        "type": "function_default",
+        "description": "function_default: \"canny\"",
+        "code": "def controlnet_img2img("
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 1486,
+        "type": "function_default",
+        "description": "function_default: \"canny\"",
+        "code": "def load_controlnet("
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 1560,
+        "type": "function_default",
+        "description": "function_default: \"canny\"",
+        "code": "def generate_with_controlnet("
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 271,
+        "type": "math_operations",
+        "description": "math_operations: 3",
+        "code": "\"patterns\": [\"stable-diffusion-3\", \"sd3\", \"sd-3\"],"
+      },
+      {
+        "file": "adapters/diffusers_adapter.py",
+        "line": 271,
+        "type": "math_operations",
+        "description": "math_operations: 3",
+        "code": "\"patterns\": [\"stable-diffusion-3\", \"sd3\", \"sd-3\"],"
+      }
+    ],
+    "adapters/comfyui_adapter.py": [
+      {
+        "file": "adapters/comfyui_adapter.py",
+        "line": 42,
+        "type": "get_with_default",
+        "description": "get_with_default: logging.getLogger(__name__",
+        "code": "logger = kwargs.get(\"logger\", logging.getLogger(__name__))"
+      }
+    ],
+    "adapters/a1111_adapter.py": [
+      {
+        "file": "adapters/a1111_adapter.py",
+        "line": 42,
+        "type": "get_with_default",
+        "description": "get_with_default: logging.getLogger(__name__",
+        "code": "logger = kwargs.get(\"logger\", logging.getLogger(__name__))"
+      },
+      {
+        "file": "adapters/a1111_adapter.py",
+        "line": 290,
+        "type": "get_with_default",
+        "description": "get_with_default: config_manager.get_value(\"adapters.a1111.vram_estimates.default\"",
+        "code": "return estimates.get(\"default\", config_manager.get_value(\"adapters.a1111.vram_estimates.default\"))"
+      }
+    ],
+    "config/user_config.py": [
+      {
+        "file": "config/user_config.py",
+        "line": 299,
+        "type": "ast_constant",
+        "description": "Numeric constant: 120",
+        "code": "width=120,"
+      },
+      {
+        "file": "config/user_config.py",
+        "line": 152,
+        "type": "get_with_default",
+        "description": "get_with_default: f\"lora_{i}\"",
+        "code": "lora_name = lora_data.get(\"name\", f\"lora_{i}\")"
+      },
+      {
+        "file": "config/user_config.py",
+        "line": 533,
+        "type": "direct_assignment",
+        "description": "direct_assignment: clear_cache_frequency",
+        "code": "clear_cache_frequency: 5  # Clear CUDA cache every N operations"
+      },
+      {
+        "file": "config/user_config.py",
+        "line": 537,
+        "type": "direct_assignment",
+        "description": "direct_assignment: output_compression",
+        "code": "output_compression: 0  # PNG compression level (0-9)"
+      },
+      {
+        "file": "config/user_config.py",
+        "line": 25,
+        "type": "field_default",
+        "description": "field_default: dtype",
+        "code": "dtype: str = \"fp16\""
+      },
+      {
+        "file": "config/user_config.py",
+        "line": 29,
+        "type": "field_default",
+        "description": "field_default: enabled",
+        "code": "enabled: bool = True"
+      },
+      {
+        "file": "config/user_config.py",
+        "line": 348,
+        "type": "math_operations",
+        "description": "math_operations: 3",
+        "code": "model_id=\"stabilityai/stable-diffusion-3-medium\","
+      },
+      {
+        "file": "config/user_config.py",
+        "line": 469,
+        "type": "math_operations",
+        "description": "math_operations: 3",
+        "code": "model_id: \"stabilityai/stable-diffusion-3-medium\""
+      }
+    ],
+    "config/lora_manager.py": [
+      {
+        "file": "config/lora_manager.py",
+        "line": 174,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1.5",
+        "code": "if total_weight > 1.5:"
+      },
+      {
+        "file": "config/lora_manager.py",
+        "line": 179,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1.5",
+        "code": "scale_factor = 1.5 / total_weight"
+      },
+      {
+        "file": "config/lora_manager.py",
+        "line": 282,
+        "type": "direct_assignment",
+        "description": "direct_assignment: additional_steps",
+        "code": ""
+      },
+      {
+        "file": "config/lora_manager.py",
+        "line": 174,
+        "type": "if_comparison",
+        "description": "if_comparison: 1.5",
+        "code": "if total_weight > 1.5:"
+      }
+    ],
+    "config/pipeline_config.py": [
+      {
+        "file": "config/pipeline_config.py",
+        "line": 79,
+        "type": "get_default",
+        "description": ".get() with default: 'aggressive'",
+        "code": "enable_artifacts_check=kwargs.get("
+      },
+      {
+        "file": "config/pipeline_config.py",
+        "line": 83,
+        "type": "ast_constant",
+        "description": "Numeric constant: 0.1",
+        "code": "0.1 if user_config.auto_artifact_detection else 1.0),"
+      },
+      {
+        "file": "config/pipeline_config.py",
+        "line": 76,
+        "type": "get_with_default",
+        "description": "get_with_default: user_config.max_vram_usage_mb",
+        "code": "vram_limit_mb=kwargs.get("
+      },
+      {
+        "file": "config/pipeline_config.py",
+        "line": 79,
+        "type": "get_with_default",
+        "description": "get_with_default: \"aggressive\"",
+        "code": "enable_artifacts_check=kwargs.get("
+      },
+      {
+        "file": "config/pipeline_config.py",
+        "line": 202,
+        "type": "get_with_default",
+        "description": "get_with_default: torch.float32",
+        "code": "return dtype_map.get(dtype_str, torch.float32)"
+      },
+      {
+        "file": "config/pipeline_config.py",
+        "line": 34,
+        "type": "field_default",
+        "description": "field_default: save_stages",
+        "code": "save_stages: bool = False,"
+      },
+      {
+        "file": "config/pipeline_config.py",
+        "line": 36,
+        "type": "field_default",
+        "description": "field_default: verbose",
+        "code": "verbose: bool = False,"
+      },
+      {
+        "file": "config/pipeline_config.py",
+        "line": 125,
+        "type": "field_default",
+        "description": "field_default: adapter_type",
+        "code": "adapter_type: str = \"auto\") -> Any:"
+      },
+      {
+        "file": "config/pipeline_config.py",
+        "line": 159,
+        "type": "field_default",
+        "description": "field_default: model_id",
+        "code": "if model_config.model_id:"
+      },
+      {
+        "file": "config/pipeline_config.py",
+        "line": 164,
+        "type": "field_default",
+        "description": "field_default: else",
+        "code": "else:"
+      },
+      {
+        "file": "config/pipeline_config.py",
+        "line": 122,
+        "type": "function_default",
+        "description": "function_default: \"auto\"",
+        "code": "def create_adapter("
+      }
+    ],
+    "cli/args.py": [
+      {
+        "file": "cli/args.py",
+        "line": 60,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1280",
+        "code": "\"720p\": (1280, 720),"
+      },
+      {
+        "file": "cli/args.py",
+        "line": 60,
+        "type": "ast_constant",
+        "description": "Numeric constant: 720",
+        "code": "\"720p\": (1280, 720),"
+      },
+      {
+        "file": "cli/args.py",
+        "line": 61,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1920",
+        "code": "\"1080p\": (1920, 1080),"
+      },
+      {
+        "file": "cli/args.py",
+        "line": 61,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1080",
+        "code": "\"1080p\": (1920, 1080),"
+      },
+      {
+        "file": "cli/args.py",
+        "line": 62,
+        "type": "ast_constant",
+        "description": "Numeric constant: 2560",
+        "code": "\"1440p\": (2560, 1440),"
+      },
+      {
+        "file": "cli/args.py",
+        "line": 62,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1440",
+        "code": "\"1440p\": (2560, 1440),"
+      },
+      {
+        "file": "cli/args.py",
+        "line": 63,
+        "type": "ast_constant",
+        "description": "Numeric constant: 3840",
+        "code": "\"4k\": (3840, 2160),"
+      },
+      {
+        "file": "cli/args.py",
+        "line": 63,
+        "type": "ast_constant",
+        "description": "Numeric constant: 2160",
+        "code": "\"4k\": (3840, 2160),"
+      },
+      {
+        "file": "cli/args.py",
+        "line": 64,
+        "type": "ast_constant",
+        "description": "Numeric constant: 5120",
+        "code": "\"5k\": (5120, 2880),"
+      },
+      {
+        "file": "cli/args.py",
+        "line": 64,
+        "type": "ast_constant",
+        "description": "Numeric constant: 2880",
+        "code": "\"5k\": (5120, 2880),"
+      },
+      {
+        "file": "cli/args.py",
+        "line": 65,
+        "type": "ast_constant",
+        "description": "Numeric constant: 7680",
+        "code": "\"8k\": (7680, 4320),"
+      },
+      {
+        "file": "cli/args.py",
+        "line": 65,
+        "type": "ast_constant",
+        "description": "Numeric constant: 4320",
+        "code": "\"8k\": (7680, 4320),"
+      },
+      {
+        "file": "cli/args.py",
+        "line": 67,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1920",
+        "code": "\"16:9\": (1920, 1080),"
+      },
+      {
+        "file": "cli/args.py",
+        "line": 67,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1080",
+        "code": "\"16:9\": (1920, 1080),"
+      },
+      {
+        "file": "cli/args.py",
+        "line": 68,
+        "type": "ast_constant",
+        "description": "Numeric constant: 2560",
+        "code": "\"21:9\": (2560, 1080),"
+      },
+      {
+        "file": "cli/args.py",
+        "line": 68,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1080",
+        "code": "\"21:9\": (2560, 1080),"
+      },
+      {
+        "file": "cli/args.py",
+        "line": 69,
+        "type": "ast_constant",
+        "description": "Numeric constant: 3840",
+        "code": "\"32:9\": (3840, 1080),"
+      },
+      {
+        "file": "cli/args.py",
+        "line": 69,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1080",
+        "code": "\"32:9\": (3840, 1080),"
+      },
+      {
+        "file": "cli/args.py",
+        "line": 70,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1080",
+        "code": "\"9:16\": (1080, 1920),  # Portrait"
+      },
+      {
+        "file": "cli/args.py",
+        "line": 70,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1920",
+        "code": "\"9:16\": (1080, 1920),  # Portrait"
+      },
+      {
+        "file": "cli/args.py",
+        "line": 72,
+        "type": "ast_constant",
+        "description": "Numeric constant: 3440",
+        "code": "\"ultrawide\": (3440, 1440),"
+      },
+      {
+        "file": "cli/args.py",
+        "line": 72,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1440",
+        "code": "\"ultrawide\": (3440, 1440),"
+      },
+      {
+        "file": "cli/args.py",
+        "line": 73,
+        "type": "ast_constant",
+        "description": "Numeric constant: 5120",
+        "code": "\"superultrawide\": (5120, 1440),"
+      },
+      {
+        "file": "cli/args.py",
+        "line": 73,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1440",
+        "code": "\"superultrawide\": (5120, 1440),"
+      },
+      {
+        "file": "cli/args.py",
+        "line": 74,
+        "type": "ast_constant",
+        "description": "Numeric constant: 2160",
+        "code": "\"portrait4k\": (2160, 3840),"
+      },
+      {
+        "file": "cli/args.py",
+        "line": 74,
+        "type": "ast_constant",
+        "description": "Numeric constant: 3840",
+        "code": "\"portrait4k\": (2160, 3840),"
+      },
+      {
+        "file": "cli/args.py",
+        "line": 75,
+        "type": "ast_constant",
+        "description": "Numeric constant: 3840",
+        "code": "\"square4k\": (3840, 3840),"
+      },
+      {
+        "file": "cli/args.py",
+        "line": 75,
+        "type": "ast_constant",
+        "description": "Numeric constant: 3840",
+        "code": "\"square4k\": (3840, 3840),"
+      },
+      {
+        "file": "cli/args.py",
+        "line": 77,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1170",
+        "code": "\"iphone\": (1170, 2532),"
+      },
+      {
+        "file": "cli/args.py",
+        "line": 77,
+        "type": "ast_constant",
+        "description": "Numeric constant: 2532",
+        "code": "\"iphone\": (1170, 2532),"
+      },
+      {
+        "file": "cli/args.py",
+        "line": 78,
+        "type": "ast_constant",
+        "description": "Numeric constant: 2048",
+        "code": "\"ipad\": (2048, 2732),"
+      },
+      {
+        "file": "cli/args.py",
+        "line": 78,
+        "type": "ast_constant",
+        "description": "Numeric constant: 2732",
+        "code": "\"ipad\": (2048, 2732),"
+      },
+      {
+        "file": "cli/args.py",
+        "line": 79,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1440",
+        "code": "\"android\": (1440, 3200),"
+      },
+      {
+        "file": "cli/args.py",
+        "line": 79,
+        "type": "ast_constant",
+        "description": "Numeric constant: 3200",
+        "code": "\"android\": (1440, 3200),"
+      }
+    ],
+    "cli/setup_wizard.py": [
+      {
+        "file": "cli/setup_wizard.py",
+        "line": 70,
+        "type": "ast_constant",
+        "description": "Numeric constant: 60",
+        "code": "self.logger.info(\"\\n\" + \"=\" * 60)"
+      },
+      {
+        "file": "cli/setup_wizard.py",
+        "line": 72,
+        "type": "ast_constant",
+        "description": "Numeric constant: 60",
+        "code": "self.logger.info(\"=\" * 60)"
+      },
+      {
+        "file": "cli/setup_wizard.py",
+        "line": 192,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "min_val=1024,"
+      },
+      {
+        "file": "cli/setup_wizard.py",
+        "line": 193,
+        "type": "ast_constant",
+        "description": "Numeric constant: 49152",
+        "code": "max_val=49152,"
+      },
+      {
+        "file": "cli/setup_wizard.py",
+        "line": 234,
+        "type": "ast_constant",
+        "description": "Numeric constant: 0.1",
+        "code": "min_val=0.1,"
+      },
+      {
+        "file": "cli/setup_wizard.py",
+        "line": 235,
+        "type": "ast_constant",
+        "description": "Numeric constant: 2.0",
+        "code": "max_val=2.0,"
+      },
+      {
+        "file": "cli/setup_wizard.py",
+        "line": 328,
+        "type": "ast_constant",
+        "description": "Numeric constant: 60",
+        "code": "self.logger.info(\"\\n\" + \"=\" * 60)"
+      },
+      {
+        "file": "cli/setup_wizard.py",
+        "line": 330,
+        "type": "ast_constant",
+        "description": "Numeric constant: 60",
+        "code": "self.logger.info(\"=\" * 60)"
+      },
+      {
+        "file": "cli/setup_wizard.py",
+        "line": 340,
+        "type": "field_default",
+        "description": "field_default: default",
+        "code": "def _confirm(self, prompt: str, default: bool = False) -> bool:"
+      },
+      {
+        "file": "cli/setup_wizard.py",
+        "line": 364,
+        "type": "field_default",
+        "description": "field_default: must_exist",
+        "code": "self, prompt: str, must_exist: bool = False, create: bool = False"
+      },
+      {
+        "file": "cli/setup_wizard.py",
+        "line": 364,
+        "type": "field_default",
+        "description": "field_default: create",
+        "code": "self, prompt: str, must_exist: bool = False, create: bool = False"
+      },
+      {
+        "file": "cli/setup_wizard.py",
+        "line": 70,
+        "type": "math_operations",
+        "description": "math_operations: 60",
+        "code": "self.logger.info(\"\\n\" + \"=\" * 60)"
+      },
+      {
+        "file": "cli/setup_wizard.py",
+        "line": 72,
+        "type": "math_operations",
+        "description": "math_operations: 60",
+        "code": "self.logger.info(\"=\" * 60)"
+      },
+      {
+        "file": "cli/setup_wizard.py",
+        "line": 120,
+        "type": "math_operations",
+        "description": "math_operations: 3",
+        "code": "model_id=\"stabilityai/stable-diffusion-3-medium\","
+      },
+      {
+        "file": "cli/setup_wizard.py",
+        "line": 232,
+        "type": "math_operations",
+        "description": "math_operations: 2.0",
+        "code": "\"LoRA weight (0.1-2.0, default 1.0): \","
+      },
+      {
+        "file": "cli/setup_wizard.py",
+        "line": 328,
+        "type": "math_operations",
+        "description": "math_operations: 60",
+        "code": "self.logger.info(\"\\n\" + \"=\" * 60)"
+      },
+      {
+        "file": "cli/setup_wizard.py",
+        "line": 330,
+        "type": "math_operations",
+        "description": "math_operations: 60",
+        "code": "self.logger.info(\"=\" * 60)"
+      }
+    ],
+    "cli/utils.py": [
+      {
+        "file": "cli/utils.py",
+        "line": 82,
+        "type": "ast_constant",
+        "description": "Numeric constant: 60",
+        "code": "logger.info(\"\\n\" + \"=\" * 60)"
+      },
+      {
+        "file": "cli/utils.py",
+        "line": 84,
+        "type": "ast_constant",
+        "description": "Numeric constant: 60",
+        "code": "logger.info(\"=\" * 60)"
+      },
+      {
+        "file": "cli/utils.py",
+        "line": 126,
+        "type": "ast_constant",
+        "description": "Numeric constant: 60",
+        "code": "logger.info(\"=\" * 60)"
+      },
+      {
+        "file": "cli/utils.py",
+        "line": 148,
+        "type": "ast_constant",
+        "description": "Numeric constant: 50",
+        "code": "logger.info(\"=\" * 50)"
+      },
+      {
+        "file": "cli/utils.py",
+        "line": 202,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "vram_mb = vram_bytes / (1024 * 1024)"
+      },
+      {
+        "file": "cli/utils.py",
+        "line": 202,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "vram_mb = vram_bytes / (1024 * 1024)"
+      },
+      {
+        "file": "cli/utils.py",
+        "line": 207,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "allocated = torch.cuda.memory_allocated(0) / (1024 * 1024)"
+      },
+      {
+        "file": "cli/utils.py",
+        "line": 207,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1024",
+        "code": "allocated = torch.cuda.memory_allocated(0) / (1024 * 1024)"
+      },
+      {
+        "file": "cli/utils.py",
+        "line": 218,
+        "type": "ast_constant",
+        "description": "Numeric constant: 50",
+        "code": "logger.info(\"\\n\" + \"=\" * 50)"
+      },
+      {
+        "file": "cli/utils.py",
+        "line": 169,
+        "type": "field_default",
+        "description": "field_default: enabled",
+        "code": "if model_config and model_config.enabled:"
+      },
+      {
+        "file": "cli/utils.py",
+        "line": 180,
+        "type": "field_default",
+        "description": "field_default: is_valid",
+        "code": "if not is_valid:"
+      },
+      {
+        "file": "cli/utils.py",
+        "line": 191,
+        "type": "field_default",
+        "description": "field_default: exists",
+        "code": "if not exists:"
+      },
+      {
+        "file": "cli/utils.py",
+        "line": 82,
+        "type": "math_operations",
+        "description": "math_operations: 60",
+        "code": "logger.info(\"\\n\" + \"=\" * 60)"
+      },
+      {
+        "file": "cli/utils.py",
+        "line": 84,
+        "type": "math_operations",
+        "description": "math_operations: 60",
+        "code": "logger.info(\"=\" * 60)"
+      },
+      {
+        "file": "cli/utils.py",
+        "line": 126,
+        "type": "math_operations",
+        "description": "math_operations: 60",
+        "code": "logger.info(\"=\" * 60)"
+      },
+      {
+        "file": "cli/utils.py",
+        "line": 148,
+        "type": "math_operations",
+        "description": "math_operations: 50",
+        "code": "logger.info(\"=\" * 50)"
+      },
+      {
+        "file": "cli/utils.py",
+        "line": 202,
+        "type": "math_operations",
+        "description": "math_operations: 1024",
+        "code": "vram_mb = vram_bytes / (1024 * 1024)"
+      },
+      {
+        "file": "cli/utils.py",
+        "line": 207,
+        "type": "math_operations",
+        "description": "math_operations: 1024",
+        "code": "allocated = torch.cuda.memory_allocated(0) / (1024 * 1024)"
+      },
+      {
+        "file": "cli/utils.py",
+        "line": 218,
+        "type": "math_operations",
+        "description": "math_operations: 50",
+        "code": "logger.info(\"\\n\" + \"=\" * 50)"
+      }
+    ],
+    "cli/main.py": [
+      {
+        "file": "cli/main.py",
+        "line": 314,
+        "type": "ast_constant",
+        "description": "Numeric constant: 32",
+        "code": "seed = abs(hash(f\"{input_path}_{datetime.now()}\")) % (2**32)"
+      },
+      {
+        "file": "cli/main.py",
+        "line": 351,
+        "type": "ast_constant",
+        "description": "Numeric constant: 5",
+        "code": "if i % 5 == 0:"
+      },
+      {
+        "file": "cli/main.py",
+        "line": 361,
+        "type": "ast_constant",
+        "description": "Numeric constant: 50",
+        "code": "logger.info(f\"\\n{'=' * 50}\")"
+      },
+      {
+        "file": "cli/main.py",
+        "line": 370,
+        "type": "ast_constant",
+        "description": "Numeric constant: 130",
+        "code": "return 130"
+      },
+      {
+        "file": "cli/main.py",
+        "line": 391,
+        "type": "ast_constant",
+        "description": "Numeric constant: 3",
+        "code": "return 3"
+      },
+      {
+        "file": "cli/main.py",
+        "line": 396,
+        "type": "ast_constant",
+        "description": "Numeric constant: 4",
+        "code": "return 4"
+      },
+      {
+        "file": "cli/main.py",
+        "line": 401,
+        "type": "ast_constant",
+        "description": "Numeric constant: 5",
+        "code": "return 5"
+      },
+      {
+        "file": "cli/main.py",
+        "line": 408,
+        "type": "ast_constant",
+        "description": "Numeric constant: 6",
+        "code": "return 6"
+      },
+      {
+        "file": "cli/main.py",
+        "line": 269,
+        "type": "direct_assignment",
+        "description": "direct_assignment: success_count",
+        "code": "success_count = 0"
+      },
+      {
+        "file": "cli/main.py",
+        "line": 314,
+        "type": "math_operations",
+        "description": "math_operations: 32",
+        "code": "seed = abs(hash(f\"{input_path}_{datetime.now()}\")) % (2**32)"
+      },
+      {
+        "file": "cli/main.py",
+        "line": 361,
+        "type": "math_operations",
+        "description": "math_operations: 50",
+        "code": "logger.info(f\"\\n{'=' * 50}\")"
+      }
+    ],
+    "strategies/experimental/hybrid_adaptive.py": [
+      {
+        "file": "strategies/experimental/hybrid_adaptive.py",
+        "line": 437,
+        "type": "ast_constant",
+        "description": "Numeric constant: 1.3",
+        "code": "\"config_overrides\": {\"max_expansion_ratio\": 1.3},"
+      },
+      {
+        "file": "strategies/experimental/hybrid_adaptive.py",
+        "line": 460,
+        "type": "ast_constant",
+        "description": "Numeric constant: 384",
+        "code": "\"config_overrides\": {\"tile_size\": 384, \"overlap\": 64},"
+      },
+      {
+        "file": "strategies/experimental/hybrid_adaptive.py",
+        "line": 460,
+        "type": "ast_constant",
+        "description": "Numeric constant: 64",
+        "code": "\"config_overrides\": {\"tile_size\": 384, \"overlap\": 64},"
+      },
+      {
+        "file": "strategies/experimental/hybrid_adaptive.py",
+        "line": 463,
+        "type": "ast_constant",
+        "description": "Numeric constant: 512",
+        "code": "estimated_vram=512,"
+      },
+      {
+        "file": "strategies/experimental/hybrid_adaptive.py",
+        "line": 464,
+        "type": "ast_constant",
+        "description": "Numeric constant: 0.7",
+        "code": "estimated_quality=0.7,"
+      }
+    ],
+    "processors/refinement/smart_refiner.py": [
+      {
+        "file": "processors/refinement/smart_refiner.py",
+        "line": 163,
+        "type": "direct_assignment",
+        "description": "direct_assignment: iterations",
+        "code": "iterations = 0"
+      },
+      {
+        "file": "processors/refinement/smart_refiner.py",
+        "line": 164,
+        "type": "direct_assignment",
+        "description": "direct_assignment: total_improvement",
+        "code": "total_improvement = 0.0"
+      },
+      {
+        "file": "processors/refinement/smart_refiner.py",
+        "line": 118,
+        "type": "field_default",
+        "description": "field_default: save_stages",
+        "code": "save_stages: bool = False,"
+      }
+    ]
+  }
+}

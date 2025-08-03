@@ -1,0 +1,70 @@
+# Strategy-specific parameters - NO HARDCODED VALUES
+progressive_outpaint:
+  base_strength: 0.75
+  min_strength: 0.35
+  max_strength: 0.85
+  seam_repair_multiplier: 0.4
+  blur_radius_ratio: 0.4
+  mask_blur_ratio: 0.05
+  edge_preservation_ratio: 0.1
+
+controlnet_progressive:
+  default_strength: 0.25  # Optimal starting point per research
+  conditioning_scale: 0.5  # Recommended for good generalization
+  control_guidance_start: 0.0
+  control_guidance_end: 1.0
+
+cpu_offload:
+  safety_factor: 0.6
+  conservative_safety_factor: 0.5
+  pipeline_vram: 1024  # MB
+  gpu_memory_fallback: 512  # MB
+  aspect_change_threshold: 0.1
+  tile_generation_strength: 0.9
+  tile_generation_guidance: 7.0
+  tile_refinement_strength: 0.3
+  tile_refinement_guidance: 7.0
+
+swpo:
+  default_overlap_ratio: 0.8
+  default_denoising_strength: 0.75
+  unification_strength: 0.15
+  window_blur_radius: 30
+  edge_blur_ratio: 0.1
+  # Generation parameters
+  unification_guidance: 7.0    # Guidance for unification pass
+  unification_steps: 30        # Fewer steps for light touch
+
+tiled_expansion:
+  vram_safety_ratio: 0.7
+  refinement_strength: 0.15    # Reduced from 0.2 per research
+  edge_fix_strength: 0.25      # Reduced from 0.3 per research
+  final_pass_strength: 0.35    # Reduced from 0.4 per research
+  min_tile_size: 512
+  max_tile_size: 1536
+  tile_overlap: 48             # Default overlap pixels (can go down to 8)
+  overlap_ratio: 0.25          # 25% overlap ratio
+  blend_method: "mixture_of_diffusers"  # Better than multidiffusion
+  progressive_strength_reduction: true   # Enable strength reduction for many tiles
+  max_tiles_before_reduction: 50        # Start reducing strength after 50 tiles
+  # Guidance and step parameters
+  refinement_guidance: 6.5     # Lower guidance for better preservation
+  refinement_steps: 20         # Steps for refinement
+  edge_fix_guidance: 7.0       # Standard guidance for edge fixing
+  edge_fix_steps: 30           # Steps for edge fixing
+  final_pass_guidance: 7.0     # Standard guidance for final pass
+  final_pass_steps: 40         # Steps for final pass
+
+hybrid_adaptive:
+  aspect_ratio_threshold: 0.2
+  extreme_ratio_threshold: 3.0
+  vram_safety_factor: 0.8
+
+direct_upscale:
+  vram_thresholds:
+    high: 8000     # 8GB+
+    medium: 6000   # 6GB+
+    low: 4000      # 4GB+
+  scale_thresholds:
+    low: 2.0
+    medium: 3.0

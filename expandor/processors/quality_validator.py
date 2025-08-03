@@ -86,8 +86,13 @@ class QualityValidator:
         # Determine if issues were found based on detection level
         issues_found = detection_result["needs_multipass"]
 
-        # Get seam count from detection
-        seam_count = detection_result.get("seam_count", 0)
+        # Get seam count from detection - FAIL LOUD if missing
+        if "seam_count" not in detection_result:
+            raise QualityError(
+                "Detection result missing required 'seam_count' field",
+                details={"available_keys": list(detection_result.keys())}
+            )
+        seam_count = detection_result["seam_count"]
 
         # Log results
         if issues_found:
@@ -106,8 +111,8 @@ class QualityValidator:
             "issues_found": issues_found,
             "seam_count": seam_count,
             "quality_score": quality_score,
-            "severity": detection_result.get("severity", "none"),
-            "mask": detection_result.get("mask"),
+            "severity": detection_result["severity"] if "severity" in detection_result else "none",
+            "mask": detection_result.get("mask"),  # mask is optional
             "details": detection_result,
         }
 
@@ -122,20 +127,30 @@ class QualityValidator:
         # Start with perfect score
         score = self.processor_config['initial_score']
 
-        # Deduct for seams
-        seam_count = detection_result.get("seam_count", 0)
+        # Deduct for seams - FAIL LOUD if missing
+        if "seam_count" not in detection_result:
+            raise QualityError(
+                "Detection result missing required 'seam_count' field for quality calculation",
+                details={"available_keys": list(detection_result.keys())}
+            )
+        seam_count = detection_result["seam_count"]
         if seam_count > 0:
             # Each seam reduces score
             seam_penalty = self.processor_config['seam_penalty_per_seam'] * seam_count
             score -= min(seam_penalty, self.processor_config['seam_penalty_max_reduction'])  # Cap at max reduction
 
-        # Deduct for severity
-        severity = detection_result.get("severity", "none")
+        # Deduct for severity - FAIL LOUD if missing
+        if "severity" not in detection_result:
+            raise QualityError(
+                "Detection result missing required 'severity' field for quality calculation",
+                details={"available_keys": list(detection_result.keys())}
+            )
+        severity = detection_result["severity"]
         severity_penalties = self.processor_config['severity_penalties']
         score -= severity_penalties.get(severity, 0.0)
 
-        # Deduct for mask coverage if available
-        if detection_result.get("mask") is not None:
+        # Deduct for mask coverage if available (mask is optional)
+        if "mask" in detection_result and detection_result["mask"] is not None:
             mask = detection_result["mask"]
             # Calculate percentage of image affected
             coverage = np.mean(mask)

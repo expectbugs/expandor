@@ -25,10 +25,10 @@ class BasePipelineAdapter(ABC):
         self,
         prompt: str,
         negative_prompt: Optional[str] = None,
-        width: int = 1024,
-        height: int = 1024,
-        num_inference_steps: int = 50,
-        guidance_scale: float = 7.5,
+        width: Optional[int] = None,
+        height: Optional[int] = None,
+        num_inference_steps: Optional[int] = None,
+        guidance_scale: Optional[float] = None,
         seed: Optional[int] = None,
         **kwargs
     ) -> Image.Image:
@@ -41,9 +41,9 @@ class BasePipelineAdapter(ABC):
         mask: Image.Image,
         prompt: str,
         negative_prompt: Optional[str] = None,
-        strength: float = 0.8,
-        num_inference_steps: int = 50,
-        guidance_scale: float = 7.5,
+        strength: Optional[float] = None,
+        num_inference_steps: Optional[int] = None,
+        guidance_scale: Optional[float] = None,
         seed: Optional[int] = None,
         **kwargs
     ) -> Image.Image:
@@ -55,9 +55,9 @@ class BasePipelineAdapter(ABC):
         image: Image.Image,
         prompt: str,
         negative_prompt: Optional[str] = None,
-        strength: float = 0.8,
-        num_inference_steps: int = 50,
-        guidance_scale: float = 7.5,
+        strength: Optional[float] = None,
+        num_inference_steps: Optional[int] = None,
+        guidance_scale: Optional[float] = None,
         seed: Optional[int] = None,
         **kwargs
     ) -> Image.Image:
@@ -72,7 +72,7 @@ class BasePipelineAdapter(ABC):
         self,
         image: Image.Image,
         prompt: Optional[str] = None,
-        scale_factor: int = 2,
+        scale_factor: Optional[int] = None,
         **kwargs
     ) -> Image.Image:
         """Enhance/upscale image"""

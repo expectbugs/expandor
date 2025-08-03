@@ -56,18 +56,26 @@ class VRAMManager:
         self,
         width: int,
         height: int,
-        batch_size: int = 1,
-        model_type: str = "sdxl",
-        dtype: str = "float16",
+        batch_size: Optional[int] = None,
+        model_type: Optional[str] = None,
+        dtype: Optional[str] = None,
     ) -> float:
         """
         Calculate ACCURATE VRAM requirements for refinement.
         Copy implementation from lines 22-76 of vram_calculator.py
         """
+        # Load defaults from config if not provided
+        if batch_size is None:
+            batch_size = self.config_manager.get_value('vram.default_batch_size')
+        if model_type is None:
+            model_type = self.config_manager.get_value('models.default_type') if self.config_manager.has_key('models.default_type') else "sdxl"
+        if dtype is None:
+            dtype = self.config_manager.get_value('models.default_dtype') if self.config_manager.has_key('models.default_dtype') else "float16"
+        
         # pixels = width * height  # Unused calculation
 
         # Dtype mapping for different precision modes
-        dtype_map = {"float16": 2, "float32": 4, "bfloat16": 2}
+        dtype_map = self.config_manager.get_value('memory.vram.dtype_memory')
         # FAIL LOUD if dtype not recognized
         if dtype not in dtype_map:
             raise ValueError(
@@ -79,21 +87,25 @@ class VRAMManager:
 
         # Image tensor memory (BCHW format)
         # 1 batch × 4 channels (latent) × H × W
-        latent_h = height // 8  # VAE downscales by 8
-        latent_w = width // 8
+        vae_downscale_factor = self.config_manager.get_value('vram.vae_downscale_factor') if self.config_manager.has_key('vram.vae_downscale_factor') else 8
+        latent_h = height // vae_downscale_factor  # VAE downscales
+        latent_w = width // vae_downscale_factor
         latent_pixels = latent_h * latent_w
 
         # Memory calculations (in MB)
-        latent_memory_mb = (latent_pixels * 4 *
-                            bytes_per_pixel) / (1024 * 1024)
+        latent_channels = self.config_manager.get_value('memory.vram.overhead.latent_multiplier')
+        bytes_to_mb = self.config_manager.get_value('memory.bytes_to_mb_divisor')
+        latent_memory_mb = (latent_pixels * latent_channels *
+                            bytes_per_pixel) / bytes_to_mb
 
         # Attention memory scales with sequence length
         attention_memory_mb = (
             latent_pixels * self.ATTENTION_MULTIPLIER * bytes_per_pixel
-        ) / (1024 * 1024)
+        ) / bytes_to_mb
 
         # Activations and gradients
-        activation_memory_mb = latent_memory_mb * 2  # Conservative estimate
+        activation_multiplier = self.config_manager.get_value('vram.activation_multiplier') if self.config_manager.has_key('vram.activation_multiplier') else 2
+        activation_memory_mb = latent_memory_mb * activation_multiplier  # Conservative estimate
 
         # Total image-related memory
         image_memory_mb = latent_memory_mb + attention_memory_mb + activation_memory_mb
@@ -126,8 +138,9 @@ class VRAMManager:
 
         try:
             free_bytes, total_bytes = torch.cuda.mem_get_info()
-            free_mb = free_bytes / (1024 * 1024)
-            total_mb = total_bytes / (1024 * 1024)
+            bytes_to_mb = self.config_manager.get_value('memory.bytes_to_mb_divisor')
+            free_mb = free_bytes / bytes_to_mb
+            total_mb = total_bytes / bytes_to_mb
 
             self.logger.debug(
                 f"VRAM: {free_mb:.0f}MB free / {total_mb:.0f}MB total")
@@ -273,8 +286,8 @@ class VRAMManager:
     def get_safe_tile_size(
         self,
         available_mb: Optional[float] = None,
-        model_type: str = "sdxl",
-        safety_factor: float = 0.8,
+        model_type: Optional[str] = None,
+        safety_factor: Optional[float] = None,
     ) -> int:
         """
         Calculate safe tile size based on available VRAM.
@@ -287,6 +300,12 @@ class VRAMManager:
         Returns:
             Safe tile size in pixels
         """
+        # Load defaults from config if not provided
+        if model_type is None:
+            model_type = self.config_manager.get_value('models.default_type') if self.config_manager.has_key('models.default_type') else "sdxl"
+        if safety_factor is None:
+            safety_factor = self.config_manager.get_value('vram.safety_factor')
+        
         if available_mb is None:
             available_mb = self.get_available_vram()
             if available_mb is None:

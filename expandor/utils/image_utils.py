@@ -9,7 +9,12 @@ from typing import Optional, Tuple
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 
+from ..core.configuration_manager import ConfigurationManager
+
 logger = logging.getLogger(__name__)
+
+# Get configuration manager instance
+_config_manager = ConfigurationManager()
 
 
 def create_gradient_mask(
@@ -38,39 +43,40 @@ def create_gradient_mask(
         if fade_width > 0:
             for i in range(fade_width):
                 alpha = i / fade_width
-                mask[:, i] = int(255 * alpha)
-        mask[:, fade_width:] = 255
+                mask[:, i] = int(_config_manager.get_value('image_processing.masks.max_value') * alpha)
+        mask[:, fade_width:] = _config_manager.get_value('image_processing.masks.max_value')
 
     elif direction == "right":
         fade_width = int(blur_radius * (1 - fade_start))
         if fade_width > 0:
             for i in range(fade_width):
                 alpha = i / fade_width
-                mask[:, -(i + 1)] = int(255 * alpha)
-        mask[:, :-fade_width] = 255
+                mask[:, -(i + 1)] = int(_config_manager.get_value('image_processing.masks.max_value') * alpha)
+        mask[:, :-fade_width] = _config_manager.get_value('image_processing.masks.max_value')
 
     elif direction == "top":
         fade_height = int(blur_radius * (1 - fade_start))
         if fade_height > 0:
             for i in range(fade_height):
                 alpha = i / fade_height
-                mask[i, :] = int(255 * alpha)
-        mask[fade_height:, :] = 255
+                mask[i, :] = int(_config_manager.get_value('image_processing.masks.max_value') * alpha)
+        mask[fade_height:, :] = _config_manager.get_value('image_processing.masks.max_value')
 
     elif direction == "bottom":
         fade_height = int(blur_radius * (1 - fade_start))
         if fade_height > 0:
             for i in range(fade_height):
                 alpha = i / fade_height
-                mask[-(i + 1), :] = int(255 * alpha)
-        mask[:-fade_height, :] = 255
+                mask[-(i + 1), :] = int(_config_manager.get_value('image_processing.masks.max_value') * alpha)
+        mask[:-fade_height, :] = _config_manager.get_value('image_processing.masks.max_value')
 
     # Convert to PIL and apply gaussian blur
     mask_img = Image.fromarray(mask, mode="L")
     if blur_radius > 0:
+        blur_divisor = _config_manager.get_value('image_processing.blur.gaussian_divisor')
         mask_img = mask_img.filter(
             ImageFilter.GaussianBlur(
-                radius=blur_radius // 4))
+                radius=blur_radius // blur_divisor))
 
     return mask_img
 
@@ -203,8 +209,8 @@ def extract_edge_colors(
 def create_noise_pattern(
     width: int,
     height: int,
-    scale: float = 0.1,
-    octaves: int = 1,
+    scale: Optional[float] = None,
+    octaves: Optional[int] = None,
     seed: Optional[int] = None,
 ) -> np.ndarray:
     """
@@ -220,15 +226,24 @@ def create_noise_pattern(
     Returns:
         Noise array in range [0, 1]
     """
+    # Load defaults from config if not provided
+    if scale is None:
+        scale = _config_manager.get_value('image_processing.noise.perlin_scale')
+    if octaves is None:
+        octaves = _config_manager.get_value('image_processing.noise.perlin_octaves')
+    
     if seed is not None:
         np.random.seed(seed)
 
     # Simple noise implementation
     noise = np.zeros((height, width))
 
+    octave_freq_base = _config_manager.get_value('image_processing.noise.octave_frequency_base') if _config_manager.has_key('image_processing.noise.octave_frequency_base') else 2
+    octave_amp_base = _config_manager.get_value('image_processing.noise.octave_amplitude_base') if _config_manager.has_key('image_processing.noise.octave_amplitude_base') else 0.5
+    
     for octave in range(octaves):
-        freq = 2**octave
-        amp = 0.5**octave
+        freq = octave_freq_base**octave
+        amp = octave_amp_base**octave
 
         # Generate random gradients
         grid_width = int(width * scale * freq) + 1

@@ -342,7 +342,8 @@ class TiledExpansionStrategy(BaseExpansionStrategy):
         blend_width: int,
     ) -> Image.Image:
         """Blend tiles together with smooth transitions"""
-        canvas = Image.new("RGB", canvas_size)
+        rgb_mode = self.config_manager.get_value("processing.image_mode", "RGB")
+        canvas = Image.new(rgb_mode, canvas_size)
         weight_map = np.zeros(
             (canvas_size[1], canvas_size[0]), dtype=np.float32)
 

@@ -1,0 +1,47 @@
+repos:
+  - repo: local
+    hooks:
+      - id: check-hardcoded-values
+        name: Check for hardcoded values
+        entry: python scripts/scan_hardcoded_values.py
+        language: system
+        files: '\.py$'
+        pass_filenames: false
+        always_run: true
+        fail_fast: true
+        
+      - id: check-get-with-defaults
+        name: Check for .get() with defaults
+        entry: python scripts/check_get_defaults.py
+        language: system
+        files: '\.py$'
+        pass_filenames: false
+        always_run: true
+        
+      - id: validate-configuration
+        name: Validate configuration files
+        entry: python scripts/validate_config.py
+        language: system
+        files: '\.yaml$'
+        pass_filenames: false
+        always_run: true
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+      
+  - repo: https://github.com/psf/black
+    rev: 23.12.1
+    hooks:
+      - id: black
+        language_version: python3.11
+        
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        args: ["--profile", "black"]

@@ -70,8 +70,9 @@ class ProgressiveOutpaintStrategy(BaseExpansionStrategy):
         Analyze colors at image edge for better continuation.
         Copy from lines 81-123 of aspect_adjuster.py
         """
-        if image.mode != "RGB":
-            raise ValueError(f"Image must be RGB, got {image.mode}")
+        rgb_mode = self.config_manager.get_value("processing.image_mode", "RGB")
+        if image.mode != rgb_mode:
+            raise ValueError(f"Image must be {rgb_mode}, got {image.mode}")
 
         # Get sample_width from config if not provided
         if sample_width is None:
@@ -283,8 +284,12 @@ class ProgressiveOutpaintStrategy(BaseExpansionStrategy):
         target_h = self.dimension_calc.round_to_multiple(target_h, rounding)
 
         # Create canvas and mask
-        canvas = Image.new("RGB", (target_w, target_h), color="black")
-        mask = Image.new("L", (target_w, target_h), color="white")
+        rgb_mode = self.config_manager.get_value("processing.image_mode", "RGB")
+        mask_mode = self.config_manager.get_value("processing.mask_mode", "L")
+        canvas_bg = self.config_manager.get_value("processing.canvas_background_color", "black")
+        mask_bg = self.config_manager.get_value("processing.mask_background_color", "white")
+        canvas = Image.new(rgb_mode, (target_w, target_h), color=canvas_bg)
+        mask = Image.new(mask_mode, (target_w, target_h), color=mask_bg)
 
         # Calculate padding
         pad_left = (target_w - current_w) // 2
@@ -420,7 +425,10 @@ class ProgressiveOutpaintStrategy(BaseExpansionStrategy):
                         3)
 
                 canvas_array[y, x] = np.clip(
-                    base_color + variation, 0, int(self.config_manager.get_value("processing.rgb_max_value"))).astype(np.uint8)
+                    base_color + variation, 
+                    self.strategy_config['fill_color'] - self.strategy_config['fill_color'],  # 0
+                    self.strategy_config['fill_color']  # 255
+                ).astype(np.uint8)
 
         return Image.fromarray(canvas_array)
 
@@ -659,12 +667,12 @@ class ProgressiveOutpaintStrategy(BaseExpansionStrategy):
                                  2, 0, pad_left +
                                  current_w +
                                  seam_width //
-                                 2, initial_result.height], fill=255)
+                                 2, initial_result.height], fill=self.strategy_config['fill_color'])
         if pad_top > 0:  # Top padding
             mask_draw.rectangle(
                 [0, pad_top - seam_width // 2,
                  initial_result.width, pad_top + current_h + seam_width // 2],
-                fill=255
+                fill=self.strategy_config['fill_color']
             )
 
         # Right side seam if expanded right
@@ -676,7 +684,7 @@ class ProgressiveOutpaintStrategy(BaseExpansionStrategy):
                                  2, 0, pad_left +
                                  current_w +
                                  seam_width //
-                                 2, initial_result.height], fill=255)
+                                 2, initial_result.height], fill=self.strategy_config['fill_color'])
 
         # Bottom seam if expanded down
         bottom_pad = initial_result.height - (pad_top + current_h)
@@ -684,7 +692,7 @@ class ProgressiveOutpaintStrategy(BaseExpansionStrategy):
             mask_draw.rectangle(
                 [0, pad_top + current_h - seam_width // 2,
                  initial_result.width, pad_top + current_h + seam_width // 2],
-                fill=255
+                fill=self.strategy_config['fill_color']
             )
 
         # Apply heavy blur to seam mask for gradual transition

@@ -170,8 +170,19 @@ class EdgeAnalyzer:
         height, width = img_array.shape[:2]
 
         for boundary in boundaries:
-            pos = boundary.get("position", 0)
-            direction = boundary.get("direction", "vertical")
+            # FAIL LOUD if boundary data is incomplete
+            if "position" not in boundary:
+                raise QualityError(
+                    "Boundary data missing required 'position' field in edge analysis",
+                    details={"boundary_data": boundary, "available_keys": list(boundary.keys())}
+                )
+            if "direction" not in boundary:
+                raise QualityError(
+                    "Boundary data missing required 'direction' field in edge analysis",
+                    details={"boundary_data": boundary, "available_keys": list(boundary.keys())}
+                )
+            pos = boundary["position"]
+            direction = boundary["direction"]
 
             if direction == "vertical" and 0 < pos < width:
                 # Check vertical seam

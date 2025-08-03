@@ -154,9 +154,19 @@ class EnhancedArtifactDetector(ArtifactDetector):
             # Use EdgeAnalyzer for initial analysis
             edge_analysis = self.edge_analyzer.analyze_image(image, boundaries)
 
-            # Get artifacts from edge analysis
-            seam_artifacts = edge_analysis.get("seam_artifacts", [])
-            general_artifacts = edge_analysis.get("general_artifacts", [])
+            # Get artifacts from edge analysis - FAIL LOUD if missing
+            if "seam_artifacts" not in edge_analysis:
+                raise QualityError(
+                    "EdgeAnalyzer returned incomplete results - missing seam_artifacts",
+                    details={"available_keys": list(edge_analysis.keys())}
+                )
+            if "general_artifacts" not in edge_analysis:
+                raise QualityError(
+                    "EdgeAnalyzer returned incomplete results - missing general_artifacts",
+                    details={"available_keys": list(edge_analysis.keys())}
+                )
+            seam_artifacts = edge_analysis["seam_artifacts"]
+            general_artifacts = edge_analysis["general_artifacts"]
 
             # Run additional detection methods
             detection_scores = {}
@@ -265,8 +275,19 @@ class EnhancedArtifactDetector(ArtifactDetector):
         discontinuity_scores = []
 
         for boundary in boundaries:
-            pos = boundary.get("position", 0)
-            direction = boundary.get("direction", "vertical")
+            # FAIL LOUD if boundary data is incomplete
+            if "position" not in boundary:
+                raise QualityError(
+                    "Boundary data missing required 'position' field in color analysis",
+                    details={"boundary_data": boundary, "available_keys": list(boundary.keys())}
+                )
+            if "direction" not in boundary:
+                raise QualityError(
+                    "Boundary data missing required 'direction' field in color analysis",
+                    details={"boundary_data": boundary, "available_keys": list(boundary.keys())}
+                )
+            pos = boundary["position"]
+            direction = boundary["direction"]
 
             if direction == "vertical" and 0 < pos < image.width - 1:
                 # Check vertical boundary
@@ -305,8 +326,19 @@ class EnhancedArtifactDetector(ArtifactDetector):
         boundary_scores = []
 
         for boundary in boundaries:
-            pos = boundary.get("position", 0)
-            direction = boundary.get("direction", "vertical")
+            # FAIL LOUD if boundary data is incomplete
+            if "position" not in boundary:
+                raise QualityError(
+                    "Boundary data missing required 'position' field in gradient analysis",
+                    details={"boundary_data": boundary, "available_keys": list(boundary.keys())}
+                )
+            if "direction" not in boundary:
+                raise QualityError(
+                    "Boundary data missing required 'direction' field in gradient analysis",
+                    details={"boundary_data": boundary, "available_keys": list(boundary.keys())}
+                )
+            pos = boundary["position"]
+            direction = boundary["direction"]
 
             if direction == "vertical" and 0 < pos < image.width:
                 # Check gradient spike at vertical boundary
@@ -422,18 +454,37 @@ class EnhancedArtifactDetector(ArtifactDetector):
         quality_preset: str,
     ) -> ArtifactSeverity:
         """Calculate overall severity based on all factors."""
-        # Adjust thresholds based on quality preset
-        multiplier = self.processor_config['quality_preset_multipliers'].get(
-            quality_preset, 
-            self.processor_config['quality_preset_multipliers']['balanced']
-        )
+        # Adjust thresholds based on quality preset - FAIL LOUD if preset missing
+        if quality_preset not in self.processor_config['quality_preset_multipliers']:
+            available_presets = list(self.processor_config['quality_preset_multipliers'].keys())
+            raise QualityError(
+                f"Unknown quality preset '{quality_preset}' for artifact detection",
+                details={
+                    "requested_preset": quality_preset,
+                    "available_presets": available_presets,
+                    "solution": f"Use one of: {', '.join(available_presets)}"
+                }
+            )
+        multiplier = self.processor_config['quality_preset_multipliers'][quality_preset]
 
-        # Calculate weighted score
+        # Calculate weighted score - FAIL LOUD if scores are missing
+        required_scores = ['color', 'gradient', 'frequency', 'pattern']
+        for score_type in required_scores:
+            if score_type not in scores:
+                raise QualityError(
+                    f"Missing required detection score: '{score_type}'",
+                    details={
+                        "missing_score": score_type,
+                        "available_scores": list(scores.keys()),
+                        "required_scores": required_scores
+                    }
+                )
+        
         weighted_score = (
-            scores.get("color", 0) * self.processor_config['score_weights']['color']
-            + scores.get("gradient", 0) * self.processor_config['score_weights']['gradient']
-            + scores.get("frequency", 0) * self.processor_config['score_weights']['frequency']
-            + scores.get("pattern", 0) * self.processor_config['score_weights']['pattern']
+            scores["color"] * self.processor_config['score_weights']['color']
+            + scores["gradient"] * self.processor_config['score_weights']['gradient']
+            + scores["frequency"] * self.processor_config['score_weights']['frequency']
+            + scores["pattern"] * self.processor_config['score_weights']['pattern']
         )
 
         # Add penalty for seam count
@@ -476,8 +527,19 @@ class EnhancedArtifactDetector(ArtifactDetector):
 
         # Add boundary regions
         for boundary in boundaries:
-            pos = boundary.get("position", 0)
-            direction = boundary.get("direction", "vertical")
+            # FAIL LOUD if boundary data is incomplete
+            if "position" not in boundary:
+                raise QualityError(
+                    "Boundary data missing required 'position' field in mask creation",
+                    details={"boundary_data": boundary, "available_keys": list(boundary.keys())}
+                )
+            if "direction" not in boundary:
+                raise QualityError(
+                    "Boundary data missing required 'direction' field in mask creation",
+                    details={"boundary_data": boundary, "available_keys": list(boundary.keys())}
+                )
+            pos = boundary["position"]
+            direction = boundary["direction"]
 
             if direction == "vertical" and 0 < pos < image_size[0]:
                 # Mark vertical boundary region
@@ -500,29 +562,37 @@ class EnhancedArtifactDetector(ArtifactDetector):
             )
             return recommendations
 
-        # Color discontinuities
-        if scores.get("color", 0) > self.processor_config['detection_score_threshold']:
+        # Color discontinuities - FAIL LOUD if score missing
+        if "color" not in scores:
+            raise QualityError("Missing color detection score in recommendations")
+        if scores["color"] > self.processor_config['detection_score_threshold']:
             recommendations.append(
                 "Strong color discontinuities detected. Consider using higher "
                 f"denoising strength ({self.processor_config['denoising_strength_recommendation']}+) or additional refinement passes."
             )
 
-        # Gradient issues
-        if scores.get("gradient", 0) > self.processor_config['detection_score_threshold']:
+        # Gradient issues - FAIL LOUD if score missing
+        if "gradient" not in scores:
+            raise QualityError("Missing gradient detection score in recommendations")
+        if scores["gradient"] > self.processor_config['detection_score_threshold']:
             recommendations.append(
                 "Sharp gradient transitions found. Enable gradient smoothing "
                 "or use SWPO strategy for smoother expansions."
             )
 
-        # Frequency artifacts
-        if scores.get("frequency", 0) > self.processor_config['detection_score_threshold']:
+        # Frequency artifacts - FAIL LOUD if score missing
+        if "frequency" not in scores:
+            raise QualityError("Missing frequency detection score in recommendations")
+        if scores["frequency"] > self.processor_config['detection_score_threshold']:
             recommendations.append(
                 "High-frequency artifacts detected. Consider using a lower "
                 "guidance scale or additional blur in transition zones."
             )
 
-        # Pattern repetition
-        if scores.get("pattern", 0) > self.processor_config['detection_score_threshold']:
+        # Pattern repetition - FAIL LOUD if score missing
+        if "pattern" not in scores:
+            raise QualityError("Missing pattern detection score in recommendations")
+        if scores["pattern"] > self.processor_config['detection_score_threshold']:
             recommendations.append(
                 "Repetitive patterns detected. This may indicate tiling issues. "
                 "Consider using larger tile sizes or better overlap blending.")

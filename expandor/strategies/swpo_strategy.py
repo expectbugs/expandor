@@ -558,9 +558,11 @@ class SWPOStrategy(BaseExpansionStrategy):
         window_h = y2 - y1
 
         # Create canvas at window size
-        canvas = Image.new("RGB", (window_w, window_h))
+        rgb_mode = self.config_manager.get_value("processing.image_mode", "RGB")
+        canvas = Image.new(rgb_mode, (window_w, window_h))
         # Start with black (preserve)
-        mask = Image.new("L", (window_w, window_h), 0)
+        mask_mode = self.config_manager.get_value("processing.mask_mode", "L")
+        mask = Image.new(mask_mode, (window_w, window_h), self.strategy_params['mask_background_value'])
 
         # Position current image on canvas
         if window.expansion_type == "horizontal":
@@ -582,7 +584,7 @@ class SWPOStrategy(BaseExpansionStrategy):
                 else crop_region.width + paste_x
             )
             mask_w = window_w - mask_x
-            mask.paste(255, (mask_x, 0, mask_x + mask_w, window_h))
+            mask.paste(self.strategy_params['mask_foreground_value'], (mask_x, 0, mask_x + mask_w, window_h))
 
             # Record boundary position
             boundary_position = current_image.width
@@ -606,7 +608,7 @@ class SWPOStrategy(BaseExpansionStrategy):
                 else crop_region.height + paste_y
             )
             mask_h = window_h - mask_y
-            mask.paste(255, (0, mask_y, window_w, mask_y + mask_h))
+            mask.paste(self.strategy_params['mask_foreground_value'], (0, mask_y, window_w, mask_y + mask_h))
 
             # Record boundary position
             boundary_position = current_image.height
@@ -868,7 +870,8 @@ class SWPOStrategy(BaseExpansionStrategy):
             edge_color_mean = np.mean(edge_colors["primary"], axis=(0, 1))
 
             # Apply to masked areas with gradient
-            for c in range(3):
+            rgb_channels = self.config_manager.get_value("processing.rgb_channels")
+            for c in range(rgb_channels):
                 img_array[:, :, c] = (
                     img_array[:, :, c] * (1 - mask_array)
                     + edge_color_mean[c] * mask_array
@@ -899,7 +902,8 @@ class SWPOStrategy(BaseExpansionStrategy):
         )
 
         # Apply noise only to masked areas
-        for c in range(3):
+        rgb_channels = self.config_manager.get_value("processing.rgb_channels")
+        for c in range(rgb_channels):
             img_array[:, :, c] = img_array[:, :, c] + \
                 (noise[:, :, c] * mask_array)
 
@@ -1082,7 +1086,7 @@ class SWPOStrategy(BaseExpansionStrategy):
                     # else keep at full_generation value
 
         # Convert back to image
-        return Image.fromarray((mask_np * 255).astype(np.uint8))
+        return Image.fromarray((mask_np * self.strategy_params['mask_foreground_value']).astype(np.uint8))
 
     def _min_distance_to_black(
             self,

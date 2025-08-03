@@ -73,12 +73,12 @@ class DiffusersPipelineAdapter(BasePipelineAdapter):
         self,
         model_id: Optional[str] = None,
         model_path: Optional[str] = None,
-        device: str = "cuda",
-        torch_dtype: torch.dtype = torch.float16,
-        variant: Optional[str] = "fp16",
+        device: Optional[str] = None,
+        torch_dtype: Optional[torch.dtype] = None,
+        variant: Optional[str] = None,
         cache_dir: Optional[str] = None,
-        use_safetensors: bool = True,
-        enable_xformers: bool = True,
+        use_safetensors: Optional[bool] = None,
+        enable_xformers: Optional[bool] = None,
         logger: Optional[logging.Logger] = None,
         **kwargs,
     ):
@@ -97,6 +97,22 @@ class DiffusersPipelineAdapter(BasePipelineAdapter):
             logger: Logger instance
             **kwargs: Additional pipeline arguments
         """
+        # Load defaults from configuration - FAIL LOUD if not found
+        config_manager = ConfigurationManager()
+        
+        # Apply configuration defaults for None values
+        if device is None:
+            device = config_manager.get_value("adapters.diffusers.default_device")
+        if torch_dtype is None:
+            dtype_str = config_manager.get_value("adapters.diffusers.default_torch_dtype")
+            torch_dtype = getattr(torch, dtype_str)
+        if variant is None:
+            variant = config_manager.get_value("adapters.diffusers.default_variant")
+        if use_safetensors is None:
+            use_safetensors = config_manager.get_value("adapters.diffusers.default_use_safetensors")
+        if enable_xformers is None:
+            enable_xformers = config_manager.get_value("adapters.diffusers.default_enable_xformers")
+        
         self.model_id = model_id
         self.model_path = model_path
         self.device = device

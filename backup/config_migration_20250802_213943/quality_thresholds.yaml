@@ -1,0 +1,35 @@
+# Quality detection thresholds by preset
+# Lower values = more sensitive detection
+
+quality_thresholds:
+  ultra:
+    # Maximum quality - zero tolerance for artifacts
+    seam_threshold: 0.05       # Extremely sensitive
+    color_threshold: 10        # Minimal color deviation
+    gradient_threshold: 0.05   # Smooth gradients required
+    frequency_threshold: 0.15  # Detect subtle patterns
+    min_quality_score: 0.95    # Near perfection required
+    edge_sensitivity: 0.98     # Detect faint edges
+    
+  high:
+    # Professional quality - minor artifacts ok
+    seam_threshold: 0.15
+    color_threshold: 20
+    gradient_threshold: 0.15
+    frequency_threshold: 0.25
+    min_quality_score: 0.85
+    edge_sensitivity: 0.90
+    
+  balanced:
+    # Good quality - balance speed and quality
+    seam_threshold: 0.25
+    color_threshold: 30
+    gradient_threshold: 0.25
+    frequency_threshold: 0.35
+    min_quality_score: 0.75
+    edge_sensitivity: 0.80
+    
+  fast:
+    # Skip most validation for speed
+    skip_validation: true
+    min_quality_score: 0.50

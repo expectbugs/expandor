@@ -403,16 +403,36 @@ class Expandor:
             detection_level=config.quality_preset,
         )
 
-        result.quality_score = validation_result.get("quality_score", 1.0)
-        result.seams_detected = validation_result.get("seam_count", 0)
+        # Extract required validation results - FAIL LOUD if missing
+        if "quality_score" not in validation_result:
+            raise ExpandorError(
+                "Validation result missing required 'quality_score' field",
+                stage="validation",
+                details={"available_keys": list(validation_result.keys())}
+            )
+        if "seam_count" not in validation_result:
+            raise ExpandorError(
+                "Validation result missing required 'seam_count' field",
+                stage="validation",
+                details={"available_keys": list(validation_result.keys())}
+            )
+        
+        result.quality_score = validation_result["quality_score"]
+        result.seams_detected = validation_result["seam_count"]
 
         # Check if repair needed - auto_refine is now always enabled for
         # quality
-        if validation_result.get("issues_found", False):
+        # Check for issues - FAIL LOUD if field missing
+        if "issues_found" not in validation_result:
+            raise ExpandorError(
+                "Validation result missing required 'issues_found' field",
+                stage="validation",
+                details={"available_keys": list(validation_result.keys())}
+            )
+        
+        if validation_result["issues_found"]:
             self.logger.warning(
-                f"Quality issues detected: score={
-                    validation_result.get(
-                        'quality_score', 0)}"
+                f"Quality issues detected: score={validation_result['quality_score']}"
             )
 
             # Attempt repair if adapter supports inpainting
@@ -463,10 +483,21 @@ class Expandor:
                     )
 
                     # Create artifact mask from issues
+                    # Extract seam locations for artifact mask - FAIL LOUD if missing
+                    if "details" not in validation_result:
+                        raise ExpandorError(
+                            "Validation result missing required 'details' field for artifact repair",
+                            stage="repair"
+                        )
+                    if "seam_locations" not in validation_result["details"]:
+                        raise ExpandorError(
+                            "Validation details missing required 'seam_locations' field for artifact repair",
+                            stage="repair"
+                        )
+                    
                     artifact_mask = self._create_artifact_mask(
-                        result.image_path, validation_result.get(
-                            "details", {}).get(
-                            "seam_locations", []), )
+                        result.image_path, validation_result["details"]["seam_locations"]
+                    )
 
                     # Repair with OOM protection
                     try:
