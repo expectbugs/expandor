@@ -3,10 +3,11 @@ Expansion strategies module
 """
 
 import importlib
-import logging
-from typing import Optional, Type
+from typing import Type
 
 from .base_strategy import BaseExpansionStrategy
+from .progressive_outpaint import ProgressiveOutpaintStrategy
+from .direct_upscale import DirectUpscaleStrategy
 
 # Strategy registry mapping names to module paths
 STRATEGY_REGISTRY = {
@@ -53,7 +54,8 @@ def get_strategy_class(strategy_name: str) -> Type[BaseExpansionStrategy]:
 
         # Validate it's a proper strategy
         if not issubclass(strategy_class, BaseExpansionStrategy):
-            raise TypeError(f"{class_name} is not a subclass of BaseExpansionStrategy")
+            raise TypeError(
+                f"{class_name} is not a subclass of BaseExpansionStrategy")
 
         return strategy_class
 
@@ -63,16 +65,16 @@ def get_strategy_class(strategy_name: str) -> Type[BaseExpansionStrategy]:
                 str(e)}"
         )
     except AttributeError:
-        raise ImportError(f"Strategy class {class_name} not found in {full_module}")
+        raise ImportError(
+            f"Strategy class {class_name} not found in {full_module}")
 
 
 # Convenience imports - Import after registry to avoid circular imports
-from .strategy_selector import StrategySelector
-from .progressive_outpaint import ProgressiveOutpaintStrategy
-from .direct_upscale import DirectUpscaleStrategy
+
 # from .tiled_expansion import TiledExpansionStrategy  # Not implemented yet
 
-# Optional ControlNet strategy - only available if ControlNet extractors are available
+# Optional ControlNet strategy - only available if ControlNet extractors
+# are available
 try:
     from .controlnet_progressive import ControlNetProgressiveStrategy
     HAS_CONTROLNET_STRATEGY = True
@@ -80,6 +82,9 @@ except ImportError:
     # This is NOT an error - ControlNet is optional
     HAS_CONTROLNET_STRATEGY = False
     ControlNetProgressiveStrategy = None
+
+# Import StrategySelector after STRATEGY_REGISTRY is defined to avoid circular import
+from .strategy_selector import StrategySelector
 
 __all__ = [
     "BaseExpansionStrategy",

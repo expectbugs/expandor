@@ -6,7 +6,11 @@ This example demonstrates the simplest way to use Expandor to expand an image
 to a higher resolution using the default settings.
 """
 
+import sys
 from pathlib import Path
+
+# Add expandor to path for development testing
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from PIL import Image
 

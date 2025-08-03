@@ -18,7 +18,8 @@ class QualityValidator:
     This class implements zero-tolerance artifact detection
     """
 
-    def __init__(self, config: Dict[str, Any], logger: Optional[logging.Logger] = None):
+    def __init__(self, config: Dict[str, Any],
+                 logger: Optional[logging.Logger] = None):
         """
         Initialize quality validator
 
@@ -30,7 +31,21 @@ class QualityValidator:
         self.logger = logger or logging.getLogger(__name__)
         self.artifact_detector = ArtifactDetector(self.logger)
 
-        # Load detection settings
+        # Get configuration from ConfigurationManager
+        from ..core.configuration_manager import ConfigurationManager
+        self.config_manager = ConfigurationManager()
+        
+        # Get processor config
+        try:
+            self.processor_config = self.config_manager.get_processor_config('quality_validator')
+        except ValueError as e:
+            # FAIL LOUD
+            raise ValueError(
+                f"Failed to load quality_validator configuration!\n{str(e)}"
+            )
+
+        # Load detection settings - this is still from the passed config
+        # as it contains runtime detection settings
         self.detection_config = config.get("quality_validation", {}).get(
             "artifact_detection", {}
         )
@@ -52,7 +67,8 @@ class QualityValidator:
         Returns:
             Dictionary with validation results
         """
-        self.logger.info(f"Validating quality with {detection_level} detection")
+        self.logger.info(
+            f"Validating quality with {detection_level} detection")
 
         # Get detection parameters for level
         level_config = self.detection_config.get(
@@ -60,10 +76,12 @@ class QualityValidator:
         )
 
         # Run artifact detection
-        detection_result = self.artifact_detector.quick_analysis(image_path, metadata)
+        detection_result = self.artifact_detector.quick_analysis(
+            image_path, metadata)
 
         # Calculate quality score
-        quality_score = self._calculate_quality_score(detection_result, level_config)
+        quality_score = self._calculate_quality_score(
+            detection_result, level_config)
 
         # Determine if issues were found based on detection level
         issues_found = detection_result["needs_multipass"]
@@ -102,24 +120,18 @@ class QualityValidator:
         Score ranges from 0.0 (worst) to 1.0 (perfect)
         """
         # Start with perfect score
-        score = 1.0
+        score = self.processor_config['initial_score']
 
         # Deduct for seams
         seam_count = detection_result.get("seam_count", 0)
         if seam_count > 0:
             # Each seam reduces score
-            seam_penalty = 0.1 * seam_count
-            score -= min(seam_penalty, 0.5)  # Cap at 0.5 reduction
+            seam_penalty = self.processor_config['seam_penalty_per_seam'] * seam_count
+            score -= min(seam_penalty, self.processor_config['seam_penalty_max_reduction'])  # Cap at max reduction
 
         # Deduct for severity
         severity = detection_result.get("severity", "none")
-        severity_penalties = {
-            "critical": 0.3,
-            "high": 0.2,
-            "medium": 0.1,
-            "low": 0.05,
-            "none": 0.0,
-        }
+        severity_penalties = self.processor_config['severity_penalties']
         score -= severity_penalties.get(severity, 0.0)
 
         # Deduct for mask coverage if available
@@ -127,7 +139,9 @@ class QualityValidator:
             mask = detection_result["mask"]
             # Calculate percentage of image affected
             coverage = np.mean(mask)
-            score -= min(coverage * 0.3, 0.3)  # Cap at 0.3 reduction
+            score -= min(coverage * self.processor_config['mask_coverage_multiplier'], 
+                        self.processor_config['mask_coverage_max_reduction'])  # Cap at max reduction
 
         # Ensure score stays in valid range
-        return max(0.0, min(1.0, score))
+        return max(self.processor_config['score_min'], 
+                  min(self.processor_config['score_max'], score))

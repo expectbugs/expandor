@@ -6,7 +6,7 @@ import logging
 import time
 import traceback
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, List, Optional
 
 from ..strategies import get_strategy_class
 from ..strategies.base_strategy import BaseExpansionStrategy
@@ -27,7 +27,8 @@ class PipelineOrchestrator:
     4. Ensuring atomic operations (all-or-nothing)
     """
 
-    def __init__(self, config: Dict[str, Any], logger: Optional[logging.Logger] = None):
+    def __init__(self, config: Dict[str, Any],
+                 logger: Optional[logging.Logger] = None):
         """
         Initialize orchestrator
 
@@ -39,11 +40,22 @@ class PipelineOrchestrator:
         self.logger = logger or logging.getLogger(__name__)
         self.pipeline_registry = {}
 
-        # Load fallback configuration
-        self.fallback_config = config.get("vram_strategies", {}).get(
-            "fallback_chain",
-            {1: "tiled_large", 2: "tiled_medium", 3: "tiled_small", 4: "cpu_offload"},
-        )
+        # Load fallback configuration - FAIL LOUD if missing
+        if "vram_strategies" not in config:
+            raise ValueError(
+                "vram_strategies configuration missing!\n"
+                "This is required for pipeline orchestration.\n"
+                "Please add vram_strategies section to your configuration."
+            )
+        vram_strategies = config["vram_strategies"]
+        
+        if "fallback_chain" not in vram_strategies:
+            raise ValueError(
+                "fallback_chain configuration missing from vram_strategies!\n"
+                "This defines the strategy fallback order when VRAM is limited.\n"
+                "Please add fallback_chain to vram_strategies in your configuration."
+            )
+        self.fallback_config = vram_strategies["fallback_chain"]
 
         # Track execution state
         self.current_strategy = None
@@ -77,7 +89,11 @@ class PipelineOrchestrator:
         self.execution_history.clear()
 
         # Prepare strategy with pipelines and trackers
-        self._prepare_strategy(strategy, config, boundary_tracker, metadata_tracker)
+        self._prepare_strategy(
+            strategy,
+            config,
+            boundary_tracker,
+            metadata_tracker)
 
         # Build fallback chain
         fallback_chain = self._build_fallback_chain(strategy, config)
@@ -92,10 +108,8 @@ class PipelineOrchestrator:
                 strategy_name = current_strategy.__class__.__name__
 
                 self.logger.info(
-                    f"Executing {strategy_name} "
-                    f"{
-                        '(primary)' if attempt == 0 else f'(fallback {attempt})'}"
-                )
+                    f"Executing {strategy_name} " f"{
+                        '(primary)' if attempt == 0 else f'(fallback {attempt})'}")
 
                 # Record execution attempt
                 metadata_tracker.record_event(
@@ -149,11 +163,13 @@ class PipelineOrchestrator:
                     }
                 )
 
-                metadata_tracker.record_event("strategy_execution_failed", error_info)
+                metadata_tracker.record_event(
+                    "strategy_execution_failed", error_info)
 
                 # Log based on error type
                 if isinstance(e, VRAMError):
-                    self.logger.warning(f"{strategy_name} failed due to VRAM: {e}")
+                    self.logger.warning(
+                        f"{strategy_name} failed due to VRAM: {e}")
                 else:
                     self.logger.error(f"{strategy_name} failed: {e}")
 
@@ -244,17 +260,15 @@ class PipelineOrchestrator:
             "save_stages": getattr(
                 config, "save_stages", False
             ),  # Whether to save intermediate results
-            "stage_dir": getattr(
-                config, "stage_dir", Path("temp/stages")
-            ),  # Directory for saving stages
-            "temp_dir": temp_dir
-            or Path("temp"),  # Temp directory for intermediate files
+            "stage_dir": getattr(config, "stage_dir", None),  # Directory for saving stages
+            "temp_dir": temp_dir,  # Temp directory for intermediate files
         }
 
         # Execute strategy
         try:
             # Update metadata tracker stage
-            metadata_tracker.enter_stage(f"executing_{strategy.__class__.__name__}")
+            metadata_tracker.enter_stage(
+                f"executing_{strategy.__class__.__name__}")
 
             # Execute with context
             raw_result = strategy.execute(config, context)
@@ -278,8 +292,7 @@ class PipelineOrchestrator:
                     strategy.cleanup()
                 except Exception as cleanup_error:
                     self.logger.debug(
-                        f"Cleanup error after execution failure: {cleanup_error}"
-                    )
+                        f"Cleanup error after execution failure: {cleanup_error}")
                     # Don't let cleanup errors mask the real error
             raise
 
@@ -338,11 +351,29 @@ class PipelineOrchestrator:
                     strategy_class = get_strategy_class(strategy_name)
 
                     # Create instance with extra config
+                    # Implement precedence: Runtime → User → Strategy → Global
+                    # Get configuration sections - allow missing for flexibility
+                    # Global defaults are optional
+                    global_defaults = self.config.get("global_defaults", {})
+                    
+                    # Strategy defaults are optional
+                    strategies_config = self.config.get("strategies", {})
+                    strategy_defaults = strategies_config.get(strategy_name, {})
+                    
+                    # User overrides are optional
+                    user_overrides = self.config.get("user_overrides", {})
+                    user_config = user_overrides.get(strategy_name, {})
+                    
+                    runtime_config = extra_config
+
+                    merged_config = {
+                        **global_defaults,      # Lowest priority
+                        **strategy_defaults,    # Override globals
+                        **user_config,         # Override strategy defaults
+                        **runtime_config,      # Highest priority
+                    }
                     fallback = strategy_class(
-                        config={
-                            **self.config.get("strategies", {}).get(strategy_name, {}),
-                            **extra_config,
-                        },
+                        config=merged_config,
                         logger=self.logger,
                     )
 
@@ -387,7 +418,10 @@ class PipelineOrchestrator:
 
         return False
 
-    def _record_stage(self, stage: StageResult, metadata_tracker: MetadataTracker):
+    def _record_stage(
+            self,
+            stage: StageResult,
+            metadata_tracker: MetadataTracker):
         """Record a stage completion"""
         metadata_tracker.record_event(
             "stage_complete",
@@ -413,15 +447,22 @@ class PipelineOrchestrator:
                 f"{strategy.__class__.__name__} did not return image_path"
             )
 
-        # Create result
+        # Create result - ensure required fields are present
+        if "size" not in raw_result:
+            raise ValueError(
+                f"Strategy {strategy.__class__.__name__} did not return 'size' in result!\n"
+                f"Strategies must return a dict with at least 'image_path' and 'size'."
+            )
+        
+        # Optional fields can use defaults since they're not critical
         result = ExpandorResult(
             image_path=Path(image_path),
-            size=raw_result.get("size", (0, 0)),
+            size=raw_result["size"],
             success=True,
-            stages=raw_result.get("stages", []),
-            boundaries=raw_result.get("boundaries", []),
+            stages=raw_result.get("stages", []),  # Optional - stages may be empty
+            boundaries=raw_result.get("boundaries", []),  # Optional - boundaries may be empty
             strategy_used=strategy.__class__.__name__,
-            metadata=raw_result.get("metadata", {}),
+            metadata=raw_result.get("metadata", {}),  # Optional - metadata may be empty
         )
 
         # Copy stage results if from strategy
@@ -430,7 +471,10 @@ class PipelineOrchestrator:
 
         return result
 
-    def _handle_complete_failure(self, last_error: Exception, history: List[Dict]):
+    def _handle_complete_failure(
+            self,
+            last_error: Exception,
+            history: List[Dict]):
         """Handle case where all strategies failed"""
         # Build comprehensive error message
         error_lines = [
@@ -441,22 +485,19 @@ class PipelineOrchestrator:
 
         for item in history:
             error_lines.append(
-                f"  - {item['strategy']} (attempt {item['attempt']}): {item['error']}"
+                f"  - {item['strategy']} (attempt {item['attempt']}):{item['error']}"
             )
 
-        error_lines.extend(
-            [
-                "",
-                "This indicates a critical issue that prevents image expansion.",
-                "Possible causes:",
-                "  1. Insufficient system resources (RAM/VRAM)",
-                "  2. Corrupted input image",
-                "  3. Invalid configuration",
-                "  4. Missing required pipelines",
-                "",
-                "Last error details:",
-            ]
-        )
+        error_lines.extend(["",
+                            "This indicates a critical issue that prevents image expansion.",
+                            "Possible causes:",
+                            "  1. Insufficient system resources (RAM/VRAM)",
+                            "  2. Corrupted input image",
+                            "  3. Invalid configuration",
+                            "  4. Missing required pipelines",
+                            "",
+                            "Last error details:",
+                            ])
 
         error_message = "\n".join(error_lines)
 

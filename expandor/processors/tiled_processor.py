@@ -12,7 +12,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import numpy as np
 from PIL import Image
 
-from ..utils.image_utils import blend_images, gaussian_weights
+from ..utils.image_utils import gaussian_weights
 
 logger = logging.getLogger(__name__)
 
@@ -43,24 +43,39 @@ class TiledProcessor:
 
     def __init__(
         self,
-        default_tile_size: int = 512,
-        default_overlap: int = 64,
-        blend_mode: str = "gaussian",
+        default_tile_size: Optional[int] = None,
+        default_overlap: Optional[int] = None,
+        blend_mode: Optional[str] = None,
         logger: Optional[logging.Logger] = None,
     ):
         """
         Initialize tiled processor.
 
         Args:
-            default_tile_size: Default size for tiles
-            default_overlap: Default overlap between tiles
-            blend_mode: How to blend tiles ('gaussian', 'linear', 'none')
+            default_tile_size: Default size for tiles (uses config if None)
+            default_overlap: Default overlap between tiles (uses config if None)
+            blend_mode: How to blend tiles ('gaussian', 'linear', 'none') (uses config if None)
             logger: Logger instance
         """
-        self.default_tile_size = default_tile_size
-        self.default_overlap = default_overlap
-        self.blend_mode = blend_mode
         self.logger = logger or logging.getLogger(__name__)
+        
+        # Get configuration from ConfigurationManager
+        from ..core.configuration_manager import ConfigurationManager
+        self.config_manager = ConfigurationManager()
+        
+        # Get processor config
+        try:
+            self.processor_config = self.config_manager.get_processor_config('tiled_processor')
+        except ValueError as e:
+            # FAIL LOUD
+            raise ValueError(
+                f"Failed to load tiled_processor configuration!\n{str(e)}"
+            )
+        
+        # Use provided values or fall back to config
+        self.default_tile_size = default_tile_size or self.processor_config['default_tile_size']
+        self.default_overlap = default_overlap or self.processor_config['default_overlap']
+        self.blend_mode = blend_mode or self.processor_config['default_blend_mode']
 
         # Processing statistics
         self.tiles_processed = 0
@@ -72,7 +87,7 @@ class TiledProcessor:
         image_size: Tuple[int, int],
         tile_size: Optional[int] = None,
         overlap: Optional[int] = None,
-        min_tile_size: int = 256,
+        min_tile_size: Optional[int] = None,
     ) -> List[TileInfo]:
         """
         Calculate tile layout for an image.
@@ -90,10 +105,15 @@ class TiledProcessor:
         overlap = overlap or self.default_overlap
         width, height = image_size
 
+        # Use config min_tile_size if not provided
+        if min_tile_size is None:
+            min_tile_size = self.processor_config['min_tile_size']
+        
         # Adjust tile size if image is small
         if width < tile_size or height < tile_size:
             tile_size = max(min_tile_size, min(width, height))
-            self.logger.info(f"Adjusted tile size to {tile_size} for small image")
+            self.logger.info(
+                f"Adjusted tile size to {tile_size} for small image")
 
         tiles = []
         tile_idx = 0
@@ -133,8 +153,16 @@ class TiledProcessor:
 
                 tile = TileInfo(
                     index=tile_idx,
-                    position=(x1, y1, x2, y2),
-                    content_region=(content_x1, content_y1, content_x2, content_y2),
+                    position=(
+                        x1,
+                        y1,
+                        x2,
+                        y2),
+                    content_region=(
+                        content_x1,
+                        content_y1,
+                        content_x2,
+                        content_y2),
                     overlap_left=overlap_left,
                     overlap_top=overlap_top,
                     overlap_right=overlap_right,
@@ -264,12 +292,13 @@ class TiledProcessor:
                         # Blend with new column
                         alpha = weights[i]
                         blended = (1 - alpha) * existing + alpha * tile_array[
-                            :, i : i + 1
+                            :, i: i + 1
                         ]
                         # Put back
                         canvas.paste(
-                            Image.fromarray(blended.astype(np.uint8)), (x_canvas, y1)
-                        )
+                            Image.fromarray(
+                                blended.astype(
+                                    np.uint8)), (x_canvas, y1))
 
             # Vertical blending (top edge)
             if tile_info.overlap_top > 0:
@@ -286,35 +315,38 @@ class TiledProcessor:
                         # Blend with new row
                         alpha = weights[i]
                         blended = (1 - alpha) * existing + alpha * tile_array[
-                            i : i + 1, :
+                            i: i + 1, :
                         ]
                         # Put back
                         canvas.paste(
-                            Image.fromarray(blended.astype(np.uint8)), (x1, y_canvas)
-                        )
+                            Image.fromarray(
+                                blended.astype(
+                                    np.uint8)), (x1, y_canvas))
 
             # Paste non-overlapping region
             content_x1, content_y1, content_x2, content_y2 = tile_info.content_region
             content = tile.crop(
-                (content_x1 - x1, content_y1 - y1, content_x2 - x1, content_y2 - y1)
-            )
+                (content_x1 - x1,
+                 content_y1 - y1,
+                 content_x2 - x1,
+                 content_y2 - y1))
             canvas.paste(content, (content_x1, content_y1))
 
         elif self.blend_mode == "linear":
             # Simple linear blending
             # Create alpha mask for linear blend
-            mask = Image.new("L", tile.size, 255)
-            draw = Image.new("L", tile.size, 0)
+            mask = Image.new("L", tile.size, self.processor_config['alpha_max'])
+            draw = Image.new("L", tile.size, self.processor_config['alpha_min'])
 
             # Fade edges
             if tile_info.overlap_left > 0:
                 for i in range(tile_info.overlap_left):
-                    alpha = int(255 * i / tile_info.overlap_left)
+                    alpha = int(self.processor_config['alpha_max'] * i / tile_info.overlap_left)
                     draw.paste(alpha, (i, 0, i + 1, tile.height))
 
             if tile_info.overlap_top > 0:
                 for i in range(tile_info.overlap_top):
-                    alpha = int(255 * i / tile_info.overlap_top)
+                    alpha = int(self.processor_config['alpha_max'] * i / tile_info.overlap_top)
                     draw.paste(alpha, (0, i, tile.width, i + 1))
 
             # Composite
@@ -358,31 +390,27 @@ class TiledProcessor:
         """
         from PIL import ImageDraw
 
-        debug_img = Image.new("RGB", image_size, (255, 255, 255))
+        bg_color = tuple(self.processor_config['debug_background_color'])
+        debug_img = Image.new("RGB", image_size, bg_color)
         draw = ImageDraw.Draw(debug_img)
 
         # Color palette for tiles
-        colors = [
-            (255, 0, 0),
-            (0, 255, 0),
-            (0, 0, 255),
-            (255, 255, 0),
-            (255, 0, 255),
-            (0, 255, 255),
-        ]
+        colors = [tuple(color) for color in self.processor_config['debug_colors']]
 
         for i, tile in enumerate(tiles):
             color = colors[i % len(colors)]
             x1, y1, x2, y2 = tile.position
 
             # Draw tile boundary
-            draw.rectangle([x1, y1, x2 - 1, y2 - 1], outline=color, width=2)
+            draw.rectangle([x1, y1, x2 - 1, y2 - 1], outline=color, width=self.processor_config['debug_boundary_width'])
 
             # Draw content region
             cx1, cy1, cx2, cy2 = tile.content_region
-            draw.rectangle([cx1, cy1, cx2 - 1, cy2 - 1], outline=color, width=1)
+            draw.rectangle([cx1, cy1, cx2 - 1, cy2 - 1],
+                           outline=color, width=self.processor_config['debug_content_width'])
 
             # Label tile
-            draw.text((x1 + 5, y1 + 5), f"T{tile.index}", fill=color)
+            offset = self.processor_config['debug_text_offset']
+            draw.text((x1 + offset, y1 + offset), f"T{tile.index}", fill=color)
 
         return debug_img

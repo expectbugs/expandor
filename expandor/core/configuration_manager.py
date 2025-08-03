@@ -1,0 +1,429 @@
+"""Singleton configuration manager - the ONLY way to access config"""
+
+import logging
+import os
+import json
+from pathlib import Path
+from typing import Any, Dict, Optional, Union
+import yaml
+import jsonschema
+from jsonschema import validate, ValidationError, RefResolver
+from ..utils.config_loader import ConfigLoader
+from ..utils.path_resolver import PathResolver
+from ..core.exceptions import ExpandorError
+
+
+class ConfigurationManager:
+    """Singleton configuration manager - the ONLY way to access config"""
+    
+    _instance = None
+    _initialized = False
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+    
+    def __init__(self):
+        # Prevent re-initialization
+        if ConfigurationManager._initialized:
+            return
+        ConfigurationManager._initialized = True
+        
+        self.logger = logging.getLogger(__name__)
+        self._config_cache = {}
+        self._user_overrides = {}
+        self._env_overrides = {}
+        self._runtime_overrides = {}
+        self._config_loader = None
+        self._master_config = {}
+        self._schemas = {}
+        self._schema_resolver = None
+        self._path_resolver = PathResolver(self.logger)
+        
+        # Load schemas first
+        self._load_schemas()
+        
+        # Initialize on first use
+        self._load_all_configurations()
+    
+    def _load_schemas(self):
+        """Load all JSON schemas for validation - FAIL LOUD on errors"""
+        self._schemas = {}
+        schema_dir = Path(__file__).parent.parent / "config" / "schemas"
+        
+        # FAIL LOUD if schema directory doesn't exist
+        if not schema_dir.exists():
+            raise ValueError(
+                f"Schema directory not found: {schema_dir}\n"
+                f"This is a critical configuration error.\n"
+                f"The schema directory must exist for proper validation."
+            )
+        
+        # Find all schema files
+        schema_files = list(schema_dir.glob("*.schema.json"))
+        if not schema_files:
+            # FAIL LOUD - schemas are required for validation
+            raise ValueError(
+                f"No schema files found in {schema_dir}\n"
+                f"This is a critical configuration error.\n"
+                f"Schema files are required for proper validation.\n"
+                f"Please create at least master_defaults.schema.json\n"
+                f"to define the configuration structure."
+            )
+        
+        # Load each schema - FAIL LOUD on any error
+        for schema_file in schema_files:
+            try:
+                with open(schema_file, 'r') as f:
+                    schema_name = schema_file.stem.replace('.schema', '')
+                    self._schemas[schema_name] = json.load(f)
+            except json.JSONDecodeError as e:
+                # FAIL LOUD on invalid JSON
+                raise ValueError(
+                    f"Invalid JSON in schema file {schema_file}:\n"
+                    f"Error: {e}\n"
+                    f"Please fix the schema file and try again."
+                ) from e
+            except Exception as e:
+                # FAIL LOUD on any other error
+                raise ValueError(
+                    f"Failed to load schema {schema_file}:\n"
+                    f"Error: {e}\n"
+                    f"This is a critical error that prevents proper validation."
+                ) from e
+        
+        # Create resolver for $ref resolution
+        if self._schemas:
+            base_uri = "file://" + str(schema_dir) + "/"
+            self._schema_resolver = RefResolver(base_uri, self._schemas.get('base_schema', {}))
+    
+    def _validate_config(self, config_data: dict, schema_name: str):
+        """Validate config against schema - FAIL LOUD on invalid"""
+        if schema_name not in self._schemas:
+            # FAIL LOUD - missing schema is a critical error
+            raise ValueError(
+                f"FATAL: No schema found for {schema_name}!\n"
+                f"This is a critical configuration error.\n"
+                f"Available schemas: {list(self._schemas.keys())}\n"
+                f"Please ensure the schema file exists in the schemas directory."
+            )
+        
+        try:
+            validate(
+                instance=config_data,
+                schema=self._schemas[schema_name],
+                resolver=self._schema_resolver
+            )
+        except ValidationError as e:
+            # FAIL LOUD with helpful error
+            raise ValueError(
+                f"Configuration validation failed for {schema_name}!\n"
+                f"Error: {e.message}\n"
+                f"Failed at path: {' -> '.join(str(p) for p in e.path)}\n"
+                f"Schema rule: {e.schema}\n"
+                f"Invalid value: {e.instance}\n\n"
+                f"Please fix your configuration file and ensure all required fields are present."
+            )
+    
+    def _load_all_configurations(self):
+        """Load all configurations in proper hierarchy"""
+        # 1. Load system defaults from package config dir
+        config_dir = Path(__file__).parent.parent / "config"
+        self._config_loader = ConfigLoader(config_dir, self.logger)
+        
+        # Load master defaults - the ONLY source of truth
+        try:
+            self._master_config = self._config_loader.load_config_file("master_defaults.yaml")
+            self.logger.info("Loaded master configuration file")
+            
+            # Check version and migrate if needed
+            self._check_and_migrate_config(self._master_config, "master")
+            
+            # Always validate master config - FAIL LOUD if schema missing
+            # Skip validation only if no schemas loaded at all
+            if self._schemas:
+                if 'master_defaults' not in self._schemas:
+                    # FAIL LOUD - master schema is required if any schemas exist
+                    raise ValueError(
+                        f"Master defaults schema not found!\n"
+                        f"Expected: master_defaults.schema.json\n"
+                        f"Available schemas: {list(self._schemas.keys())}\n"
+                        f"The master configuration must have a schema for validation."
+                    )
+                self._validate_config(self._master_config, 'master_defaults')
+        except FileNotFoundError as e:
+            # FAIL LOUD - master config is required
+            raise ValueError(
+                f"Master configuration file not found: master_defaults.yaml\n"
+                f"This is a critical error. The master configuration must exist.\n"
+                f"Expected location: {config_dir / 'master_defaults.yaml'}"
+            ) from e
+        
+        # 2. Load user configuration
+        self._load_user_config()
+        
+        # 3. Load environment overrides
+        self._load_env_overrides()
+        
+        # 4. Build final config cache
+        self._build_config_cache()
+    
+    
+    def _load_user_config(self):
+        """Load user configuration from standard locations"""
+        search_paths = [
+            Path(os.environ.get("EXPANDOR_CONFIG_PATH", "")),
+            Path.home() / ".config" / "expandor" / "config.yaml",
+            Path.cwd() / "expandor.yaml",
+            Path("/etc/expandor/config.yaml")
+        ]
+        
+        for path in search_paths:
+            if path and path.exists():
+                try:
+                    with open(path, 'r') as f:
+                        user_config = yaml.safe_load(f)
+                        if user_config:
+                            # Check version and migrate if needed
+                            self._check_and_migrate_config(user_config, "user", path)
+                            self._user_overrides = user_config
+                            self.logger.info(f"Loaded user config from {path}")
+                            break
+                except Exception as e:
+                    self.logger.error(f"Failed to load user config from {path}: {e}")
+    
+    def _load_env_overrides(self):
+        """Load environment variable overrides (EXPANDOR_*)"""
+        for key, value in os.environ.items():
+            if key.startswith("EXPANDOR_"):
+                # Convert EXPANDOR_STRATEGIES_PROGRESSIVE_OUTPAINT_BASE_STRENGTH
+                # to strategies.progressive_outpaint.base_strength
+                config_path = key[9:].lower().replace("_", ".")
+                try:
+                    # Try to parse as number/bool
+                    if value.lower() in ("true", "false"):
+                        parsed_value = value.lower() == "true"
+                    elif "." in value:
+                        parsed_value = float(value)
+                    elif value.isdigit():
+                        parsed_value = int(value)
+                    else:
+                        parsed_value = value
+                    
+                    self._set_nested_value(self._env_overrides, config_path, parsed_value)
+                except Exception:
+                    # Keep as string if parsing fails
+                    self._set_nested_value(self._env_overrides, config_path, value)
+    
+    def get_value(self, key: str, context: Optional[Dict] = None) -> Any:
+        """
+        Get config value - FAILS LOUD if not found
+        
+        Args:
+            key: Dot-separated config key (e.g., 'strategies.progressive_outpaint.base_strength')
+            context: Optional context for dynamic resolution
+            
+        Returns:
+            Configuration value
+            
+        Raises:
+            ValueError: If key not found (FAIL LOUD)
+        """
+        # Check runtime overrides first
+        if context and 'override' in context:
+            if key in context['override']:
+                return context['override'][key]
+        
+        # Check config cache
+        try:
+            value = self._get_nested_value(self._config_cache, key)
+            if value is not None:
+                return value
+        except KeyError:
+            pass
+        
+        # FAIL LOUD - no silent defaults
+        raise ValueError(
+            f"Configuration key '{key}' not found!\n"
+            f"This is a required configuration value with no default.\n"
+            f"Solutions:\n"
+            f"1. Add '{key}' to your config files\n" 
+            f"2. Set environment variable EXPANDOR_{key.upper().replace('.', '_')}\n"
+            f"3. Check config file syntax for errors"
+        )
+    
+    def _merge_config(self, base: dict, override: dict):
+        """Deep merge override into base config"""
+        for key, value in override.items():
+            if key in base and isinstance(base[key], dict) and isinstance(value, dict):
+                self._merge_config(base[key], value)
+            else:
+                base[key] = value
+    
+    def _get_nested_value(self, config: dict, key: str) -> Any:
+        """Get value from nested dict using dot notation"""
+        keys = key.split('.')
+        value = config
+        for k in keys:
+            if isinstance(value, dict) and k in value:
+                value = value[k]
+            else:
+                raise KeyError(f"Key '{k}' not found in path '{key}'")
+        return value
+    
+    def _set_nested_value(self, config: dict, key: str, value: Any):
+        """Set value in nested dict using dot notation"""
+        keys = key.split('.')
+        current = config
+        for k in keys[:-1]:
+            if k not in current:
+                current[k] = {}
+            current = current[k]
+        current[keys[-1]] = value
+    
+    def _build_config_cache(self):
+        """Build final config cache from all sources"""
+        # Start with master config
+        self._config_cache = self._master_config.copy()
+        
+        # Apply user overrides
+        self._merge_config(self._config_cache, self._user_overrides)
+        
+        # Apply environment overrides (highest priority)
+        self._merge_config(self._config_cache, self._env_overrides)
+    
+    def get_strategy_config(self, strategy_name: str) -> Dict[str, Any]:
+        """Get complete config for a strategy"""
+        base_key = f"strategies.{strategy_name}"
+        try:
+            return self._get_nested_value(self._config_cache, base_key)
+        except KeyError:
+            raise ValueError(
+                f"No configuration found for strategy '{strategy_name}'\n"
+                f"Available strategies: {list(self._config_cache.get('strategies', {}).keys())}"
+            )
+    
+    def get_processor_config(self, processor_name: str) -> Dict[str, Any]:
+        """Get complete config for a processor"""
+        base_key = f"processors.{processor_name}"
+        try:
+            return self._get_nested_value(self._config_cache, base_key)
+        except KeyError:
+            raise ValueError(
+                f"No configuration found for processor '{processor_name}'\n"
+                f"Available processors: {list(self._config_cache.get('processors', {}).keys())}"
+            )
+    
+    def get_path(self, path_key: str, create: bool = True, 
+                 path_type: str = "directory") -> Path:
+        """
+        Get resolved path from configuration
+        
+        Args:
+            path_key: Configuration key for path (e.g., 'paths.cache_dir')
+            create: Create if doesn't exist
+            path_type: 'directory' or 'file'
+            
+        Returns:
+            Resolved Path object
+        """
+        path_config = self.get_value(path_key)
+        return self._path_resolver.resolve_path(path_config, create, path_type)
+    
+    def _check_and_migrate_config(self, config: Dict[str, Any], config_type: str, 
+                                  path: Optional[Path] = None):
+        """
+        Check configuration version and migrate if needed
+        
+        Args:
+            config: Configuration dictionary
+            config_type: Type of config ("master" or "user")
+            path: Path to config file (for user configs)
+        """
+        # Current expected version
+        CURRENT_VERSION = "2.0"
+        
+        # Get config version
+        config_version = config.get('version', '1.0')
+        
+        if config_version == CURRENT_VERSION:
+            return  # No migration needed
+        
+        # FAIL LOUD on version mismatch for master config
+        if config_type == "master" and config_version != CURRENT_VERSION:
+            raise ValueError(
+                f"Master configuration version mismatch!\n"
+                f"Expected version: {CURRENT_VERSION}\n"
+                f"Found version: {config_version}\n"
+                f"This indicates the configuration system is out of sync.\n"
+                f"Please update master_defaults.yaml to version {CURRENT_VERSION}"
+            )
+        
+        # For user configs, attempt migration
+        if config_type == "user":
+            self.logger.warning(
+                f"User configuration at {path} has version {config_version}, "
+                f"expected {CURRENT_VERSION}. Attempting migration..."
+            )
+            
+            # Import migration script
+            try:
+                from ..utils.config_migrator import ConfigMigrator
+                
+                # Create migrator with config directory
+                config_dir = Path(__file__).parent.parent / "config"
+                migrator = ConfigMigrator(config_dir)
+                
+                # Perform migration
+                migrated_config = migrator.migrate_config(
+                    config, 
+                    config_version, 
+                    CURRENT_VERSION
+                )
+                
+                # Update the config in-place
+                config.clear()
+                config.update(migrated_config)
+                
+                # Save migrated config back to file
+                if path:
+                    import shutil
+                    from datetime import datetime
+                    
+                    # Backup original
+                    backup_path = path.with_suffix(
+                        f".backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                    )
+                    shutil.copy2(path, backup_path)
+                    self.logger.info(f"Backed up original config to {backup_path}")
+                    
+                    # Save migrated config
+                    with open(path, 'w') as f:
+                        yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+                    self.logger.info(f"Saved migrated config to {path}")
+                
+                self.logger.info(
+                    f"Successfully migrated configuration from version "
+                    f"{config_version} to {CURRENT_VERSION}"
+                )
+                
+            except ImportError:
+                # Migration script not available - FAIL LOUD
+                raise ValueError(
+                    f"Configuration migration required but migration script not found!\n"
+                    f"User config at {path} has version {config_version}, "
+                    f"but system expects {CURRENT_VERSION}.\n"
+                    f"Please run: expandor --migrate-config\n"
+                    f"Or manually update your configuration to version {CURRENT_VERSION}"
+                )
+            except Exception as e:
+                # Migration failed - FAIL LOUD
+                raise ValueError(
+                    f"Configuration migration failed!\n"
+                    f"Config at {path} has version {config_version}, "
+                    f"but migration to {CURRENT_VERSION} failed.\n"
+                    f"Error: {e}\n"
+                    f"Please check your configuration or recreate it with: "
+                    f"expandor --init-config"
+                )

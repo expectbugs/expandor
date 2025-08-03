@@ -4,7 +4,7 @@ Provides gradient masks, blending, and edge color extraction for seamless expans
 """
 
 import logging
-from typing import List, Optional, Tuple, Union
+from typing import Optional, Tuple
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
@@ -13,8 +13,11 @@ logger = logging.getLogger(__name__)
 
 
 def create_gradient_mask(
-    width: int, height: int, direction: str, blur_radius: int, fade_start: float = 0.0
-) -> Image.Image:
+        width: int,
+        height: int,
+        direction: str,
+        blur_radius: int,
+        fade_start: float = 0.0) -> Image.Image:
     """
     Create gradient mask for smooth blending.
 
@@ -65,14 +68,18 @@ def create_gradient_mask(
     # Convert to PIL and apply gaussian blur
     mask_img = Image.fromarray(mask, mode="L")
     if blur_radius > 0:
-        mask_img = mask_img.filter(ImageFilter.GaussianBlur(radius=blur_radius // 4))
+        mask_img = mask_img.filter(
+            ImageFilter.GaussianBlur(
+                radius=blur_radius // 4))
 
     return mask_img
 
 
 def blend_images(
-    img1: Image.Image, img2: Image.Image, mask: Image.Image, mode: str = "normal"
-) -> Image.Image:
+        img1: Image.Image,
+        img2: Image.Image,
+        mask: Image.Image,
+        mode: str = "normal") -> Image.Image:
     """
     Blend two images using mask.
 
@@ -177,14 +184,16 @@ def extract_edge_colors(
             result = np.zeros((edge_pixels.shape[0], 3))
             for i in range(edge_pixels.shape[0]):
                 for c in range(3):
-                    values, counts = np.unique(edge_pixels[i, :, c], return_counts=True)
+                    values, counts = np.unique(
+                        edge_pixels[i, :, c], return_counts=True)
                     result[i, c] = values[np.argmax(counts)]
             return result
         else:
             result = np.zeros((edge_pixels.shape[1], 3))
             for i in range(edge_pixels.shape[1]):
                 for c in range(3):
-                    values, counts = np.unique(edge_pixels[:, i, c], return_counts=True)
+                    values, counts = np.unique(
+                        edge_pixels[:, i, c], return_counts=True)
                     result[i, c] = values[np.argmax(counts)]
             return result
     else:
@@ -241,7 +250,8 @@ def create_noise_pattern(
         fy = yv - y0
 
         # Add this octave
-        octave_noise = (1 - fx) * (1 - fy) * np.random.randn(height, width) * amp
+        octave_noise = (1 - fx) * (1 - fy) * \
+            np.random.randn(height, width) * amp
         noise += octave_noise
 
     # Normalize to [0, 1]
@@ -272,9 +282,8 @@ def create_circular_mask(
         for i in range(feather):
             alpha = int(255 * (i / feather))
             r = radius + feather - i
-            draw.ellipse(
-                [center[0] - r, center[1] - r, center[0] + r, center[1] + r], fill=alpha
-            )
+            draw.ellipse([center[0] - r, center[1] - r,
+                          center[0] + r, center[1] + r], fill=alpha)
 
     # Draw solid center
     draw.ellipse(

@@ -117,7 +117,10 @@ class BoundaryTracker:
             metadata: Additional data
         """
         # Add to simple list for checklist compatibility
-        boundary_dict = {"position": position, "direction": direction, "step": step}
+        boundary_dict = {
+            "position": position,
+            "direction": direction,
+            "step": step}
         if expansion_size is not None:
             boundary_dict["expansion_size"] = expansion_size
         if metadata:

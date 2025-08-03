@@ -6,9 +6,8 @@ import os
 import sys
 from setuptools import setup, find_packages
 
-# Add the expandor directory to path so we can import the version
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'expandor'))
-from __init__ import __version__
+# Read version from _version.py
+exec(open('expandor/_version.py').read())
 
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
@@ -16,12 +15,12 @@ with open("README.md", "r", encoding="utf-8") as fh:
 setup(
     name="expandor",
     version=__version__,
-    author="Your Name",
-    author_email="your.email@example.com",
+    author="Expandor Team",
+    author_email="expandor@example.com",
     description="Universal image resolution and aspect ratio adaptation system",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/yourusername/expandor",
+    url="https://github.com/user/ai-wallpaper/expandor",
     packages=find_packages(),
     classifiers=[
         "Development Status :: 4 - Beta",
@@ -42,6 +41,7 @@ setup(
         "numpy>=1.24.0",
         "opencv-python>=4.8.0",
         "PyYAML>=6.0",
+        "jsonschema>=4.0.0",
         "tqdm>=4.65.0",
         "huggingface_hub>=0.16.0",
         "psutil>=5.9.0",

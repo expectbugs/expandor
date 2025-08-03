@@ -6,21 +6,19 @@ Intelligently combines multiple strategies based on analysis.
 import logging
 import time
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 from PIL import Image
 
 from ...core.config import ExpandorConfig
-from ...core.exceptions import ExpandorError, StrategyError, VRAMError
+from ...core.exceptions import StrategyError
 from ...processors.edge_analysis import EdgeAnalyzer
 from ...processors.refinement.smart_refiner import SmartRefiner
 from ...utils.dimension_calculator import DimensionCalculator
 from ..base_strategy import BaseExpansionStrategy
 from ..cpu_offload import CPUOffloadStrategy
 from ..direct_upscale import DirectUpscaleStrategy
-
 # Import other strategies for delegation
 from ..progressive_outpaint import ProgressiveOutpaintStrategy
 from ..swpo_strategy import SWPOStrategy
@@ -66,19 +64,41 @@ class HybridAdaptiveStrategy(BaseExpansionStrategy):
 
         # Initialize sub-strategies (they'll be properly configured later)
         self.strategies = {
-            "progressive": ProgressiveOutpaintStrategy(config, metrics, logger),
-            "direct": DirectUpscaleStrategy(config, metrics, logger),
-            "swpo": SWPOStrategy(config, metrics, logger),
-            "cpu_offload": CPUOffloadStrategy(config, metrics, logger),
-        }
+            "progressive": ProgressiveOutpaintStrategy(
+                config, metrics, logger), "direct": DirectUpscaleStrategy(
+                config, metrics, logger), "swpo": SWPOStrategy(
+                config, metrics, logger), "cpu_offload": CPUOffloadStrategy(
+                    config, metrics, logger), }
 
         # Smart refiner for quality improvement
         self.smart_refiner = SmartRefiner(logger=self.logger)
 
-        # Decision thresholds
-        self.aspect_ratio_threshold = 0.2  # 20% change triggers outpainting
-        self.extreme_ratio_threshold = 3.0  # 3x+ ratio triggers SWPO
-        self.vram_safety_factor = 0.8  # Use 80% of available VRAM
+        # Load strategy-specific config using ConfigurationManager
+        from ...core.configuration_manager import ConfigurationManager
+        config_manager = ConfigurationManager()
+        
+        # Get hybrid_adaptive strategy config
+        self.strategy_params = config_manager.get_value('strategies.hybrid_adaptive', {})
+
+        # FAIL LOUD if required params missing
+        required = [
+            'aspect_ratio_threshold',
+            'extreme_ratio_threshold',
+            'vram_safety_factor']
+        missing = [p for p in required if p not in self.strategy_params]
+        if missing:
+            raise ValueError(
+                f"HybridAdaptiveStrategy missing required parameters: {missing}\n"
+                f"Please check config/strategy_parameters.yaml"
+            )
+
+        # Decision thresholds from config
+        # 20% change triggers outpainting
+        self.aspect_ratio_threshold = self.strategy_params['aspect_ratio_threshold']
+        # 3x+ ratio triggers SWPO
+        self.extreme_ratio_threshold = self.strategy_params['extreme_ratio_threshold']
+        # Use 80% of available VRAM
+        self.vram_safety_factor = self.strategy_params['vram_safety_factor']
 
     def validate_requirements(self):
         """Validate that at least one sub-strategy can work."""
@@ -124,7 +144,8 @@ class HybridAdaptiveStrategy(BaseExpansionStrategy):
             available_pipelines.append("img2img")
 
         if not available_pipelines:
-            raise StrategyError("Hybrid adaptive requires at least one pipeline")
+            raise StrategyError(
+                "Hybrid adaptive requires at least one pipeline")
 
         try:
             # Analyze expansion and create plan
@@ -139,8 +160,7 @@ class HybridAdaptiveStrategy(BaseExpansionStrategy):
                 if plan.estimated_vram > available_vram * self.vram_safety_factor:
                     # Switch to CPU offload
                     self.logger.warning(
-                        f"Insufficient VRAM ({available_vram}MB), switching to CPU offload"
-                    )
+                        f"Insufficient VRAM ({available_vram}MB), switching to CPU offload")
                     plan = self._create_cpu_offload_plan(config)
 
             # Execute plan
@@ -154,7 +174,8 @@ class HybridAdaptiveStrategy(BaseExpansionStrategy):
                 )
 
                 # Prepare step config
-                step_config = self._prepare_step_config(config, step, current_result)
+                step_config = self._prepare_step_config(
+                    config, step, current_result)
 
                 # Get strategy
                 strategy = self.strategies.get(step["strategy"])
@@ -168,7 +189,7 @@ class HybridAdaptiveStrategy(BaseExpansionStrategy):
                 strategy.boundary_tracker = self.boundary_tracker
                 strategy.metadata_tracker = self.metadata_tracker
                 strategy.vram_manager = self.vram_manager
-                
+
                 # Inject pipelines from parent
                 if hasattr(self, 'inpaint_pipeline') and self.inpaint_pipeline:
                     strategy.inpaint_pipeline = self.inpaint_pipeline
@@ -204,13 +225,18 @@ class HybridAdaptiveStrategy(BaseExpansionStrategy):
                 if config.save_stages and config.stage_dir:
                     stage_path = config.stage_dir / f"hybrid_step_{i:02d}.png"
                     img = Image.open(step_result["image_path"])
-                    img.save(stage_path, "PNG", compress_level=0)
+                    # Get compression from config
+                    from ...core.configuration_manager import ConfigurationManager
+                    config_manager = ConfigurationManager()
+                    png_compression = config_manager.get_value("output.formats.png.compression")
+                    img.save(stage_path, "PNG", compress_level=png_compression)
 
             # Optional quality refinement
             # Auto-refine is now always enabled for quality
             if current_result:
                 self.logger.info("Applying smart quality refinement")
-                current_result = self._apply_quality_refinement(current_result, config)
+                current_result = self._apply_quality_refinement(
+                    current_result, config)
 
             # Final result
             return {
@@ -246,11 +272,25 @@ class HybridAdaptiveStrategy(BaseExpansionStrategy):
         Analyze the expansion task and create optimal plan.
         """
         source_w, source_h = (
-            config.source_image.size if hasattr(config.source_image, "size") else (0, 0)
-        )
+            config.source_image.size if hasattr(
+                config.source_image, "size") else (
+                0, 0))
         target_w, target_h = config.get_target_resolution()
 
-        # Calculate metrics
+        # Validate dimensions to prevent division by zero
+        if source_w <= 0 or source_h <= 0:
+            raise StrategyError(
+                f"Invalid source dimensions: {source_w}x{source_h}. "
+                f"Source image must have positive width and height."
+            )
+        
+        if target_w <= 0 or target_h <= 0:
+            raise StrategyError(
+                f"Invalid target dimensions: {target_w}x{target_h}. "
+                f"Target dimensions must be positive."
+            )
+
+        # Calculate metrics safely
         source_aspect = source_w / source_h
         target_aspect = target_w / target_h
         aspect_change = abs(target_aspect - source_aspect) / source_aspect
@@ -264,7 +304,8 @@ class HybridAdaptiveStrategy(BaseExpansionStrategy):
         # Determine approach
         steps = []
 
-        if aspect_change < 0.1 and abs(scale_x - scale_y) < 0.1:
+        if (aspect_change < self.strategy_params.get('simple_aspect_change_threshold', 0.1) and 
+            abs(scale_x - scale_y) < self.strategy_params.get('simple_scale_difference_threshold', 0.1)):
             # Simple upscale - check if direct upscale is available
             try:
                 self.strategies["direct"].validate_requirements()
@@ -276,7 +317,7 @@ class HybridAdaptiveStrategy(BaseExpansionStrategy):
                     }
                 )
                 rationale = f"Simple {
-                        max_scale:.1f}x upscale with minimal aspect change"
+                    max_scale:.1f}x upscale with minimal aspect change"
                 estimated_vram = self.strategies["direct"].estimate_vram(config)[
                     "peak_vram_mb"
                 ]
@@ -298,7 +339,8 @@ class HybridAdaptiveStrategy(BaseExpansionStrategy):
                     )["peak_vram_mb"]
                     estimated_quality = 0.85
                 else:
-                    raise StrategyError("No suitable upscaling method available")
+                    raise StrategyError(
+                        "No suitable upscaling method available")
 
         elif extreme_ratio > self.extreme_ratio_threshold or max(scale_x, scale_y) > 4:
             # Extreme expansion - use SWPO
@@ -311,8 +353,7 @@ class HybridAdaptiveStrategy(BaseExpansionStrategy):
                             "window_size": 300 if extreme_ratio > 5 else 200,
                             "overlap_ratio": 0.85 if extreme_ratio > 5 else 0.8,
                         },
-                    }
-                )
+                    })
                 rationale = f"Extreme {extreme_ratio:.1f}:1 ratio using SWPO"
                 estimated_vram = self.strategies["swpo"].estimate_vram(config)[
                     "peak_vram_mb"
@@ -344,7 +385,7 @@ class HybridAdaptiveStrategy(BaseExpansionStrategy):
 
                 # Check if we need additional upscaling after aspect adjustment
                 # Progressive only adjusts aspect ratio, not final size
-                if max_scale > 1.1:  # Need more than 10% scaling
+                if max_scale > self.strategy_params.get('additional_upscale_threshold', 1.1):  # Need additional scaling
                     steps.append(
                         {
                             "name": "final_upscale",
@@ -362,7 +403,7 @@ class HybridAdaptiveStrategy(BaseExpansionStrategy):
                     )
                 else:
                     rationale = f"Progressive outpainting for {
-                            aspect_change:.1%} aspect change"
+                        aspect_change:.1%} aspect change"
                     estimated_vram = self.strategies["progressive"].estimate_vram(
                         config
                     )["peak_vram_mb"]
@@ -451,7 +492,8 @@ class HybridAdaptiveStrategy(BaseExpansionStrategy):
 
         # Update source image from previous result
         if previous_result and "image_path" in previous_result:
-            step_config.source_image = Image.open(previous_result["image_path"])
+            step_config.source_image = Image.open(
+                previous_result["image_path"])
 
         # Apply step overrides
         for key, value in step.get("config_overrides", {}).items():

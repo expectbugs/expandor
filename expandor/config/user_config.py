@@ -4,7 +4,6 @@ Handles ~/.config/expandor/config.yaml
 """
 
 import logging
-import os
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -24,27 +23,37 @@ class ModelConfig:
     model_id: Optional[str] = None  # For HuggingFace models
     variant: Optional[str] = None
     dtype: str = "fp16"
-    device: str = "cuda"
+    # Will use user's default_device if not specified
+    device: Optional[str] = None
     cache_dir: Optional[str] = None
     enabled: bool = True
 
     def __post_init__(self):
         """Validate configuration"""
         if not self.path and not self.model_id:
-            raise ValueError("ModelConfig must have either 'path' or 'model_id'")
+            raise ValueError(
+                "ModelConfig must have either 'path' or 'model_id'")
 
-        valid_dtypes = ["fp32", "fp16", "bf16", "float32", "float16", "bfloat16"]
+        valid_dtypes = [
+            "fp32",
+            "fp16",
+            "bf16",
+            "float32",
+            "float16",
+            "bfloat16"]
         if self.dtype not in valid_dtypes:
             raise ValueError(
                 f"Invalid dtype: {self.dtype}. Must be one of {valid_dtypes}"
             )
 
-        valid_devices = ["cuda", "cpu", "mps"]
-        if self.device not in valid_devices:
-            raise ValueError(
-                f"Invalid device: {
-                    self.device}. Must be one of {valid_devices}"
-            )
+        # If device is None, it will be set from user's default_device later
+        if self.device is not None:
+            valid_devices = ["cuda", "cpu", "mps"]
+            if self.device not in valid_devices:
+                raise ValueError(
+                    f"Invalid device: {
+                        self.device}. Must be one of {valid_devices}"
+                )
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary, excluding None values"""
@@ -58,40 +67,40 @@ class LoRAConfig:
 
     name: str
     path: str
-    weight: float = 1.0
+    weight: Optional[float] = None  # Must come from config - NO HARDCODED VALUES
     auto_apply_keywords: List[str] = field(default_factory=list)
-    enabled: bool = True
+    enabled: Optional[bool] = None  # Must come from config
 
 
 @dataclass
 class UserConfig:
-    """Complete user configuration"""
+    """Complete user configuration - NO HARDCODED DEFAULTS"""
 
     # Model configurations
     models: Dict[str, ModelConfig] = field(default_factory=dict)
     loras: List[LoRAConfig] = field(default_factory=list)
 
-    # Default settings
-    default_quality: str = "balanced"
-    default_device: str = "cuda"
-    default_dtype: str = "fp16"
+    # Default settings - all must come from config files
+    default_quality: Optional[str] = None
+    default_device: Optional[str] = None
+    default_dtype: Optional[str] = None
     cache_directory: Optional[str] = None
 
-    # User preferences
-    auto_artifact_detection: bool = True
-    use_controlnet: bool = True
-    save_intermediate_stages: bool = False
-    verbose_logging: bool = False
+    # User preferences - all must come from config files
+    auto_artifact_detection: Optional[bool] = None
+    use_controlnet: Optional[bool] = None
+    save_intermediate_stages: Optional[bool] = None
+    verbose_logging: Optional[bool] = None
 
-    # Performance settings
+    # Performance settings - all must come from config files
     max_vram_usage_mb: Optional[int] = None
-    allow_cpu_offload: bool = True
-    allow_tiled_processing: bool = True
-    clear_cache_frequency: int = 5
+    allow_cpu_offload: Optional[bool] = None
+    allow_tiled_processing: Optional[bool] = None
+    clear_cache_frequency: Optional[int] = None
 
-    # Output settings
-    output_format: str = "png"
-    output_compression: int = 0
+    # Output settings - all must come from config files
+    output_format: Optional[str] = None
+    output_compression: Optional[int] = None
     default_output_dir: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
@@ -160,13 +169,33 @@ class UserConfig:
         invalid_fields = set(config_data.keys()) - valid_fields
 
         if invalid_fields:
+            # Check for common mistakes
+            suggestions = []
+            if 'defaults' in invalid_fields:
+                suggestions.append(
+                    "'defaults' -> Use specific fields like 'default_quality'")
+            if 'vram_management' in invalid_fields:
+                suggestions.append(
+                    "'vram_management' -> Use 'max_vram_usage_mb'")
+
             raise ValueError(
-                f"Unknown configuration fields: {', '.join(invalid_fields)}\n"
-                f"Valid fields: {', '.join(sorted(valid_fields))}"
-            )
+                f"Unknown configuration fields: {
+                    ', '.join(invalid_fields)}\n" f"Valid fields: {
+                    ', '.join(
+                        sorted(valid_fields))}\n" +
+                (
+                    "\nSuggestions:\n" +
+                    "\n".join(
+                        f"  - {s}" for s in suggestions) if suggestions else "") +
+                "\n\nExample valid config:\n"
+                "  default_quality: high\n"
+                "  max_vram_usage_mb: 20000\n"
+                "  default_device: cuda")
 
         # Create with validated data only
-        filtered_data = {k: v for k, v in config_data.items() if k in valid_fields}
+        filtered_data = {
+            k: v for k,
+            v in config_data.items() if k in valid_fields}
 
         try:
             return cls(**filtered_data)
@@ -306,42 +335,43 @@ class UserConfigManager:
                     model_id="stabilityai/stable-diffusion-xl-base-1.0",
                     variant="fp16",
                     dtype="fp16",
-                    device="cuda",
+                    device=None,  # Will use default_device
                 ),
                 "sdxl_refiner": ModelConfig(
                     model_id="stabilityai/stable-diffusion-xl-refiner-1.0",
                     variant="fp16",
                     dtype="fp16",
-                    device="cuda",
+                    device=None,  # Will use default_device
                     enabled=True,  # Enabled but only used for high/ultra quality
                 ),
                 "sd3": ModelConfig(
                     model_id="stabilityai/stable-diffusion-3-medium",
                     dtype="fp16",
-                    device="cuda",
+                    device=None,  # Will use default_device
                     enabled=True,  # Requires HF token
                 ),
                 "flux": ModelConfig(
                     model_id="black-forest-labs/FLUX.1-schnell",
                     dtype="fp16",
-                    device="cuda",
+                    device=None,  # Will use default_device
                     enabled=True,  # Large model, needs 16GB+ VRAM
                 ),
                 "realesrgan": ModelConfig(
+                    model_id="realesrgan",  # Special identifier for Real-ESRGAN
                     path=None,  # Will be downloaded automatically
                     dtype="fp32",
-                    device="cuda",
+                    device=None,  # Will use default_device
                 ),
                 "controlnet_canny": ModelConfig(
                     model_id="lllyasviel/sd-controlnet-canny",
                     dtype="fp16",
-                    device="cuda",
+                    device=None,  # Will use default_device
                     enabled=True,  # For structure preservation
                 ),
                 "controlnet_tile": ModelConfig(
                     model_id="lllyasviel/control_v11f1e_sd15_tile",
                     dtype="fp16",
-                    device="cuda",
+                    device=None,  # Will use default_device
                     enabled=True,  # For seamless upscaling
                 ),
             }

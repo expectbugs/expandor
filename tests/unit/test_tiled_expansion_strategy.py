@@ -30,7 +30,7 @@ class TestTiledExpansionStrategy:
         assert self.strategy.overlap == 256
         assert self.strategy.blend_width == 256  # Updated to match actual implementation
         assert self.strategy.min_tile_size == 512
-        assert self.strategy.max_tile_size == 2048
+        assert self.strategy.max_tile_size == 1536
 
     def test_validate_requirements(self):
         """Test validation requires at least one pipeline"""

@@ -21,7 +21,10 @@ class ResolutionConfig:
     name: Optional[str] = None
 
     @classmethod
-    def from_tuple(cls, resolution: Tuple[int, int], name: Optional[str] = None):
+    def from_tuple(cls,
+                   resolution: Tuple[int,
+                                     int],
+                   name: Optional[str] = None):
         width, height = resolution
         return cls(
             width=width,
@@ -73,17 +76,26 @@ class DimensionCalculator:
         # For standalone, we adapt to use standard logging
         self.logger = logger or logging.getLogger(__name__)
 
-    def round_to_multiple(self, value: int, multiple: Optional[int] = None) -> int:
+    def round_to_multiple(
+            self,
+            value: int,
+            multiple: Optional[int] = None) -> int:
         """Round value to nearest multiple"""
         if multiple is None:
             # Load from config
             try:
+                from pathlib import Path
+
                 from .config_loader import ConfigLoader
-                loader = ConfigLoader()
-                proc_config = loader.load_config("processing_params.yaml")
-                multiple = proc_config.get('dimension_calculation', {}).get('dimension_multiple', 8)
-            except:
-                raise ValueError("Failed to load dimension calculation configuration")
+                config_dir = Path(__file__).parent.parent / "config"
+                loader = ConfigLoader(config_dir)
+                proc_config = loader.load_config_file("processing_params.yaml")
+                multiple = proc_config.get(
+                    'dimension_calculation', {}).get(
+                    'dimension_multiple', 8)
+            except (FileNotFoundError, ValueError, KeyError, TypeError) as e:
+                raise ValueError(
+                    f"Failed to load dimension calculation configuration: {e}")
         return ((value + multiple // 2) // multiple) * multiple
 
     def get_optimal_generation_size(
@@ -105,7 +117,8 @@ class DimensionCalculator:
             # Default: use SDXL logic
             return self._get_sdxl_optimal_size(target_config)
 
-    def _get_sdxl_optimal_size(self, target: ResolutionConfig) -> Tuple[int, int]:
+    def _get_sdxl_optimal_size(
+            self, target: ResolutionConfig) -> Tuple[int, int]:
         """Copy from lines 95-118"""
         # Find closest aspect ratio match
         best_match = None
@@ -128,10 +141,13 @@ class DimensionCalculator:
 
         return best_match
 
-    def _get_flux_optimal_size(self, target: ResolutionConfig) -> Tuple[int, int]:
+    def _get_flux_optimal_size(
+            self, target: ResolutionConfig) -> Tuple[int, int]:
         """Copy from lines 120-142"""
         # FLUX works best around 1MP
-        scale = math.sqrt(self.FLUX_CONSTRAINTS["optimal_pixels"] / target.total_pixels)
+        scale = math.sqrt(
+            self.FLUX_CONSTRAINTS["optimal_pixels"] /
+            target.total_pixels)
 
         # Calculate dimensions
         width = int(target.width * scale)
@@ -187,8 +203,7 @@ class DimensionCalculator:
         if aspect_change_ratio > 8.0:
             raise ValueError(
                 f"Aspect ratio change {
-                    aspect_change_ratio:.1f}x exceeds maximum supported ratio of 8.0x"
-            )
+                    aspect_change_ratio:.1f}x exceeds maximum supported ratio of 8.0x")
 
         steps = []
 
@@ -212,14 +227,18 @@ class DimensionCalculator:
                 steps.append(
                     {
                         "method": "outpaint",
-                        "current_size": (temp_w, temp_h),
-                        "target_size": (next_w, temp_h),
-                        "expansion_ratio": next_w / temp_w,
+                        "current_size": (
+                            temp_w,
+                            temp_h),
+                        "target_size": (
+                            next_w,
+                            temp_h),
+                        "expansion_ratio": next_w /
+                        temp_w,
                         "direction": direction,
                         "step_type": "initial",
                         "description": f"Initial 2x expansion: {temp_w}x{temp_h} → {next_w}x{temp_h}",
-                    }
-                )
+                    })
                 temp_w = next_w
 
             # Middle steps: 1.5x
@@ -233,33 +252,42 @@ class DimensionCalculator:
                 steps.append(
                     {
                         "method": "outpaint",
-                        "current_size": (temp_w, temp_h),
-                        "target_size": (next_w, temp_h),
-                        "expansion_ratio": next_w / temp_w,
+                        "current_size": (
+                            temp_w,
+                            temp_h),
+                        "target_size": (
+                            next_w,
+                            temp_h),
+                        "expansion_ratio": next_w /
+                        temp_w,
                         "direction": direction,
                         "step_type": "progressive",
                         "description": f"Step {step_num}: {temp_w}x{temp_h} → {next_w}x{temp_h}",
-                    }
-                )
+                    })
                 temp_w = next_w
                 step_num += 1
 
                 if step_num > 10:
-                    raise RuntimeError(f"Too many expansion steps ({step_num})")
+                    raise RuntimeError(
+                        f"Too many expansion steps ({step_num})")
 
             # Final adjustment if needed
             if temp_w < target_w:
                 steps.append(
                     {
                         "method": "outpaint",
-                        "current_size": (temp_w, temp_h),
-                        "target_size": (target_w, temp_h),
-                        "expansion_ratio": target_w / temp_w,
+                        "current_size": (
+                            temp_w,
+                            temp_h),
+                        "target_size": (
+                            target_w,
+                            temp_h),
+                        "expansion_ratio": target_w /
+                        temp_w,
                         "direction": direction,
                         "step_type": "final",
                         "description": f"Final adjustment: {temp_w}x{temp_h} → {target_w}x{temp_h}",
-                    }
-                )
+                    })
 
         else:
             # Expanding height (similar logic)
@@ -280,14 +308,18 @@ class DimensionCalculator:
                 steps.append(
                     {
                         "method": "outpaint",
-                        "current_size": (temp_w, temp_h),
-                        "target_size": (temp_w, next_h),
-                        "expansion_ratio": next_h / temp_h,
+                        "current_size": (
+                            temp_w,
+                            temp_h),
+                        "target_size": (
+                            temp_w,
+                            next_h),
+                        "expansion_ratio": next_h /
+                        temp_h,
                         "direction": direction,
                         "step_type": "initial",
                         "description": f"Initial 2x expansion: {temp_w}x{temp_h} → {temp_w}x{next_h}",
-                    }
-                )
+                    })
                 temp_h = next_h
 
             # Middle steps: 1.5x
@@ -301,33 +333,42 @@ class DimensionCalculator:
                 steps.append(
                     {
                         "method": "outpaint",
-                        "current_size": (temp_w, temp_h),
-                        "target_size": (temp_w, next_h),
-                        "expansion_ratio": next_h / temp_h,
+                        "current_size": (
+                            temp_w,
+                            temp_h),
+                        "target_size": (
+                            temp_w,
+                            next_h),
+                        "expansion_ratio": next_h /
+                        temp_h,
                         "direction": direction,
                         "step_type": "progressive",
                         "description": f"Step {step_num}: {temp_w}x{temp_h} → {temp_w}x{next_h}",
-                    }
-                )
+                    })
                 temp_h = next_h
                 step_num += 1
 
                 if step_num > 10:
-                    raise RuntimeError(f"Too many expansion steps ({step_num})")
+                    raise RuntimeError(
+                        f"Too many expansion steps ({step_num})")
 
             # Final adjustment if needed
             if temp_h < target_h:
                 steps.append(
                     {
                         "method": "outpaint",
-                        "current_size": (temp_w, temp_h),
-                        "target_size": (temp_w, target_h),
-                        "expansion_ratio": target_h / temp_h,
+                        "current_size": (
+                            temp_w,
+                            temp_h),
+                        "target_size": (
+                            temp_w,
+                            target_h),
+                        "expansion_ratio": target_h /
+                        temp_h,
                         "direction": direction,
                         "step_type": "final",
                         "description": f"Final adjustment: {temp_w}x{temp_h} → {temp_w}x{target_h}",
-                    }
-                )
+                    })
 
         return steps
 
@@ -381,17 +422,21 @@ class DimensionCalculator:
                 steps.append(
                     {
                         "method": "sliding_window",
-                        "current_size": (temp_w, temp_h),
-                        "target_size": (next_w, temp_h),
-                        "window_size": next_w - temp_w,
+                        "current_size": (
+                            temp_w,
+                            temp_h),
+                        "target_size": (
+                            next_w,
+                            temp_h),
+                        "window_size": next_w -
+                        temp_w,
                         "overlap_size": (
-                            window_size - step_size if window_num > 1 else 0
-                        ),
+                            window_size -
+                            step_size if window_num > 1 else 0),
                         "direction": "horizontal",
                         "window_number": window_num,
                         "description": f"H-Window {window_num}: {temp_w}x{temp_h} → {next_w}x{temp_h}",
-                    }
-                )
+                    })
 
                 # Calculate actual step taken
                 if window_num == 1:
@@ -424,17 +469,21 @@ class DimensionCalculator:
                 steps.append(
                     {
                         "method": "sliding_window",
-                        "current_size": (temp_w, temp_h),
-                        "target_size": (temp_w, next_h),
-                        "window_size": next_h - temp_h,
+                        "current_size": (
+                            temp_w,
+                            temp_h),
+                        "target_size": (
+                            temp_w,
+                            next_h),
+                        "window_size": next_h -
+                        temp_h,
                         "overlap_size": (
-                            window_size - step_size if window_num > 1 else 0
-                        ),
+                            window_size -
+                            step_size if window_num > 1 else 0),
                         "direction": "vertical",
                         "window_number": window_num,
                         "description": f"V-Window {window_num}: {temp_w}x{temp_h} → {temp_w}x{next_h}",
-                    }
-                )
+                    })
 
                 # Calculate actual step taken
                 if window_num == 1:

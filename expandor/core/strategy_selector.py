@@ -2,7 +2,6 @@
 Strategy selection with VRAM-aware multi-factor decision making
 """
 
-import importlib
 import logging
 from dataclasses import dataclass
 from pathlib import Path
@@ -58,15 +57,21 @@ class StrategySelector:
         self.logger = logger or logging.getLogger(__name__)
         self.last_selection_reason = ""
 
-        # Load strategy configurations
-        self.strategy_config = config.get("strategies", {})
-        self.quality_presets = config.get("quality_presets", {})
-        self.vram_strategies = config.get("vram_strategies", {})
+        # Load strategy configurations using ConfigurationManager
+        from .configuration_manager import ConfigurationManager
+        self.config_manager = ConfigurationManager()
+        
+        self.strategy_config = self.config_manager.get_value("strategies")
+        self.quality_presets = self.config_manager.get_value("quality_presets")
+        self.vram_strategies = self.config_manager.get_value("vram")
+        self.strategy_parameters = self.config_manager.get_value("strategies")
 
         # Cache for initialized strategies
         self._strategy_cache = {}
 
-    def _load_strategy_class(self, strategy_name: str) -> Type[BaseExpansionStrategy]:
+    def _load_strategy_class(
+            self,
+            strategy_name: str) -> Type[BaseExpansionStrategy]:
         """Load strategy class using the strategies module registry"""
         return get_strategy_class(strategy_name)
 
@@ -88,7 +93,7 @@ class StrategySelector:
 
         # Check if user specified a strategy
         user_strategy = None
-        
+
         # First check for internal_strategy (maps user-friendly names)
         if hasattr(config, "internal_strategy"):
             internal = config.internal_strategy
@@ -101,7 +106,7 @@ class StrategySelector:
             user_strategy = config.strategy_override
         elif hasattr(config, "strategy") and config.strategy != "auto":
             user_strategy = config.strategy
-            
+
         if user_strategy:
             # Map user-friendly names to internal names
             strategy_mapping = {
@@ -112,13 +117,13 @@ class StrategySelector:
                 "cpu_offload": "cpu_offload",
                 "hybrid": "hybrid_adaptive",
             }
-            
+
             # Use mapped name if available, otherwise use as-is
-            mapped_strategy = strategy_mapping.get(user_strategy, user_strategy)
-            
+            mapped_strategy = strategy_mapping.get(
+                user_strategy, user_strategy)
+
             self.logger.info(
-                f"Using user-specified strategy: {user_strategy} (mapped to {mapped_strategy})"
-            )
+                f"Using user-specified strategy: {user_strategy} (mapped to {mapped_strategy})")
             return mapped_strategy, "User specified", metrics
 
         # VRAM-based strategy selection
@@ -194,13 +199,16 @@ class StrategySelector:
         has_img2img = True  # Most adapters support img2img
 
         # Check if extreme aspect ratio change
-        is_extreme = aspect_change > self.strategy_config.get(
-            "progressive_outpainting", {}
-        ).get("aspect_ratio_thresholds", {}).get("extreme", 4.0)
+        # FAIL LOUD - get required configuration value
+        extreme_threshold = self.config_manager.get_value(
+            "strategies.progressive_outpaint.aspect_ratio_thresholds.extreme"
+        )
+        is_extreme = aspect_change > extreme_threshold
 
         # Calculate VRAM requirements
         vram_available = self.vram_manager.get_available_vram() or 0
-        vram_required = self.vram_manager.calculate_generation_vram(target_w, target_h)
+        vram_required = self.vram_manager.calculate_generation_vram(
+            target_w, target_h)
 
         # Get model type from metadata
         model_type = "unknown"
@@ -224,15 +232,17 @@ class StrategySelector:
             quality_preset=config.quality_preset,
         )
 
-    def _select_by_vram(self, metrics: SelectionMetrics, config) -> Optional[str]:
+    def _select_by_vram(
+            self,
+            metrics: SelectionMetrics,
+            config) -> Optional[str]:
         """
         Select strategy based on VRAM constraints
 
         Returns strategy name if VRAM forces a specific choice, None otherwise
         """
-        vram_thresholds = self.vram_strategies.get(
-            "thresholds", {"tiled_processing": 4000, "minimum": 2000}
-        )
+        # FAIL LOUD - get required VRAM thresholds
+        vram_thresholds = self.config_manager.get_value("vram.thresholds")
 
         # No GPU available - must use CPU offload
         if metrics.vram_available_mb == 0:
@@ -248,7 +258,8 @@ class StrategySelector:
                 )
 
         # Apply safety factor
-        safety_factor = self.vram_strategies.get("safety_factor", 0.8)
+        # FAIL LOUD - get required safety factor
+        safety_factor = self.config_manager.get_value("vram.safety_factor")
         safe_vram = metrics.vram_available_mb * safety_factor
 
         # Check if we need VRAM-limited strategies
@@ -259,9 +270,11 @@ class StrategySelector:
             )
 
             # Try tiled processing first
+            # FAIL LOUD - get required threshold
+            tiled_threshold = self.config_manager.get_value("vram.thresholds.tiled_processing")
             if getattr(
                 config, "allow_tiled", True
-            ) and safe_vram >= vram_thresholds.get("tiled_processing", 4000):
+            ) and safe_vram >= tiled_threshold:
                 self.last_selection_reason = f"Insufficient VRAM for full processing ({
                     metrics.vram_required_mb:.0f}MB > {
                     safe_vram:.0f}MB)"
@@ -280,8 +293,7 @@ class StrategySelector:
                     operation="strategy_selection",
                     required_mb=metrics.vram_required_mb,
                     available_mb=metrics.vram_available_mb,
-                    message=f"Insufficient VRAM and all fallback strategies disabled. "
-                    f"Need {
+                    message=f"Insufficient VRAM and all fallback strategies disabled. " f"Need {
                         metrics.vram_required_mb:.0f}MB, have {
                         safe_vram:.0f}MB",
                 )
@@ -301,26 +313,43 @@ class StrategySelector:
             swpo_config = self.strategy_config.get("swpo", {})
             if swpo_config.get("enabled", True):
                 self.last_selection_reason = f"Extreme aspect ratio change ({
-                        metrics.aspect_change:.1f}x)"
+                    metrics.aspect_change:.1f}x)"
                 return "swpo"
 
+        # Get strategy selection thresholds from config
+        try:
+            selection_config = self.config_manager.get_value("image_processing.strategy_selection")
+            aspect_threshold = selection_config["simple_upscale_threshold"]
+            moderate_expansion = selection_config["expansion_moderate_threshold"]
+            # For aspect change tolerance, use a smaller value (this is a tolerance, not a threshold)
+            aspect_tolerance = 1.1  # This is a tolerance value, kept as algorithmic constant
+            # For massive upscale, calculate from moderate expansion
+            massive_expansion = moderate_expansion * 4  # 16 if moderate is 4
+        except (KeyError, ValueError) as e:
+            # FAIL LOUD - configuration must exist
+            raise ValueError(
+                f"Strategy selection configuration not found!\n{str(e)}\n"
+                f"Required: image_processing.strategy_selection with thresholds"
+            )
+
         # Check for significant aspect change needing progressive outpainting
-        if metrics.aspect_change > 1.5 and metrics.has_inpaint:
-            prog_config = self.strategy_config.get("progressive_outpainting", {})
+        if metrics.aspect_change > aspect_threshold and metrics.has_inpaint:
+            prog_config = self.strategy_config.get(
+                "progressive_outpainting", {})
             if prog_config.get("enabled", True):
                 self.last_selection_reason = f"Significant aspect ratio change ({
-                        metrics.aspect_change:.1f}x)"
+                    metrics.aspect_change:.1f}x)"
                 return "progressive_outpaint"
 
         # Simple upscaling case - no aspect change, reasonable size increase
-        if metrics.area_ratio < 4 and metrics.aspect_change < 1.1:
+        if metrics.area_ratio < moderate_expansion and metrics.aspect_change < aspect_tolerance:
             self.last_selection_reason = (
                 f"Simple upscale ({metrics.area_ratio:.1f}x area increase)"
             )
             return "direct_upscale"
 
         # Massive upscaling might benefit from tiling even with sufficient VRAM
-        if metrics.area_ratio > 16 and metrics.quality_preset == "ultra":
+        if metrics.area_ratio > massive_expansion and metrics.quality_preset == "ultra":
             self.last_selection_reason = (
                 f"Massive upscale ({metrics.area_ratio:.1f}x) with ultra quality"
             )
@@ -357,8 +386,16 @@ class StrategySelector:
         try:
             strategy_class = self._load_strategy_class(strategy_name)
 
-            # Get strategy-specific config
+            # Get strategy-specific config from strategies.yaml
             strategy_config = self.strategy_config.get(strategy_name, {})
+            
+            # Merge with parameters from strategy_parameters.yaml
+            strategy_params = self.strategy_parameters.get(strategy_name, {})
+            if strategy_params:
+                # Merge parameters into the config's parameters section
+                if 'parameters' not in strategy_config:
+                    strategy_config['parameters'] = {}
+                strategy_config['parameters'].update(strategy_params)
 
             # Create instance with config and metrics
             strategy = strategy_class(

@@ -42,30 +42,33 @@ class EdgeAnalyzer:
     - Artifact severity assessment
     """
 
-    def __init__(self, logger: Optional[logging.Logger] = None, config: Optional[Dict[str, Any]] = None):
+    def __init__(self,
+                 logger: Optional[logging.Logger] = None,
+                 config: Optional[Dict[str,
+                                       Any]] = None):
         self.logger = logger or logging.getLogger(__name__)
+
+        # Get configuration from ConfigurationManager
+        from ..core.configuration_manager import ConfigurationManager
+        self.config_manager = ConfigurationManager()
         
-        if config is None:
-            # Load from processing_params.yaml
-            try:
-                from ..utils.config_loader import ConfigLoader
-                from pathlib import Path
-                config_dir = Path(__file__).parent.parent / "config"
-                loader = ConfigLoader(config_dir)
-                proc_config = loader.load_config_file("processing_params.yaml")
-                if proc_config and 'edge_analysis' in proc_config:
-                    config = proc_config['edge_analysis']
-                else:
-                    raise ValueError("Missing edge_analysis config in processing_params.yaml")
-            except Exception as e:
-                # Fail loud - config required
-                raise ValueError(f"Failed to load edge analysis configuration: {e}")
+        # Get processor config
+        try:
+            self.processor_config = self.config_manager.get_processor_config('edge_analysis')
+        except ValueError as e:
+            # FAIL LOUD
+            raise ValueError(
+                f"Failed to load edge_analysis configuration!\n{str(e)}"
+            )
+
+        # Store config for later use (keep compatibility)
+        self.config = self.processor_config
 
         # Detection thresholds from config
-        self.edge_threshold = config.get('edge_detection_sensitivity', 0.1)
-        self.seam_threshold = config.get('seam_detection_sensitivity', 0.3)
-        self.artifact_threshold = config.get('artifact_detection_sensitivity', 0.5)
-        self.edge_threshold_hough = config.get('edge_threshold_hough', 100)
+        self.edge_threshold = self.processor_config['edge_detection_sensitivity']
+        self.seam_threshold = self.processor_config['seam_detection_sensitivity']
+        self.artifact_threshold = self.processor_config['artifact_detection_sensitivity']
+        self.edge_threshold_hough = self.processor_config['edge_threshold_hough']
 
     def analyze_image(
         self, image: Image.Image, boundaries: Optional[List[Dict]] = None
@@ -92,7 +95,8 @@ class EdgeAnalyzer:
         # Analyze known boundaries
         seam_artifacts = []
         if boundaries:
-            seam_artifacts = self._analyze_boundaries(img_array, boundaries, edges)
+            seam_artifacts = self._analyze_boundaries(
+                img_array, boundaries, edges)
 
         # Find other artifacts
         general_artifacts = self._detect_artifacts(img_array, edges)
@@ -126,13 +130,17 @@ class EdgeAnalyzer:
         if HAS_CV2:
             # Use OpenCV for better edge detection
             # Canny edge detection
-            edges_canny = cv2.Canny(gray, 50, 150)
+            edges_canny = cv2.Canny(gray, self.processor_config['canny_low_threshold'], self.processor_config['canny_high_threshold'])
 
             # Sobel edge detection
             sobel_x = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
             sobel_y = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)
             edges_sobel = np.sqrt(sobel_x**2 + sobel_y**2)
-            edges_sobel = (edges_sobel / edges_sobel.max() * 255).astype(np.uint8)
+            edges_sobel = (
+                edges_sobel /
+                edges_sobel.max() *
+                255).astype(
+                np.uint8)
 
             # Combine
             edges = np.maximum(edges_canny, edges_sobel)
@@ -167,31 +175,33 @@ class EdgeAnalyzer:
 
             if direction == "vertical" and 0 < pos < width:
                 # Check vertical seam
-                seam_region = edges[:, max(0, pos - 5) : min(width, pos + 5)]
-                seam_strength = np.mean(seam_region) / 255.0
+                seam_region = edges[:, max(0, pos - self.processor_config['boundary_check_width']): min(width, pos + self.processor_config['boundary_check_width'])]
+                seam_strength = np.mean(seam_region) / self.processor_config['edge_normalization_divisor']
 
                 if seam_strength > self.seam_threshold:
                     artifact = EdgeInfo(
-                        position=(pos - 2, 0, pos + 2, height),
+                        position=(pos - self.processor_config['boundary_position_offset'], 0, pos + self.processor_config['boundary_position_offset'], height),
                         strength=seam_strength,
-                        orientation=np.pi / 2,  # Vertical
+                        orientation=self.processor_config['vertical_orientation'],  # Vertical
                         edge_type="seam",
-                        confidence=min(seam_strength / self.seam_threshold, 1.0),
+                        confidence=min(
+                            seam_strength / self.seam_threshold, 1.0),
                     )
                     seam_artifacts.append(artifact)
 
             elif direction == "horizontal" and 0 < pos < height:
                 # Check horizontal seam
-                seam_region = edges[max(0, pos - 5) : min(height, pos + 5), :]
-                seam_strength = np.mean(seam_region) / 255.0
+                seam_region = edges[max(0, pos - self.processor_config['boundary_check_width']):min(height, pos + self.processor_config['boundary_check_width']), :]
+                seam_strength = np.mean(seam_region) / self.processor_config['edge_normalization_divisor']
 
                 if seam_strength > self.seam_threshold:
                     artifact = EdgeInfo(
-                        position=(0, pos - 2, width, pos + 2),
+                        position=(0, pos - self.processor_config['boundary_position_offset'], width, pos + self.processor_config['boundary_position_offset']),
                         strength=seam_strength,
-                        orientation=0,  # Horizontal
+                        orientation=self.processor_config['horizontal_orientation'],  # Horizontal
                         edge_type="seam",
-                        confidence=min(seam_strength / self.seam_threshold, 1.0),
+                        confidence=min(
+                            seam_strength / self.seam_threshold, 1.0),
                     )
                     seam_artifacts.append(artifact)
 
@@ -218,11 +228,11 @@ class EdgeAnalyzer:
             # Use Hough transform to find lines
             lines = cv2.HoughLinesP(
                 edges,
-                1,
-                np.pi / 180,
-                threshold=getattr(self, 'edge_threshold_hough', 100),
-                minLineLength=min(width, height) // 4,
-                maxLineGap=10,
+                self.processor_config['hough_rho'],
+                np.pi / self.processor_config['hough_theta_divisor'],
+                threshold=self.edge_threshold_hough,
+                minLineLength=min(width, height) // self.processor_config['min_line_length_divisor'],
+                maxLineGap=self.processor_config['max_line_gap'],
             )
 
             if lines is not None:
@@ -234,31 +244,39 @@ class EdgeAnalyzer:
                     angle = np.arctan2(y2 - y1, x2 - x1)
 
                     # Check if line is suspiciously straight and long
-                    if length > min(width, height) * 0.3:
+                    if length > min(width, height) * self.processor_config['suspicious_line_length_ratio']:
                         # Check if it's near perfect horizontal/vertical
-                        angle_deg = abs(angle * 180 / np.pi)
-                        if angle_deg < 5 or angle_deg > 175 or abs(angle_deg - 90) < 5:
+                        angle_deg = abs(angle * self.processor_config['hough_theta_divisor'] / np.pi)
+                        if angle_deg < self.processor_config['angle_tolerance_degrees'] or angle_deg > self.processor_config['straight_angle_threshold'] or abs(
+                                angle_deg - self.processor_config['right_angle']) < self.processor_config['angle_tolerance_degrees']:
                             artifact = EdgeInfo(
-                                position=(x1, y1, x2, y2),
-                                strength=0.8,
+                                position=(
+                                    x1,
+                                    y1,
+                                    x2,
+                                    y2),
+                                strength=self.processor_config['artifact_edge_strength'],
                                 orientation=angle,
                                 edge_type="artifact",
-                                confidence=0.7,
+                                confidence=self.processor_config['artifact_confidence'],
                             )
                             artifacts.append(artifact)
 
         # Look for repetitive patterns (could indicate tiling artifacts)
         # This is a simplified check
-        for y in range(0, height - 64, 32):
-            for x in range(0, width - 64, 32):
-                region = edges[y : y + 64, x : x + 64]
-                if np.std(region) > 100:  # High variance indicates pattern
+        box_size = self.processor_config['pattern_box_size']
+        for y in range(0, height - box_size, self.processor_config['pattern_step_size']):
+            for x in range(0, width - box_size, self.processor_config['pattern_step_size']):
+                region = edges[y:y +
+                               self.processor_config['pattern_box_size'], x: x +
+                               self.processor_config['pattern_box_size']]
+                if np.std(region) > self.processor_config['pattern_variance_threshold']:  # High variance indicates pattern
                     artifact = EdgeInfo(
-                        position=(x, y, x + 64, y + 64),
-                        strength=0.5,
+                        position=(x, y, x + box_size, y + box_size),
+                        strength=self.processor_config['pattern_edge_strength'],
                         orientation=0,
                         edge_type="pattern",
-                        confidence=0.5,
+                        confidence=self.processor_config['pattern_confidence'],
                     )
                     artifacts.append(artifact)
 
@@ -282,26 +300,26 @@ class EdgeAnalyzer:
             Quality score (0-1, 1 is perfect)
         """
         if not seam_artifacts and not general_artifacts:
-            return 1.0
+            return self.processor_config['perfect_quality_score']
 
         # Calculate impact of each artifact type
         seam_impact = 0.0
         for artifact in seam_artifacts:
             # Seams are more severe
-            seam_impact += artifact.strength * artifact.confidence * 0.2
+            seam_impact += artifact.strength * artifact.confidence * self.processor_config['seam_impact_multiplier']
 
         artifact_impact = 0.0
         for artifact in general_artifacts:
-            artifact_impact += artifact.strength * artifact.confidence * 0.1
+            artifact_impact += artifact.strength * artifact.confidence * self.processor_config['artifact_impact_multiplier']
 
         # Normalize by image size (larger images can have more artifacts)
         total_pixels = image_shape[0] * image_shape[1]
-        size_factor = min(1.0, 1000000 / total_pixels)  # Normalize to 1MP
+        size_factor = min(self.processor_config['quality_score_max'], self.processor_config['normalization_pixels'] / total_pixels)  # Normalize to 1MP
 
         total_impact = (seam_impact + artifact_impact) * size_factor
 
         # Convert to quality score
-        quality_score = max(0.0, 1.0 - total_impact)
+        quality_score = max(self.processor_config['quality_score_min'], self.processor_config['quality_score_max'] - total_impact)
 
         return quality_score
 
@@ -311,7 +329,7 @@ class EdgeAnalyzer:
         img2: np.ndarray,
         position: int,
         direction: str = "vertical",
-        threshold: float = 30.0,
+        threshold: float = None,
     ) -> bool:
         """
         Detect color discontinuity between two image regions.
@@ -327,10 +345,15 @@ class EdgeAnalyzer:
             True if discontinuity detected
         """
         if direction == "vertical":
+            # Use default threshold if not provided
+            if threshold is None:
+                threshold = self.processor_config['default_color_threshold']
+            
             # Sample colors on both sides of boundary
-            if position > 5 and position < img1.shape[1] - 5:
-                left_colors = img1[:, position - 5 : position]
-                right_colors = img2[:, position : position + 5]
+            sample_width = self.processor_config['color_sample_width']
+            if position > sample_width and position < img1.shape[1] - sample_width:
+                left_colors = img1[:, position - sample_width: position]
+                right_colors = img2[:, position: position + sample_width]
 
                 # Calculate mean colors
                 left_mean = np.mean(left_colors, axis=(0, 1))
@@ -341,10 +364,15 @@ class EdgeAnalyzer:
 
                 return diff > threshold
         else:
+            # Use default threshold if not provided
+            if threshold is None:
+                threshold = self.processor_config['default_color_threshold']
+            
             # Horizontal boundary
-            if position > 5 and position < img1.shape[0] - 5:
-                top_colors = img1[position - 5 : position, :]
-                bottom_colors = img2[position : position + 5, :]
+            sample_width = self.processor_config['color_sample_width']
+            if position > sample_width and position < img1.shape[0] - sample_width:
+                top_colors = img1[position - sample_width:position, :]
+                bottom_colors = img2[position:position + sample_width, :]
 
                 top_mean = np.mean(top_colors, axis=(0, 1))
                 bottom_mean = np.mean(bottom_colors, axis=(0, 1))
@@ -377,14 +405,14 @@ class EdgeAnalyzer:
             # Draw edge on mask
             if edge.edge_type == "seam":
                 # Seams get thicker mask
-                thickness = dilation * 2
+                thickness = dilation * self.processor_config['seam_thickness_multiplier']
             else:
                 thickness = dilation
 
             # Simple rectangle for now (could use line drawing)
             mask[
-                max(0, y1 - thickness) : min(image_size[1], y2 + thickness),
-                max(0, x1 - thickness) : min(image_size[0], x2 + thickness),
+                max(0, y1 - thickness): min(image_size[1], y2 + thickness),
+                max(0, x1 - thickness): min(image_size[0], x2 + thickness),
             ] = 255
 
         return mask

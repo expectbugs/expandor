@@ -2,6 +2,7 @@
 Test Progressive Outpaint Strategy
 """
 
+import tempfile
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -29,9 +30,9 @@ class TestProgressiveOutpaintStrategy:
         assert hasattr(self.strategy, "dimension_calc")
         assert hasattr(self.strategy, "vram_manager")
         # Updated to match actual config values from strategy_defaults.yaml
-        assert self.strategy.first_step_ratio == 2.0
-        assert self.strategy.middle_step_ratio == 1.5
-        assert self.strategy.final_step_ratio == 1.3
+        assert self.strategy.first_step_ratio == 1.4
+        assert self.strategy.middle_step_ratio == 1.25
+        assert self.strategy.final_step_ratio == 1.15
 
     def test_validate_requirements(self):
         """Test validation requires inpaint pipeline"""
@@ -128,7 +129,8 @@ class TestProgressiveOutpaintStrategy:
             def mock_outpaint(image_path, prompt, step_info):
                 target_w, target_h = step_info["target_size"]
                 # Create a temp file
-                output_path = Path(f"/tmp/test_step_{target_w}x{target_h}.png")
+                temp_dir = tempfile.mkdtemp(prefix="test_step_")
+                output_path = Path(temp_dir) / f"step_{target_w}x{target_h}.png"
                 # Mock the output - just return the path
                 return output_path
 

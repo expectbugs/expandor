@@ -7,7 +7,7 @@ import logging
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 
 class MetadataTracker:
@@ -75,9 +75,8 @@ class MetadataTracker:
 
         # Record start event
         self.record_event(
-            "operation_start",
-            {"operation_id": self.operation_id, "config": self.config_snapshot},
-        )
+            "operation_start", {
+                "operation_id": self.operation_id, "config": self.config_snapshot}, )
 
         self.logger.debug(f"Started tracking operation: {self.operation_id}")
         return self.operation_id
@@ -186,7 +185,9 @@ class MetadataTracker:
             stage_name: Name of stage
             metadata: Stage-specific metadata
         """
-        self.record_event("stage_metadata", {"stage": stage_name, "metadata": metadata})
+        self.record_event(
+            "stage_metadata", {
+                "stage": stage_name, "metadata": metadata})
 
     def get_summary(self) -> Dict[str, Any]:
         """
@@ -281,6 +282,9 @@ class MetadataTracker:
             "stage_timings": self.stage_timings,
             "stage_percentages": stage_percentages,
             "metrics": self.metrics,
-            "event_count": len(self.events),
-            "events_per_second": len(self.events) / total_time if total_time > 0 else 0,
+            "event_count": len(
+                self.events),
+            "events_per_second": len(
+                self.events) /
+            total_time if total_time > 0 else 0,
         }

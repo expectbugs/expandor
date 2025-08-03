@@ -10,6 +10,8 @@ from typing import Any, Dict, Optional
 import numpy as np
 from PIL import Image, ImageFilter
 
+from ..core.configuration_manager import ConfigurationManager
+
 
 class SeamRepairProcessor:
     """
@@ -28,11 +30,29 @@ class SeamRepairProcessor:
         Args:
             pipelines: Dictionary of available pipelines (inpaint, refiner, etc)
             logger: Logger instance
-            config: Configuration dictionary
+            config: Configuration dictionary (optional - will use ConfigurationManager if not provided)
         """
         self.pipelines = pipelines
         self.logger = logger or logging.getLogger(__name__)
-        self.config = config or {}
+        
+        # Get configuration from ConfigurationManager
+        self.config_manager = ConfigurationManager()
+        
+        # Get processor config
+        try:
+            self.processor_config = self.config_manager.get_processor_config('seam_repair')
+        except ValueError as e:
+            # FAIL LOUD
+            raise ValueError(
+                f"Failed to load seam_repair configuration!\n{str(e)}"
+            )
+        
+        # For backward compatibility, merge with provided config if any
+        if config and 'seam_repair' in config:
+            # Merge provided config with processor config
+            self.config = {**self.processor_config, **config['seam_repair']}
+        else:
+            self.config = self.processor_config
 
         # Determine available repair methods
         self.has_inpaint = "inpaint" in pipelines
@@ -43,6 +63,16 @@ class SeamRepairProcessor:
             self.logger.warning(
                 "No repair pipelines available - repair functionality limited"
             )
+    
+    def _get_config(self, key: str) -> Any:
+        """Get configuration value with FAIL LOUD philosophy"""
+        if key not in self.config:
+            raise ValueError(
+                f"FATAL: Required configuration key '{key}' not found in seam_repair config!\n"
+                f"This indicates the configuration file is missing required parameters.\n"
+                f"Please check processing_params.yaml contains all seam_repair settings."
+            )
+        return self.config[key]
 
     def repair_seams(
         self,
@@ -67,7 +97,7 @@ class SeamRepairProcessor:
 
         # Load image
         image = Image.open(image_path)
-        original_size = image.size
+        # original_size = image.size  # Unused
 
         if artifact_mask is None:
             self.logger.warning("No artifact mask provided - cannot repair")
@@ -102,7 +132,7 @@ class SeamRepairProcessor:
         # Save repaired image
         timestamp = int(time.time() * 1000)
         repair_path = image_path.parent / f"repaired_{timestamp}.png"
-        repaired_image.save(repair_path, "PNG", compress_level=0)
+        repaired_image.save(repair_path, "PNG", compress_level=self.config['png_compress_level'])
 
         # Update metadata
         updated_metadata = metadata.copy()
@@ -132,11 +162,14 @@ class SeamRepairProcessor:
 
         # Convert mask to PIL image
         # Expand mask slightly for better coverage
-        expanded_mask = self._expand_mask(artifact_mask, pixels=10)
-        mask_image = Image.fromarray((expanded_mask * 255).astype(np.uint8))
+        expanded_mask = self._expand_mask(
+            artifact_mask, pixels=self._get_config('mask_expansion_pixels'))
+        mask_image = Image.fromarray((expanded_mask * self.config['mask_conversion_max']).astype(np.uint8))
 
         # Apply slight blur to mask edges
-        mask_image = mask_image.filter(ImageFilter.GaussianBlur(radius=self.config.get('mask_blur_radius', 5)))
+        mask_image = mask_image.filter(
+            ImageFilter.GaussianBlur(
+                radius=self._get_config('mask_blur_radius')))
 
         # Enhance prompt for repair
         repair_prompt = prompt + ", seamless, continuous, smooth transitions"
@@ -147,9 +180,10 @@ class SeamRepairProcessor:
             prompt=repair_prompt,
             image=image,
             mask_image=mask_image,
-            strength=self.config.get('seam_repair_strength', 0.8),  # High strength for seam repair
-            guidance_scale=self.config.get('seam_repair_guidance', 7.5),
-            num_inference_steps=self.config.get('seam_repair_steps', 50),
+            # High strength for seam repair
+            strength=self._get_config('seam_repair_strength'),
+            guidance_scale=self._get_config('seam_repair_guidance'),
+            num_inference_steps=self._get_config('seam_repair_steps'),
             width=image.width,
             height=image.height,
         )
@@ -171,16 +205,16 @@ class SeamRepairProcessor:
 
         # Create strength map from mask
         # Higher strength where artifacts are detected
-        base_strength = self.config.get('base_blur_strength', 0.2)
-        artifact_strength = self.config.get('artifact_repair_strength', 0.5)
+        base_strength = self._get_config('base_blur_strength')
+        artifact_strength = self._get_config('artifact_repair_strength')
 
         # Process with refiner
         result = pipeline(
             prompt=prompt + ", high quality, refined details",
             image=image,
             strength=artifact_strength,  # Use higher strength
-            guidance_scale=self.config.get('artifact_repair_guidance', 7.5),
-            num_inference_steps=self.config.get('artifact_repair_steps', 30),
+            guidance_scale=self._get_config('artifact_repair_guidance'),
+            num_inference_steps=self._get_config('artifact_repair_steps'),
         )
 
         # Blend based on mask
@@ -188,11 +222,12 @@ class SeamRepairProcessor:
         refined_array = np.array(result.images[0])
 
         # Expand mask for smoother blending
-        blend_mask = self._expand_mask(artifact_mask, pixels=20)
+        blend_mask = self._expand_mask(
+            artifact_mask, pixels=self._get_config('blend_mask_expansion'))
         blend_mask = self._smooth_mask(blend_mask)
 
         # Blend images
-        for c in range(3):
+        for c in range(self.config['rgb_channels']):
             original_array[:, :, c] = (
                 original_array[:, :, c] * (1 - blend_mask)
                 + refined_array[:, :, c] * blend_mask
@@ -216,19 +251,20 @@ class SeamRepairProcessor:
         result = pipeline(
             prompt=prompt + ", seamless, high quality",
             image=image,
-            strength=self.config.get('final_blend_strength', 0.4),
-            guidance_scale=self.config.get('final_blend_guidance', 7.5),
-            num_inference_steps=self.config.get('final_blend_steps', 40),
+            strength=self._get_config('final_blend_strength'),
+            guidance_scale=self._get_config('final_blend_guidance'),
+            num_inference_steps=self._get_config('final_blend_steps'),
         )
 
         # Blend based on mask
         original_array = np.array(image)
         processed_array = np.array(result.images[0])
 
-        blend_mask = self._expand_mask(artifact_mask, pixels=15)
+        blend_mask = self._expand_mask(
+            artifact_mask, pixels=self._get_config('smooth_blend_expansion'))
         blend_mask = self._smooth_mask(blend_mask)
 
-        for c in range(3):
+        for c in range(self.config['rgb_channels']):
             original_array[:, :, c] = (
                 original_array[:, :, c] * (1 - blend_mask)
                 + processed_array[:, :, c] * blend_mask
@@ -240,21 +276,22 @@ class SeamRepairProcessor:
         self, image: Image.Image, artifact_mask: np.ndarray
     ) -> Image.Image:
         """Basic repair using image filtering (fallback)"""
-        self.logger.warning("Using basic filtering for repair (no pipelines available)")
+        self.logger.warning(
+            "Using basic filtering for repair (no pipelines available)")
 
         # Convert to array
         img_array = np.array(image)
         h, w = img_array.shape[:2]
 
         # Identify artifact regions
-        mask_binary = (artifact_mask > 0.5).astype(np.uint8)
+        mask_binary = (artifact_mask > self.config['mask_binary_threshold']).astype(np.uint8)
 
         # Apply median filter to artifact regions
         from scipy.ndimage import median_filter
 
-        for c in range(3):
+        for c in range(self.config['rgb_channels']):
             channel = img_array[:, :, c]
-            filtered = median_filter(channel, size=5)
+            filtered = median_filter(channel, size=self.config['median_filter_size'])
 
             # Blend filtered version in artifact regions
             img_array[:, :, c] = np.where(mask_binary, filtered, channel)
@@ -263,11 +300,15 @@ class SeamRepairProcessor:
         result = Image.fromarray(img_array)
 
         # Create smooth blend mask
-        blend_mask = Image.fromarray((artifact_mask * 255).astype(np.uint8))
-        blend_mask = blend_mask.filter(ImageFilter.GaussianBlur(radius=self.config.get('blend_mask_blur_radius', 10)))
+        blend_mask = Image.fromarray((artifact_mask * self.config['mask_conversion_max']).astype(np.uint8))
+        blend_mask = blend_mask.filter(
+            ImageFilter.GaussianBlur(
+                radius=self._get_config('blend_mask_blur_radius')))
 
         # Blend with slightly blurred version
-        blurred = result.filter(ImageFilter.GaussianBlur(radius=self.config.get('final_blur_radius', 2)))
+        blurred = result.filter(
+            ImageFilter.GaussianBlur(
+                radius=self._get_config('final_blur_radius')))
         result = Image.composite(blurred, result, blend_mask)
 
         return result
@@ -277,7 +318,7 @@ class SeamRepairProcessor:
         from scipy import ndimage
 
         # Threshold mask
-        binary_mask = (mask > 0.1).astype(np.uint8)
+        binary_mask = (mask > self.config['seam_identification_threshold']).astype(np.uint8)
 
         # Label connected components
         labeled, num_features = ndimage.label(binary_mask)
@@ -303,21 +344,28 @@ class SeamRepairProcessor:
         cmin, cmax = np.where(cols)[0][[0, -1]]
         return (rmin, cmin, rmax, cmax)
 
-    def _expand_mask(self, mask: np.ndarray, pixels: int = 10) -> np.ndarray:
+    def _expand_mask(self, mask: np.ndarray, pixels: Optional[int] = None) -> np.ndarray:
         """Expand mask by specified pixels"""
         from scipy.ndimage import binary_dilation
+        
+        if pixels is None:
+            pixels = self.config['default_expand_pixels']
 
         # Create structuring element
-        struct = np.ones((pixels * 2 + 1, pixels * 2 + 1))
+        struct = np.ones((pixels * self.config['expansion_multiplier'] + self.config['expansion_offset'], 
+                         pixels * self.config['expansion_multiplier'] + self.config['expansion_offset']))
 
         # Dilate mask
-        expanded = binary_dilation(mask > 0.1, structure=struct)
+        expanded = binary_dilation(mask > self.config['seam_identification_threshold'], structure=struct)
 
         return expanded.astype(np.float32)
 
-    def _smooth_mask(self, mask: np.ndarray, sigma: float = 5.0) -> np.ndarray:
+    def _smooth_mask(self, mask: np.ndarray, sigma: Optional[float] = None) -> np.ndarray:
         """Smooth mask with gaussian blur"""
         from scipy.ndimage import gaussian_filter
+        
+        if sigma is None:
+            sigma = self.config['default_smooth_sigma']
 
         return gaussian_filter(mask, sigma=sigma)
 

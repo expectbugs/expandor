@@ -11,24 +11,26 @@ import shutil
 import tempfile
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import torch
 from PIL import Image
 
+from .._version import __version__
 from ..adapters.base_adapter import BasePipelineAdapter
 from ..processors.quality_orchestrator import QualityOrchestrator
 from ..processors.quality_validator import QualityValidator
 from ..processors.seam_repair import SeamRepairProcessor
 from ..utils.config_loader import ConfigLoader
 from ..utils.logging_utils import setup_logger
+from ..utils.path_resolver import PathResolver
 from .boundary_tracker import BoundaryTracker
 from .config import ExpandorConfig
-from .exceptions import ExpandorError, QualityError, StrategyError, VRAMError
+from .exceptions import ExpandorError, VRAMError
 from .metadata_tracker import MetadataTracker
 from .pipeline_orchestrator import PipelineOrchestrator
-from .result import ExpandorResult, StageResult
+from .result import ExpandorResult
 from .strategy_selector import StrategySelector
 from .vram_manager import VRAMManager
 
@@ -124,6 +126,9 @@ class Expandor:
                 config=config,
             )
 
+        # Apply quality preset settings to config
+        self._apply_quality_preset(config)
+
         # Log operation start
         self.logger.info(
             f"Starting expansion: {config.source_image} -> {config.get_target_resolution()} "
@@ -159,7 +164,8 @@ class Expandor:
             )
 
             # Post-execution validation and repair
-            self.logger.info("Validating quality and checking for artifacts...")
+            self.logger.info(
+                "Validating quality and checking for artifacts...")
             result = self._validate_and_repair(result, config)
 
             # Calculate final metrics
@@ -169,12 +175,11 @@ class Expandor:
             # Update metadata with complete operation info
             result.metadata.update(
                 {
-                    "expandor_version": "0.1.0",
+                    "expandor_version": __version__,
                     "config_snapshot": self._serialize_config(config),
                     "operation_log": self.metadata_tracker.get_operation_log(),
                     "boundary_positions": self.boundary_tracker.get_all_boundaries(),
-                }
-            )
+                })
 
             # Save metadata alongside image
             self._save_metadata(result)
@@ -253,7 +258,8 @@ class Expandor:
         """
         # Get basic requirement
         target_w, target_h = config.get_target_resolution()
-        base_vram = self.vram_manager.calculate_generation_vram(target_w, target_h)
+        base_vram = self.vram_manager.calculate_generation_vram(
+            target_w, target_h)
 
         # Get strategy-specific requirements
         strategy = self.strategy_selector.select(config, dry_run=True)
@@ -291,12 +297,12 @@ class Expandor:
         # Resolution validation
         target_w, target_h = config.get_target_resolution()
         if target_w <= 0 or target_h <= 0:
-            raise ValueError(f"Invalid target resolution: {target_w}x{target_h}")
+            raise ValueError(
+                f"Invalid target resolution: {target_w}x{target_h}")
 
         if target_w > 65536 or target_h > 65536:
             raise ValueError(
-                f"Target resolution too large: {target_w}x{target_h} (max 65536)"
-            )
+                f"Target resolution too large: {target_w}x{target_h} (max 65536)")
 
         # Source image validation
         if isinstance(config.source_image, Path):
@@ -324,8 +330,9 @@ class Expandor:
                 )
         else:
             raise TypeError(
-                f"source_image must be Path or PIL.Image, got {type(config.source_image)}"
-            )
+                f"source_image must be Path or PIL.Image, got {
+                    type(
+                        config.source_image)}")
 
         # Quality preset validation
         available_presets = list(self.config.get("quality_presets", {}).keys())
@@ -347,16 +354,17 @@ class Expandor:
 
     def _prepare_workspace(self, config: ExpandorConfig):
         """Prepare directories and workspace for execution"""
-        # Create temp subdirectories
+        # Create temp subdirectories using PathResolver
+        path_resolver = PathResolver(self.logger)
         temp_subdirs = ["progressive", "tiles", "upscale", "masks", "stages"]
 
         for subdir in temp_subdirs:
             dir_path = self._temp_base / subdir
-            dir_path.mkdir(parents=True, exist_ok=True)
+            path_resolver.resolve_path(dir_path, create=True, path_type="directory")
 
-        # Create stage directory if saving stages
+        # Create stage directory if saving stages using PathResolver
         if config.save_stages and config.stage_dir:
-            config.stage_dir.mkdir(parents=True, exist_ok=True)
+            path_resolver.resolve_path(config.stage_dir, create=True, path_type="directory")
 
     @property
     def temp_dir(self) -> Path:
@@ -398,7 +406,8 @@ class Expandor:
         result.quality_score = validation_result.get("quality_score", 1.0)
         result.seams_detected = validation_result.get("seam_count", 0)
 
-        # Check if repair needed - auto_refine is now always enabled for quality
+        # Check if repair needed - auto_refine is now always enabled for
+        # quality
         if validation_result.get("issues_found", False):
             self.logger.warning(
                 f"Quality issues detected: score={
@@ -409,23 +418,105 @@ class Expandor:
             # Attempt repair if adapter supports inpainting
             if self.pipeline_adapter and self.pipeline_adapter.supports_inpainting():
                 try:
+                    # Clear VRAM before artifact repair - critical for high resolution
+                    self.logger.info("Clearing VRAM before artifact repair...")
+                    import gc
+                    import torch
+                    
+                    # Aggressive memory clearing
+                    gc.collect()
+                    if torch.cuda.is_available():
+                        torch.cuda.empty_cache()
+                        torch.cuda.synchronize()
+                        
+                        # Log VRAM status before
+                        free_before = torch.cuda.mem_get_info()[0] / (1024**2)
+                        total_vram = torch.cuda.mem_get_info()[1] / (1024**2)
+                        self.logger.info(f"VRAM before clearing: {free_before:.0f}MB free / {total_vram:.0f}MB total")
+                        
+                        # If VRAM is critically low, enable CPU offload
+                        # Get minimum VRAM requirement from config
+                        vram_thresholds = self.config_manager.get_value('vram.thresholds')
+                        required_vram = vram_thresholds['tiled_processing']  # Use tiled threshold as minimum for repair
+                        
+                        if free_before < required_vram:
+                            self.logger.warning(f"Low VRAM detected ({free_before:.0f}MB < {required_vram}MB required)")
+                            self.logger.info("Enabling CPU offload for memory efficiency...")
+                            
+                            # Enable CPU offload on adapter if available
+                            if hasattr(self.pipeline_adapter, 'enable_cpu_offload'):
+                                self.pipeline_adapter.enable_cpu_offload()
+                            
+                            # Clear again after offload
+                            gc.collect()
+                            torch.cuda.empty_cache()
+                            torch.cuda.synchronize()
+                        
+                        # Final VRAM status
+                        free_after = torch.cuda.mem_get_info()[0] / (1024**2)
+                        self.logger.info(f"VRAM after optimization: {free_after:.0f}MB free / {total_vram:.0f}MB total")
+                    
                     repair_processor = SeamRepairProcessor(
-                        pipelines=self.pipeline_registry, logger=self.logger
+                        pipelines=self.pipeline_registry, 
+                        logger=self.logger,
+                        config=self.config.get('processing_params', {})
                     )
 
                     # Create artifact mask from issues
                     artifact_mask = self._create_artifact_mask(
-                        result.image_path,
-                        validation_result.get("details", {}).get("seam_locations", []),
-                    )
+                        result.image_path, validation_result.get(
+                            "details", {}).get(
+                            "seam_locations", []), )
 
-                    # Repair
-                    repair_result = repair_processor.repair_seams(
-                        image_path=result.image_path,
-                        artifact_mask=artifact_mask,
-                        prompt=config.prompt,
-                        metadata=result.metadata,
-                    )
+                    # Repair with OOM protection
+                    try:
+                        repair_result = repair_processor.repair_seams(
+                            image_path=result.image_path,
+                            artifact_mask=artifact_mask,
+                            prompt=config.prompt,
+                            metadata=result.metadata,
+                        )
+                    except torch.cuda.OutOfMemoryError as oom_error:
+                        self.logger.warning(f"OOM during artifact repair: {oom_error}")
+                        self.logger.info("Attempting repair with more aggressive memory management...")
+                        
+                        # Clear everything again
+                        gc.collect()
+                        torch.cuda.empty_cache()
+                        torch.cuda.synchronize()
+                        
+                        # Try once more with reduced settings if possible
+                        try:
+                            # Reduce inference steps for lower memory usage
+                            reduced_metadata = result.metadata.copy()
+                            
+                            # Get seam repair config for reduced settings
+                            seam_config = self.config_manager.get_processor_config('seam_repair')
+                            
+                            # Use approximately half of normal values for low memory
+                            normal_steps = seam_config.get('artifact_repair_steps', seam_config['seam_repair_steps'])
+                            normal_strength = seam_config.get('artifact_repair_strength', seam_config['seam_repair_strength'])
+                            
+                            reduced_metadata['artifact_repair_steps'] = max(10, normal_steps // 2)  # Half steps, min 10
+                            reduced_metadata['artifact_repair_strength'] = max(0.2, normal_strength * 0.6)  # 60% strength, min 0.2
+                            
+                            repair_result = repair_processor.repair_seams(
+                                image_path=result.image_path,
+                                artifact_mask=artifact_mask,
+                                prompt=config.prompt,
+                                metadata=reduced_metadata,
+                            )
+                            self.logger.info("Successfully repaired with reduced settings")
+                        except Exception as e2:
+                            self.logger.error(f"Failed even with reduced settings: {e2}")
+                            # Create a dummy result to continue
+                            repair_result = {
+                                "success": False,
+                                "image_path": result.image_path,
+                                "repairs_made": 0,
+                                "passes": 0,
+                                "final_score": result.quality_score
+                            }
 
                     if repair_result["success"]:
                         result.image_path = repair_result["image_path"]
@@ -444,7 +535,10 @@ class Expandor:
 
         return result
 
-    def _create_artifact_mask(self, image_path: Path, issues: List[Dict]) -> np.ndarray:
+    def _create_artifact_mask(
+            self,
+            image_path: Path,
+            issues: List[Dict]) -> np.ndarray:
         """Create mask for detected artifacts"""
         # This is a simplified implementation
         # In production, would use sophisticated artifact detection
@@ -455,7 +549,7 @@ class Expandor:
             for issue in issues:
                 if "location" in issue:
                     x, y, w, h = issue["location"]
-                    mask[y : y + h, x : x + w] = 255
+                    mask[y:y + h, x: x + w] = 255
 
             return mask
 
@@ -485,15 +579,15 @@ class Expandor:
                         temp_file.unlink()
                         self.logger.debug(f"Cleaned up temp file: {temp_file}")
                     except Exception as e:
-                        self.logger.warning(f"Failed to clean up {temp_file}: {e}")
+                        self.logger.warning(
+                            f"Failed to clean up {temp_file}: {e}")
 
         # Clean up files in temp subdirectories
         if hasattr(self, "_temp_base") and self._temp_base.exists():
+            # Get cleanup patterns from config
+            cleanup_patterns = self._config_manager.get_value("processing.temp_cleanup_patterns")
             temp_patterns = [
-                self._temp_base / "progressive" / "*.png",
-                self._temp_base / "tiles" / "*.png",
-                self._temp_base / "upscale" / "*.png",
-                self._temp_base / "masks" / "*.png",
+                self._temp_base / pattern for pattern in cleanup_patterns
             ]
 
             for pattern in temp_patterns:
@@ -556,7 +650,11 @@ class Expandor:
     def _initialize_components(self):
         """Initialize all core components"""
         try:
-            # VRAM Manager - Must be first to check hardware
+            # Configuration Manager - Must be first for all components to use
+            from .configuration_manager import ConfigurationManager
+            self.config_manager = ConfigurationManager()
+            
+            # VRAM Manager - Must be early to check hardware
             self.vram_manager = VRAMManager(self.logger)
             available_vram = self.vram_manager.get_available_vram()
             if available_vram:
@@ -566,8 +664,7 @@ class Expandor:
 
             # Strategy Selector with config and VRAM awareness
             self.strategy_selector = StrategySelector(
-                config=self.config, vram_manager=self.vram_manager, logger=self.logger
-            )
+                config=self.config, vram_manager=self.vram_manager, logger=self.logger)
 
             # Pipeline Orchestrator for executing strategies
             self.orchestrator = PipelineOrchestrator(
@@ -585,25 +682,30 @@ class Expandor:
 
             # Pipeline registry for external models
             self.pipeline_registry = {}
-            
+
             # Register pipelines from adapter
             if self.pipeline_adapter:
                 # Common pipeline types to check
                 pipeline_types = ["inpaint", "img2img", "refiner", "upscale"]
                 for pipeline_type in pipeline_types:
                     try:
-                        pipeline = self.pipeline_adapter.get_pipeline(pipeline_type)
+                        pipeline = self.pipeline_adapter.get_pipeline(
+                            pipeline_type)
                         if pipeline:
                             self.pipeline_registry[pipeline_type] = pipeline
-                            self.logger.info(f"Registered {pipeline_type} pipeline from adapter")
+                            self.logger.info(
+                                f"Registered {pipeline_type} pipeline from adapter")
                         else:
-                            self.logger.debug(f"No {pipeline_type} pipeline available from adapter")
+                            self.logger.debug(
+                                f"No {pipeline_type} pipeline available from adapter")
                     except Exception as e:
                         # Adapter may not support all pipeline types
-                        self.logger.debug(f"Could not get {pipeline_type} pipeline: {e}")
-                
-                self.logger.info(f"Total pipelines registered: {len(self.pipeline_registry)}")
-                
+                        self.logger.debug(
+                            f"Could not get {pipeline_type} pipeline: {e}")
+
+                self.logger.info(
+                    f"Total pipelines registered: {len(self.pipeline_registry)}")
+
                 # Share pipeline registry with orchestrator
                 self.orchestrator.pipeline_registry = self.pipeline_registry
 
@@ -649,6 +751,42 @@ class Expandor:
             "num_inference_steps": config.num_inference_steps,
         }
 
+    def _apply_quality_preset(self, config: ExpandorConfig) -> None:
+        """Apply quality preset settings to config"""
+        try:
+            # Load quality preset
+            quality_preset = self.config_loader.load_quality_preset(config.quality_preset)
+            
+            # Apply expansion settings if present
+            if "expansion" in quality_preset:
+                expansion_settings = quality_preset["expansion"]
+                if "denoising_strength" in expansion_settings:
+                    config.denoising_strength = expansion_settings["denoising_strength"]
+                    self.logger.debug(
+                        f"Applied denoising_strength={config.denoising_strength} from {config.quality_preset} preset"
+                    )
+            
+            # Apply generation settings if present
+            if "generation" in quality_preset:
+                gen_settings = quality_preset["generation"]
+                if "guidance_scale" in gen_settings:
+                    config.guidance_scale = gen_settings["guidance_scale"]
+                if "num_inference_steps" in gen_settings:
+                    config.num_inference_steps = gen_settings["num_inference_steps"]
+                    
+            self.logger.info(
+                f"Applied quality preset '{config.quality_preset}': "
+                f"denoising={config.denoising_strength}, "
+                f"guidance={config.guidance_scale}, "
+                f"steps={config.num_inference_steps}"
+            )
+            
+        except Exception as e:
+            self.logger.warning(
+                f"Failed to apply quality preset '{config.quality_preset}': {str(e)}. "
+                f"Using default values."
+            )
+
     def validate_quality(
         self, result: ExpandorResult, config: ExpandorConfig
     ) -> Dict[str, Any]:
@@ -666,14 +804,30 @@ class Expandor:
             QualityError: If quality requirements cannot be met
         """
 
-        # Initialize quality orchestrator
-        quality_config = {
-            "quality_validation": {
-                "quality_threshold": 0.85 if config.quality_preset == "ultra" else 0.7,
-                "max_refinement_passes": 3,
-                "auto_fix_threshold": 0.6,
-            }
-        }
+        # Initialize quality orchestrator with config from ConfigurationManager
+        try:
+            # Get quality orchestrator config
+            orchestrator_config = self.config_manager.get_processor_config('quality_orchestrator')
+            
+            # Get quality preset specific threshold if available
+            if config.quality_preset and config.quality_preset != "custom":
+                preset_config = self.config_manager.get_value(f'quality_presets.{config.quality_preset}')
+                quality_threshold = preset_config.get('validation', {}).get('quality_threshold', orchestrator_config['quality_threshold'])
+            else:
+                quality_threshold = orchestrator_config['quality_threshold']
+            
+            quality_config = {
+                "quality_validation": {
+                    "quality_threshold": quality_threshold,
+                    "max_refinement_passes": orchestrator_config['max_refinement_passes'],
+                    "auto_fix_threshold": orchestrator_config['auto_fix_threshold'],
+                }}
+        except (KeyError, ValueError) as e:
+            # FAIL LOUD on missing configuration
+            raise ValueError(
+                f"Quality orchestrator configuration not found!\n{str(e)}\n"
+                f"Required: processors.quality_orchestrator configuration"
+            )
 
         orchestrator = QualityOrchestrator(quality_config, self.logger)
 
@@ -719,5 +873,6 @@ class Expandor:
         # Clear CUDA cache if available
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
+            torch.cuda.synchronize()
 
         self.logger.info("Cleared all caches and freed memory")

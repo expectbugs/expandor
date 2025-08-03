@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://expandor.ai/schemas/base_schema.json",
+  "title": "Expandor Base Configuration Schema",
+  "description": "Base schema with common definitions",
+  "definitions": {
+    "positiveNumber": {
+      "type": "number",
+      "minimum": 0
+    },
+    "probability": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0
+    },
+    "positiveInteger": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "filePath": {
+      "type": ["string", "null"],
+      "pattern": "^(~|/|\\.|\\$).*"
+    }
+  }
+}

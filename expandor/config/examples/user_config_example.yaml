@@ -1,0 +1,32 @@
+# Expandor User Configuration
+# Place this file at ~/.config/expandor/config.yaml
+# All values here override system defaults
+
+version: "1.0"
+
+# Override core defaults
+core:
+  quality_preset: "high"  # Your default quality
+  save_stages: true      # Always save intermediate stages
+
+# Override specific strategy settings
+strategies:
+  progressive_outpaint:
+    base_strength: 0.8  # Prefer stronger outpainting
+
+# Custom paths for your system
+paths:
+  cache_dir: "/mnt/fast-ssd/expandor-cache"
+  output_dir: "~/Pictures/AI/expandor"
+  temp_dir: "/tmp/expandor-${USER}"
+
+# Custom quality preset
+custom_presets:
+  my_ultra:
+    extends: "ultra"
+    num_inference_steps: 100  # Even more steps
+    guidance_scale: 9.0
+
+# VRAM override for your GPU
+vram:
+  limit_mb: 20000  # Limit to 20GB even if 24GB available

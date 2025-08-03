@@ -36,13 +36,13 @@ class TestCPUOffloadStrategy:
         """Test optimal tile size calculation"""
         # Test with various VRAM amounts
         tile_512 = strategy._calculate_optimal_tile_size(512)
-        assert 384 <= tile_512 <= 768  # Within bounds
+        assert 384 <= tile_512 <= 1536  # Within bounds
         assert tile_512 % 64 == 0  # Multiple of 64
 
         tile_2048 = strategy._calculate_optimal_tile_size(2048)
-        assert tile_2048 <= 768  # Maximum
+        assert tile_2048 <= 1536  # Maximum
         assert tile_2048 % 64 == 0  # Multiple of 64
 
         tile_1024 = strategy._calculate_optimal_tile_size(1024)
-        assert 384 <= tile_1024 <= 768  # Within bounds
+        assert 384 <= tile_1024 <= 1536  # Within bounds
         assert tile_1024 % 64 == 0  # Multiple of 64

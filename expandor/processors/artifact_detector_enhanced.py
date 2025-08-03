@@ -6,7 +6,6 @@ Extends the existing ArtifactDetector with additional capabilities.
 import logging
 from dataclasses import dataclass
 from enum import IntEnum
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -50,56 +49,53 @@ class EnhancedArtifactDetector(ArtifactDetector):
     Integrates with existing EdgeAnalyzer for comprehensive detection.
     """
 
-    def __init__(
-        self, logger: Optional[logging.Logger] = None, quality_preset: str = "balanced"
-    ):
+    def __init__(self,
+                 logger: Optional[logging.Logger] = None,
+                 quality_preset: Optional[str] = None):
         """Initialize with configurable thresholds from config file"""
         super().__init__(logger)
         self.edge_analyzer = EdgeAnalyzer(logger)
-        self.quality_preset = quality_preset
-
+        
         # Load thresholds from config
         try:
-            from ..utils.config_loader import ConfigLoader
-
-            loader = ConfigLoader()
-            config = loader.load_config("quality_thresholds.yaml")
-
-            if not config or "quality_thresholds" not in config:
-                raise ValueError("Invalid quality_thresholds.yaml")
-
-            preset_config = config["quality_thresholds"].get(
-                quality_preset, config["quality_thresholds"]["balanced"]
-            )
-
-            # Apply thresholds with validation
-            self.skip_validation = preset_config.get("skip_validation", False)
-            self.seam_threshold = float(preset_config.get("seam_threshold", 0.25))
-            self.color_threshold = float(preset_config.get("color_threshold", 30))
-            self.gradient_threshold = float(
-                preset_config.get("gradient_threshold", 0.25)
-            )
-            self.frequency_threshold = float(
-                preset_config.get("frequency_threshold", 0.35)
-            )
-            self.min_quality_score = float(preset_config.get("min_quality_score", 0.75))
-            self.edge_sensitivity = float(preset_config.get("edge_sensitivity", 0.80))
+            from ..core.configuration_manager import ConfigurationManager
             
-            # Load processing params
-            proc_config = loader.load_config("processing_params.yaml")
-            if proc_config and 'artifact_detection' in proc_config:
-                self.gradient_deviation_allowed = float(
-                    proc_config['artifact_detection'].get('gradient_deviation_allowed', 0.1)
+            self.config_manager = ConfigurationManager()
+            
+            # Get quality preset from config if not provided
+            if quality_preset is None:
+                quality_preset = self.config_manager.get_value("quality_global.default_preset")
+            self.quality_preset = quality_preset
+            
+            # Get processor config
+            try:
+                self.processor_config = self.config_manager.get_processor_config('artifact_detector')
+            except ValueError as e:
+                # FAIL LOUD
+                raise ValueError(
+                    f"Failed to load artifact_detector configuration!\n{str(e)}"
                 )
-            else:
-                raise ValueError("Missing processing_params.yaml or artifact_detection config")
+
+            # Apply thresholds from config - NO DEFAULTS!
+            # skip_validation must be explicitly configured
+            if 'skip_validation' not in self.processor_config:
+                raise ValueError(
+                    "skip_validation not found in artifact_detector configuration!\n"
+                    "This value must be explicitly set in the configuration."
+                )
+            self.skip_validation = self.processor_config['skip_validation']
+            self.seam_threshold = self.processor_config['seam_threshold']
+            self.color_threshold = self.processor_config['color_threshold']
+            self.gradient_threshold = self.processor_config['gradient_threshold']
+            self.frequency_threshold = self.processor_config['frequency_threshold']
+            self.min_quality_score = self.processor_config['min_quality_score']
+            self.edge_sensitivity = self.processor_config['edge_sensitivity']
+            self.gradient_deviation_allowed = self.processor_config['gradient_deviation_allowed']
 
             self.logger.info(
-                f"Initialized artifact detector with '{quality_preset}' preset: "
-                f"seam={
+                f"Initialized artifact detector with '{quality_preset}' preset: " f"seam={
                     self.seam_threshold}, color={
-                    self.color_threshold}"
-            )
+                    self.color_threshold}")
 
         except Exception as e:
             # FAIL LOUD but with helpful fallback
@@ -111,15 +107,13 @@ class EnhancedArtifactDetector(ArtifactDetector):
                 f"Failed to load quality thresholds configuration: {e}",
                 details={
                     "error": str(e),
-                    "solution": "Ensure quality_thresholds.yaml exists and is valid"
-                }
-            )
+                    "solution": "Ensure quality_thresholds.yaml exists and is valid"})
 
     def detect_artifacts_comprehensive(
         self,
         image: Image.Image,
         boundaries: List[Dict[str, Any]],
-        quality_preset: str = "ultra",
+        quality_preset: Optional[str] = None,
     ) -> DetectionResult:
         """
         Comprehensive artifact detection using all available methods.
@@ -135,6 +129,10 @@ class EnhancedArtifactDetector(ArtifactDetector):
         Raises:
             QualityError: If detection fails
         """
+        # Get quality preset from config if not provided
+        if quality_preset is None:
+            quality_preset = self.quality_preset  # Use instance default
+        
         # Skip validation if configured
         if self.skip_validation:
             return DetectionResult(
@@ -142,7 +140,7 @@ class EnhancedArtifactDetector(ArtifactDetector):
                 severity=ArtifactSeverity.NONE,
                 artifact_mask=None,
                 seam_locations=[],
-                detection_scores={"skipped": 1.0},
+                detection_scores={"skipped": self.processor_config['skip_validation_score']},
                 total_artifact_pixels=0,
                 artifact_percentage=0.0,
                 edge_artifacts=[],
@@ -164,7 +162,8 @@ class EnhancedArtifactDetector(ArtifactDetector):
             detection_scores = {}
 
             # 1. Color discontinuity at boundaries
-            color_score = self._analyze_color_discontinuities(image, boundaries)
+            color_score = self._analyze_color_discontinuities(
+                image, boundaries)
             detection_scores["color"] = color_score
 
             # 2. Gradient analysis
@@ -194,11 +193,11 @@ class EnhancedArtifactDetector(ArtifactDetector):
 
             # Calculate statistics
             # Count pixels with artifacts (mask values > 0)
-            total_artifact_pixels = (
-                np.count_nonzero(artifact_mask) if artifact_mask is not None else 0
-            )
+            total_artifact_pixels = (np.count_nonzero(
+                artifact_mask) if artifact_mask is not None else 0)
             total_image_pixels = image.width * image.height
-            artifact_percentage = (total_artifact_pixels / total_image_pixels) * 100
+            artifact_percentage = (
+                total_artifact_pixels / total_image_pixels) * self.processor_config['artifact_percentage_multiplier']
 
             # Prepare seam locations
             seam_locations = []
@@ -208,7 +207,7 @@ class EnhancedArtifactDetector(ArtifactDetector):
                         "position": artifact.position,
                         "direction": (
                             "vertical"
-                            if artifact.orientation == np.pi / 2
+                            if artifact.orientation == self.processor_config['orientation_vertical']
                             else "horizontal"
                         ),
                         "strength": artifact.strength,
@@ -271,21 +270,21 @@ class EnhancedArtifactDetector(ArtifactDetector):
 
             if direction == "vertical" and 0 < pos < image.width - 1:
                 # Check vertical boundary
-                left_colors = img_array[:, max(0, pos - 5) : pos].mean(axis=(0, 1))
-                right_colors = img_array[:, pos : min(image.width, pos + 5)].mean(
-                    axis=(0, 1)
-                )
+                left_colors = img_array[:, max(
+                    0, pos - self.processor_config['color_sample_window']): pos].mean(axis=(0, 1))
+                right_colors = img_array[:, pos: min(
+                    image.width, pos + self.processor_config['color_sample_window'])].mean(axis=(0, 1))
                 diff = np.linalg.norm(left_colors - right_colors)
-                discontinuity_scores.append(diff / 255.0)
+                discontinuity_scores.append(diff / self.config_manager.get_value("processing.rgb_max_value"))
 
             elif direction == "horizontal" and 0 < pos < image.height - 1:
                 # Check horizontal boundary
-                top_colors = img_array[max(0, pos - 5) : pos, :].mean(axis=(0, 1))
-                bottom_colors = img_array[pos : min(image.height, pos + 5), :].mean(
-                    axis=(0, 1)
-                )
+                top_colors = img_array[max(
+                    0, pos - self.processor_config['color_sample_window']):pos, :].mean(axis=(0, 1))
+                bottom_colors = img_array[pos:min(
+                    image.height, pos + self.processor_config['color_sample_window']), :].mean(axis=(0, 1))
                 diff = np.linalg.norm(top_colors - bottom_colors)
-                discontinuity_scores.append(diff / 255.0)
+                discontinuity_scores.append(diff / self.config_manager.get_value("processing.rgb_max_value"))
 
         return max(discontinuity_scores) if discontinuity_scores else 0.0
 
@@ -312,18 +311,18 @@ class EnhancedArtifactDetector(ArtifactDetector):
             if direction == "vertical" and 0 < pos < image.width:
                 # Check gradient spike at vertical boundary
                 boundary_gradient = gradient_magnitude[
-                    :, max(0, pos - 2) : min(image.width, pos + 2)
+                    :, max(0, pos - self.processor_config['boundary_sample_width']): min(image.width, pos + self.processor_config['boundary_sample_width'])
                 ]
                 max_gradient = boundary_gradient.max()
-                boundary_scores.append(max_gradient / 255.0)
+                boundary_scores.append(max_gradient / self.config_manager.get_value("processing.rgb_max_value"))
 
             elif direction == "horizontal" and 0 < pos < image.height:
                 # Check gradient spike at horizontal boundary
                 boundary_gradient = gradient_magnitude[
-                    max(0, pos - 2) : min(image.height, pos + 2), :
+                    max(0, pos - self.processor_config['boundary_sample_width']): min(image.height, pos + self.processor_config['boundary_sample_width']), :
                 ]
                 max_gradient = boundary_gradient.max()
-                boundary_scores.append(max_gradient / 255.0)
+                boundary_scores.append(max_gradient / self.config_manager.get_value("processing.rgb_max_value"))
 
         return max(boundary_scores) if boundary_scores else 0.0
 
@@ -336,25 +335,25 @@ class EnhancedArtifactDetector(ArtifactDetector):
         # Apply FFT
         fft = np.fft.fft2(gray_array)
         fft_shift = np.fft.fftshift(fft)
-        magnitude_spectrum = np.log(np.abs(fft_shift) + 1)
+        magnitude_spectrum = np.log(np.abs(fft_shift) + self.processor_config['fft_magnitude_offset'])
 
         # Look for suspicious patterns in frequency domain
         # High frequency artifacts often indicate processing issues
         h, w = magnitude_spectrum.shape
-        center_h, center_w = h // 2, w // 2
+        center_h, center_w = h // self.processor_config['center_divisor'], w // self.processor_config['center_divisor']
 
         # Check high frequency content
         high_freq_region = magnitude_spectrum[
-            max(0, center_h - h // 4) : min(h, center_h + h // 4),
-            max(0, center_w - w // 4) : min(w, center_w + w // 4),
+            max(0, center_h - h // self.processor_config['frequency_window_divisor']): min(h, center_h + h // self.processor_config['frequency_window_divisor']),
+            max(0, center_w - w // self.processor_config['frequency_window_divisor']): min(w, center_w + w // self.processor_config['frequency_window_divisor']),
         ]
 
         # Normalize and calculate score
         high_freq_score = np.std(high_freq_region) / (
-            np.mean(magnitude_spectrum) + 1e-6
+            np.mean(magnitude_spectrum) + self.processor_config['high_freq_epsilon']
         )
 
-        return min(1.0, high_freq_score)
+        return min(self.processor_config['frequency_score_max'], high_freq_score)
 
     def _detect_repetitive_patterns(self, image: Image.Image) -> float:
         """Detect repetitive patterns that might indicate tiling artifacts."""
@@ -367,13 +366,13 @@ class EnhancedArtifactDetector(ArtifactDetector):
         # In a gradient, the difference should be proportional to distance
         is_gradient = True
         # Use gradient deviation threshold (should be loaded in __init__)
-        gradient_threshold = getattr(self, 'gradient_deviation_allowed', 0.1)
+        gradient_threshold = self.gradient_deviation_allowed
 
         # Check for repeating patterns at different scales
-        for shift in [64, 128, 256]:
-            if shift < min(image.width, image.height) // 2:
+        for shift in self.processor_config['pattern_shifts']:
+            if shift < min(image.width, image.height) // self.processor_config['pattern_shift_min_divisor']:
                 # Horizontal shift correlation
-                if image.width > shift * 2:
+                if image.width > shift * self.processor_config['center_divisor']:
                     left = img_array[:, : image.width - shift]
                     right = img_array[:, shift:]
                     # Use mean absolute difference instead of correlation for
@@ -382,7 +381,7 @@ class EnhancedArtifactDetector(ArtifactDetector):
 
                     # Check if this looks like a gradient
                     # For a gradient, diff should be proportional to shift
-                    expected_diff = (shift / image.width) * 255
+                    expected_diff = (shift / image.width) * self.processor_config['expected_diff_divisor']
                     if (
                         expected_diff > 0
                         and abs(diff - expected_diff) / expected_diff
@@ -390,16 +389,16 @@ class EnhancedArtifactDetector(ArtifactDetector):
                     ):
                         is_gradient = False
 
-                    pattern_scores.append(1.0 - diff / 255.0)
+                    pattern_scores.append(self.processor_config['frequency_score_max'] - diff / self.processor_config['pattern_score_divisor'])
 
                 # Vertical shift correlation
-                if image.height > shift * 2:
-                    top = img_array[: image.height - shift, :]
+                if image.height > shift * self.processor_config['center_divisor']:
+                    top = img_array[:image.height - shift, :]
                     bottom = img_array[shift:, :]
                     diff = np.mean(np.abs(top - bottom))
 
                     # Check gradient behavior
-                    expected_diff = (shift / image.height) * 255
+                    expected_diff = (shift / image.height) * self.processor_config['expected_diff_divisor']
                     if (
                         expected_diff > 0
                         and abs(diff - expected_diff) / expected_diff
@@ -407,13 +406,13 @@ class EnhancedArtifactDetector(ArtifactDetector):
                     ):
                         is_gradient = False
 
-                    pattern_scores.append(1.0 - diff / 255.0)
+                    pattern_scores.append(self.processor_config['frequency_score_max'] - diff / self.processor_config['pattern_score_divisor'])
 
         # If it looks like a gradient, return low score
         if is_gradient:
-            return 0.0
+            return self.processor_config['pattern_score_fallback']
 
-        return max(pattern_scores) if pattern_scores else 0.0
+        return max(pattern_scores) if pattern_scores else self.processor_config['pattern_score_fallback']
 
     def _calculate_severity(
         self,
@@ -424,36 +423,37 @@ class EnhancedArtifactDetector(ArtifactDetector):
     ) -> ArtifactSeverity:
         """Calculate overall severity based on all factors."""
         # Adjust thresholds based on quality preset
-        multiplier = {
-            "ultra": 0.5,  # Most strict
-            "high": 0.7,
-            "balanced": 1.0,
-            "fast": 1.5,  # Most lenient
-        }.get(quality_preset, 1.0)
+        multiplier = self.processor_config['quality_preset_multipliers'].get(
+            quality_preset, 
+            self.processor_config['quality_preset_multipliers']['balanced']
+        )
 
         # Calculate weighted score
         weighted_score = (
-            scores.get("color", 0) * 0.3
-            + scores.get("gradient", 0) * 0.3
-            + scores.get("frequency", 0) * 0.2
-            + scores.get("pattern", 0) * 0.2
+            scores.get("color", 0) * self.processor_config['score_weights']['color']
+            + scores.get("gradient", 0) * self.processor_config['score_weights']['gradient']
+            + scores.get("frequency", 0) * self.processor_config['score_weights']['frequency']
+            + scores.get("pattern", 0) * self.processor_config['score_weights']['pattern']
         )
 
         # Add penalty for seam count
-        seam_penalty = min(1.0, seam_count * 0.2)
+        seam_penalty = min(
+            self.processor_config['seam_penalty_max'], 
+            seam_count * self.processor_config['seam_penalty_multiplier']
+        )
         total_score = weighted_score + seam_penalty
 
         # Apply quality preset multiplier
         adjusted_score = total_score / multiplier
 
         # Determine severity
-        if adjusted_score < 0.1:
+        if adjusted_score < self.processor_config['severity_thresholds']['none_max']:
             return ArtifactSeverity.NONE
-        elif adjusted_score < 0.3:
+        elif adjusted_score < self.processor_config['severity_thresholds']['low_max']:
             return ArtifactSeverity.LOW
-        elif adjusted_score < 0.5:
+        elif adjusted_score < self.processor_config['severity_thresholds']['medium_max']:
             return ArtifactSeverity.MEDIUM
-        elif adjusted_score < 0.7:
+        elif adjusted_score < self.processor_config['severity_thresholds']['high_max']:
             return ArtifactSeverity.HIGH
         else:
             return ArtifactSeverity.CRITICAL
@@ -470,7 +470,7 @@ class EnhancedArtifactDetector(ArtifactDetector):
         # Add artifacts from edge analysis
         if hasattr(self.edge_analyzer, "create_edge_mask"):
             edge_mask = self.edge_analyzer.create_edge_mask(
-                artifacts, image_size, dilation=10
+                artifacts, image_size, dilation=self.processor_config['artifact_mask_dilation']
             )
             mask = np.maximum(mask, edge_mask)
 
@@ -481,10 +481,10 @@ class EnhancedArtifactDetector(ArtifactDetector):
 
             if direction == "vertical" and 0 < pos < image_size[0]:
                 # Mark vertical boundary region
-                mask[:, max(0, pos - 5) : min(image_size[0], pos + 5)] = 255
+                mask[:, max(0, pos - self.processor_config['boundary_mask_width']): min(image_size[0], pos + self.processor_config['boundary_mask_width'])] = 255
             elif direction == "horizontal" and 0 < pos < image_size[1]:
                 # Mark horizontal boundary region
-                mask[max(0, pos - 5) : min(image_size[1], pos + 5), :] = 255
+                mask[max(0, pos - self.processor_config['boundary_mask_width']):min(image_size[1], pos + self.processor_config['boundary_mask_width']), :] = 255
 
         return mask
 
@@ -501,32 +501,31 @@ class EnhancedArtifactDetector(ArtifactDetector):
             return recommendations
 
         # Color discontinuities
-        if scores.get("color", 0) > 0.5:
+        if scores.get("color", 0) > self.processor_config['detection_score_threshold']:
             recommendations.append(
                 "Strong color discontinuities detected. Consider using higher "
-                "denoising strength (0.9+) or additional refinement passes."
+                f"denoising strength ({self.processor_config['denoising_strength_recommendation']}+) or additional refinement passes."
             )
 
         # Gradient issues
-        if scores.get("gradient", 0) > 0.5:
+        if scores.get("gradient", 0) > self.processor_config['detection_score_threshold']:
             recommendations.append(
                 "Sharp gradient transitions found. Enable gradient smoothing "
                 "or use SWPO strategy for smoother expansions."
             )
 
         # Frequency artifacts
-        if scores.get("frequency", 0) > 0.5:
+        if scores.get("frequency", 0) > self.processor_config['detection_score_threshold']:
             recommendations.append(
                 "High-frequency artifacts detected. Consider using a lower "
                 "guidance scale or additional blur in transition zones."
             )
 
         # Pattern repetition
-        if scores.get("pattern", 0) > 0.5:
+        if scores.get("pattern", 0) > self.processor_config['detection_score_threshold']:
             recommendations.append(
                 "Repetitive patterns detected. This may indicate tiling issues. "
-                "Consider using larger tile sizes or better overlap blending."
-            )
+                "Consider using larger tile sizes or better overlap blending.")
 
         # Quality preset specific
         if quality_preset == "fast" and severity >= ArtifactSeverity.MEDIUM:

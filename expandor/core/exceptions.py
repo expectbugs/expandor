@@ -26,8 +26,11 @@ class VRAMError(ExpandorError):
     """VRAM-related errors."""
 
     def __init__(
-        self, operation: str, required_mb: float, available_mb: float, message: str = ""
-    ):
+            self,
+            operation: str,
+            required_mb: float,
+            available_mb: float,
+            message: str = ""):
         self.operation = operation
         self.required_mb = required_mb
         self.available_mb = available_mb

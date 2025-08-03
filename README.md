@@ -16,8 +16,8 @@ Expandor is a powerful, model-agnostic image resolution and aspect ratio adaptat
 - **Production-Ready CLI**: Full-featured command-line interface with batch processing
 - **Quality Assurance**: Built-in artifact detection and repair systems
 - **LoRA Support**: Advanced LoRA stacking with conflict resolution
-- **Comprehensive Configuration**: Flexible configuration system with presets and overrides
-- **Zero Hardcoded Values**: All parameters externalized to YAML configuration files
+- **Comprehensive Configuration**: v2.0 configuration system with ConfigurationManager singleton
+- **Zero Hardcoded Values**: Complete configurability with FAIL LOUD philosophy - no silent defaults
 
 ## 📋 Table of Contents
 
@@ -217,29 +217,37 @@ result = expandor.expand(config)
 
 ## ⚙️ Configuration
 
+> **📢 v0.7.0 Update**: Expandor now uses a centralized ConfigurationManager with FAIL LOUD philosophy. All configuration values must be explicitly set - there are no silent defaults. See [CONFIG_MIGRATION.md](CONFIG_MIGRATION.md) for migration details.
+
 ### User Configuration
 
 Create a user configuration file at `~/.config/expandor/config.yaml`:
 
 ```yaml
+# Expandor v2.0 Configuration
+version: "2.0"
+
+# Override specific values from master_defaults.yaml
+quality_global:
+  default_preset: high
+
+strategies:
+  progressive_outpaint:
+    base_strength: 0.8  # Override default 0.75
+
+adapters:
+  common:
+    default_num_inference_steps: 40  # Override default 50
+
+# Custom paths
+paths:
+  output_dir: ~/Pictures/expandor
+  cache_dir: ~/.cache/expandor
+
+# Model preferences
 models:
   sdxl:
     model_id: stabilityai/stable-diffusion-xl-base-1.0
-    dtype: float16
-    device: cuda
-
-loras:
-  - name: detail_enhancer
-    path: /path/to/loras/detail.safetensors
-    weight: 0.7
-    type: detail
-
-default_quality: high
-default_strategy: auto
-
-preferences:
-  save_metadata: true
-  auto_select_strategy: true
 ```
 
 ### Quality Presets

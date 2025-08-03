@@ -4,13 +4,12 @@ Future implementation for Automatic1111 WebUI API integration
 """
 
 import logging
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from PIL import Image
 
-from ..utils.logging_utils import setup_logger
 from .base_adapter import BasePipelineAdapter
+from ..core.configuration_manager import ConfigurationManager
 
 
 class A1111PipelineAdapter(BasePipelineAdapter):
@@ -53,8 +52,7 @@ class A1111PipelineAdapter(BasePipelineAdapter):
         raise NotImplementedError(
             "A1111 pipeline loading not yet implemented.\n"
             "This feature will be added in a future release.\n"
-            "For now, please use DiffusersPipelineAdapter or MockPipelineAdapter."
-        )
+            "For now, please use DiffusersPipelineAdapter or MockPipelineAdapter.")
 
     def get_pipeline(self, pipeline_type: str) -> Optional[Any]:
         """Get loaded pipeline by type"""
@@ -64,19 +62,30 @@ class A1111PipelineAdapter(BasePipelineAdapter):
         self,
         prompt: str,
         negative_prompt: Optional[str] = None,
-        width: int = 1024,
-        height: int = 1024,
-        num_inference_steps: int = 50,
-        guidance_scale: float = 7.5,
+        width: Optional[int] = None,
+        height: Optional[int] = None,
+        num_inference_steps: Optional[int] = None,
+        guidance_scale: Optional[float] = None,
         seed: Optional[int] = None,
         **kwargs
     ) -> Image.Image:
         """Generate image from text prompt"""
+        # Get defaults from configuration - FAIL LOUD if not found
+        config_manager = ConfigurationManager()
+        
+        if width is None:
+            width = config_manager.get_value("adapters.a1111.default_width")
+        if height is None:
+            height = config_manager.get_value("adapters.a1111.default_height")
+        if num_inference_steps is None:
+            num_inference_steps = config_manager.get_value("adapters.a1111.default_steps")
+        if guidance_scale is None:
+            guidance_scale = config_manager.get_value("adapters.a1111.default_cfg_scale")
+        
         raise NotImplementedError(
             "A1111 generation not yet implemented.\n"
             "This adapter is a placeholder for future Automatic1111 API integration.\n"
-            "Please use DiffusersPipelineAdapter for AI model support."
-        )
+            "Please use DiffusersPipelineAdapter for AI model support.")
 
     def inpaint(
         self,
@@ -84,70 +93,95 @@ class A1111PipelineAdapter(BasePipelineAdapter):
         mask: Image.Image,
         prompt: str,
         negative_prompt: Optional[str] = None,
-        strength: float = 0.8,
-        num_inference_steps: int = 50,
-        guidance_scale: float = 7.5,
+        strength: Optional[float] = None,
+        num_inference_steps: Optional[int] = None,
+        guidance_scale: Optional[float] = None,
         seed: Optional[int] = None,
         **kwargs
     ) -> Image.Image:
         """Inpaint masked region of image"""
+        # Get defaults from configuration - FAIL LOUD if not found
+        config_manager = ConfigurationManager()
+        
+        if strength is None:
+            strength = config_manager.get_value("adapters.a1111.default_denoising_strength")
+        if num_inference_steps is None:
+            num_inference_steps = config_manager.get_value("adapters.a1111.default_steps")
+        if guidance_scale is None:
+            guidance_scale = config_manager.get_value("adapters.a1111.default_cfg_scale")
+        
         raise NotImplementedError(
             "A1111 inpainting not yet implemented.\n"
-            "This adapter is a placeholder for future Automatic1111 API integration."
-        )
+            "This adapter is a placeholder for future Automatic1111 API integration.")
 
     def img2img(
         self,
         image: Image.Image,
         prompt: str,
         negative_prompt: Optional[str] = None,
-        strength: float = 0.8,
-        num_inference_steps: int = 50,
-        guidance_scale: float = 7.5,
+        strength: Optional[float] = None,
+        num_inference_steps: Optional[int] = None,
+        guidance_scale: Optional[float] = None,
         seed: Optional[int] = None,
         **kwargs
     ) -> Image.Image:
         """Transform image with img2img"""
+        # Get defaults from configuration - FAIL LOUD if not found
+        config_manager = ConfigurationManager()
+        
+        if strength is None:
+            strength = config_manager.get_value("adapters.a1111.default_denoising_strength")
+        if num_inference_steps is None:
+            num_inference_steps = config_manager.get_value("adapters.a1111.default_steps")
+        if guidance_scale is None:
+            guidance_scale = config_manager.get_value("adapters.a1111.default_cfg_scale")
+        
         raise NotImplementedError(
             "A1111 img2img not yet implemented.\n"
-            "This adapter is a placeholder for future Automatic1111 API integration."
-        )
+            "This adapter is a placeholder for future Automatic1111 API integration.")
 
     def refine(self, image: Image.Image, prompt: str, **kwargs) -> Image.Image:
         """Run refinement pipeline"""
         raise NotImplementedError(
             "A1111 refinement not yet implemented.\n"
-            "This adapter is a placeholder for future Automatic1111 API integration."
-        )
+            "This adapter is a placeholder for future Automatic1111 API integration.")
 
     def enhance(
         self,
         image: Image.Image,
         prompt: Optional[str] = None,
-        scale_factor: int = 2,
+        scale_factor: Optional[int] = None,
         **kwargs
     ) -> Image.Image:
         """Enhance/upscale image"""
+        # Get default scale_factor from configuration if not provided
+        if scale_factor is None:
+            config_manager = ConfigurationManager()
+            scale_factor = config_manager.get_value("adapters.common.default_scale_factor")
+        
         raise NotImplementedError(
             "A1111 enhancement not yet implemented.\n"
             "This adapter is a placeholder for future Automatic1111 API integration.\n"
-            "A1111 supports various upscalers (ESRGAN, SwinIR, etc.) that will be integrated."
-        )
+            "A1111 supports various upscalers (ESRGAN, SwinIR, etc.) that will be integrated.")
 
     def get_optimal_dimensions(
         self, target_width: int, target_height: int
     ) -> Tuple[int, int]:
         """Get optimal dimensions for the model"""
-        # Default to multiples of 64 for SD compatibility
-        optimal_width = (target_width // 64) * 64
-        optimal_height = (target_height // 64) * 64
+        # Get dimension constraints from configuration
+        config_manager = ConfigurationManager()
+        dimension_multiple = config_manager.get_value("adapters.a1111.dimension_multiple")
+        min_dimension = config_manager.get_value("adapters.a1111.min_dimension")
+        
+        # Round to dimension multiple for SD compatibility
+        optimal_width = (target_width // dimension_multiple) * dimension_multiple
+        optimal_height = (target_height // dimension_multiple) * dimension_multiple
 
-        return (max(512, optimal_width), max(512, optimal_height))
+        return (max(min_dimension, optimal_width), max(min_dimension, optimal_height))
 
     def unload_pipeline(self, pipeline_type: str):
         """Unload pipeline to free memory"""
         # No pipelines loaded in placeholder
-        pass
 
     def get_available_pipelines(self) -> List[str]:
         """List available pipeline types"""
@@ -176,18 +210,29 @@ class A1111PipelineAdapter(BasePipelineAdapter):
         control_image: Image.Image,
         prompt: str,
         negative_prompt: Optional[str] = None,
-        controlnet_conditioning_scale: float = 1.0,
-        strength: float = 0.8,
-        num_inference_steps: int = 50,
-        guidance_scale: float = 7.5,
+        controlnet_conditioning_scale: Optional[float] = None,
+        strength: Optional[float] = None,
+        num_inference_steps: Optional[int] = None,
+        guidance_scale: Optional[float] = None,
         seed: Optional[int] = None,
         **kwargs
     ) -> Image.Image:
         """Inpaint with ControlNet guidance"""
+        # Get defaults from configuration - FAIL LOUD if not found
+        config_manager = ConfigurationManager()
+        
+        if controlnet_conditioning_scale is None:
+            controlnet_conditioning_scale = config_manager.get_value("adapters.diffusers.controlnet_default_conditioning_scale")
+        if strength is None:
+            strength = config_manager.get_value("adapters.a1111.default_denoising_strength")
+        if num_inference_steps is None:
+            num_inference_steps = config_manager.get_value("adapters.a1111.default_steps")
+        if guidance_scale is None:
+            guidance_scale = config_manager.get_value("adapters.a1111.default_cfg_scale")
+        
         raise NotImplementedError(
             "A1111 ControlNet inpainting not yet implemented.\n"
-            "This adapter is a placeholder for future Automatic1111 API integration."
-        )
+            "This adapter is a placeholder for future Automatic1111 API integration.")
 
     def controlnet_img2img(
         self,
@@ -195,50 +240,64 @@ class A1111PipelineAdapter(BasePipelineAdapter):
         control_image: Image.Image,
         prompt: str,
         negative_prompt: Optional[str] = None,
-        controlnet_conditioning_scale: float = 1.0,
-        strength: float = 0.8,
-        num_inference_steps: int = 50,
-        guidance_scale: float = 7.5,
+        controlnet_conditioning_scale: Optional[float] = None,
+        strength: Optional[float] = None,
+        num_inference_steps: Optional[int] = None,
+        guidance_scale: Optional[float] = None,
         seed: Optional[int] = None,
         **kwargs
     ) -> Image.Image:
         """Image-to-image with ControlNet guidance"""
+        # Get defaults from configuration - FAIL LOUD if not found
+        config_manager = ConfigurationManager()
+        
+        if controlnet_conditioning_scale is None:
+            controlnet_conditioning_scale = config_manager.get_value("adapters.diffusers.controlnet_default_conditioning_scale")
+        if strength is None:
+            strength = config_manager.get_value("adapters.a1111.default_denoising_strength")
+        if num_inference_steps is None:
+            num_inference_steps = config_manager.get_value("adapters.a1111.default_steps")
+        if guidance_scale is None:
+            guidance_scale = config_manager.get_value("adapters.a1111.default_cfg_scale")
+        
         raise NotImplementedError(
             "A1111 ControlNet img2img not yet implemented.\n"
-            "This adapter is a placeholder for future Automatic1111 API integration."
-        )
+            "This adapter is a placeholder for future Automatic1111 API integration.")
 
     def get_controlnet_types(self) -> List[str]:
         """Get available ControlNet types"""
         return []
 
-    def load_controlnet(self, controlnet_type: str, model_id: Optional[str] = None):
+    def load_controlnet(
+            self,
+            controlnet_type: str,
+            model_id: Optional[str] = None):
         """Load a specific ControlNet model"""
         raise NotImplementedError(
             "A1111 ControlNet loading not yet implemented.\n"
-            "This adapter is a placeholder for future Automatic1111 API integration."
-        )
+            "This adapter is a placeholder for future Automatic1111 API integration.")
 
     def estimate_vram(self, operation: str, **kwargs) -> float:
         """Estimate VRAM for an operation in MB"""
-        # Return conservative estimates based on typical A1111 usage
-        estimates = {
-            "generate": 4500,  # txt2img
-            "inpaint": 4000,
-            "img2img": 3500,
-            "enhance": 2000,  # Upscaling
-        }
-        return estimates.get(operation, 4000)
+        # Get VRAM estimates from configuration
+        config_manager = ConfigurationManager()
+        estimates = config_manager.get_value("adapters.a1111.vram_estimates")
+        
+        # Return estimate for operation or default
+        if operation in estimates:
+            return estimates[operation]
+        else:
+            return estimates.get("default", config_manager.get_value("adapters.a1111.vram_estimates.default"))
 
     def enable_memory_efficient_mode(self):
         """Enable memory optimizations"""
         # No-op for placeholder
-        self.logger.info("Memory efficient mode not applicable for A1111 placeholder")
+        self.logger.info(
+            "Memory efficient mode not applicable for A1111 placeholder")
 
     def clear_cache(self):
         """Clear any cached data/models"""
         # No cache in placeholder
-        pass
 
     def supports_operation(self, operation: str) -> bool:
         """Check if adapter supports a specific operation"""
@@ -261,7 +320,8 @@ class A1111PipelineAdapter(BasePipelineAdapter):
             "status": "not_implemented",
             "message": "Automatic1111 API connection will be added in a future release",
             "api_url": self.api_url,
-            "authenticated": bool(self.api_key),
+            "authenticated": bool(
+                self.api_key),
         }
 
     def get_available_models(self) -> List[str]:

@@ -4,9 +4,8 @@ Base adapter interface for pipeline implementations
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple
 
-import torch
 from PIL import Image
 
 
@@ -16,12 +15,10 @@ class BasePipelineAdapter(ABC):
     @abstractmethod
     def load_pipeline(self, pipeline_type: str, **kwargs) -> Any:
         """Load a specific pipeline type"""
-        pass
 
     @abstractmethod
     def get_pipeline(self, pipeline_type: str) -> Optional[Any]:
         """Get loaded pipeline by type"""
-        pass
 
     @abstractmethod
     def generate(
@@ -36,7 +33,6 @@ class BasePipelineAdapter(ABC):
         **kwargs
     ) -> Image.Image:
         """Generate image from text prompt"""
-        pass
 
     @abstractmethod
     def inpaint(
@@ -52,7 +48,6 @@ class BasePipelineAdapter(ABC):
         **kwargs
     ) -> Image.Image:
         """Inpaint masked region of image"""
-        pass
 
     @abstractmethod
     def img2img(
@@ -67,12 +62,10 @@ class BasePipelineAdapter(ABC):
         **kwargs
     ) -> Image.Image:
         """Transform image with img2img"""
-        pass
 
     @abstractmethod
     def refine(self, image: Image.Image, prompt: str, **kwargs) -> Image.Image:
         """Run refinement pipeline"""
-        pass
 
     @abstractmethod
     def enhance(
@@ -83,44 +76,36 @@ class BasePipelineAdapter(ABC):
         **kwargs
     ) -> Image.Image:
         """Enhance/upscale image"""
-        pass
 
     @abstractmethod
     def get_optimal_dimensions(
         self, target_width: int, target_height: int
     ) -> Tuple[int, int]:
         """Get optimal dimensions for the model"""
-        pass
 
     @abstractmethod
     def unload_pipeline(self, pipeline_type: str):
         """Unload pipeline to free memory"""
-        pass
 
     @abstractmethod
     def get_available_pipelines(self) -> List[str]:
         """List available pipeline types"""
-        pass
 
     @abstractmethod
     def supports_inpainting(self) -> bool:
         """Check if adapter supports inpainting"""
-        pass
 
     @abstractmethod
     def supports_img2img(self) -> bool:
         """Check if adapter supports img2img"""
-        pass
 
     @abstractmethod
     def supports_enhancement(self) -> bool:
         """Check if adapter supports enhancement"""
-        pass
 
     @abstractmethod
     def supports_controlnet(self) -> bool:
         """Check if adapter supports ControlNet"""
-        pass
 
     @abstractmethod
     def controlnet_inpaint(
@@ -159,7 +144,6 @@ class BasePipelineAdapter(ABC):
         Returns:
             Inpainted image with ControlNet guidance
         """
-        pass
 
     @abstractmethod
     def controlnet_img2img(
@@ -196,7 +180,6 @@ class BasePipelineAdapter(ABC):
         Returns:
             Transformed image with ControlNet guidance
         """
-        pass
 
     @abstractmethod
     def get_controlnet_types(self) -> List[str]:
@@ -206,10 +189,12 @@ class BasePipelineAdapter(ABC):
         Returns:
             List of ControlNet types (e.g., ['canny', 'depth', 'openpose'])
         """
-        pass
 
     @abstractmethod
-    def load_controlnet(self, controlnet_type: str, model_id: Optional[str] = None):
+    def load_controlnet(
+            self,
+            controlnet_type: str,
+            model_id: Optional[str] = None):
         """
         Load a specific ControlNet model
 
@@ -217,22 +202,18 @@ class BasePipelineAdapter(ABC):
             controlnet_type: Type of ControlNet (canny, depth, etc.)
             model_id: Optional specific model ID
         """
-        pass
 
     @abstractmethod
     def estimate_vram(self, operation: str, **kwargs) -> float:
         """Estimate VRAM for an operation in MB"""
-        pass
 
     @abstractmethod
     def enable_memory_efficient_mode(self):
         """Enable memory optimizations (CPU offload, etc.)"""
-        pass
 
     @abstractmethod
     def clear_cache(self):
         """Clear any cached data/models"""
-        pass
 
     def get_config_path(self) -> Optional[Path]:
         """Get associated config path if any"""

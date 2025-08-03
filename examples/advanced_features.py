@@ -16,11 +16,11 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+# Add expandor to path for development testing
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
-
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from expandor import Expandor
 from expandor.adapters import DiffusersPipelineAdapter, MockPipelineAdapter
@@ -30,6 +30,9 @@ from expandor.core.config import ExpandorConfig
 from expandor.strategies import StrategySelector
 from expandor.utils.logging_utils import setup_logger
 from expandor.utils.metadata_utils import MetadataManager
+
+# Set up module-level logger
+logger = setup_logger(__name__)
 
 
 def create_test_image_with_details():
@@ -44,10 +47,12 @@ def create_test_image_with_details():
 
     # Add text (if font available)
     try:
-        draw.text((50, 50), "Expandor Test Image", fill=(255, 255, 255))
-        draw.text((50, 700), "Advanced Features Demo", fill=(255, 255, 255))
-    except:
-        pass  # Skip if no font available
+        from PIL import ImageFont
+        font = ImageFont.load_default()
+        draw.text((50, 50), "Expandor Test Image", fill=(255, 255, 255), font=font)
+        draw.text((50, 700), "Advanced Features Demo", fill=(255, 255, 255), font=font)
+    except ImportError:
+        logger.debug("Default font not available, skipping text overlay")
 
     # Add some noise/texture
     pixels = img.load()
@@ -65,7 +70,6 @@ def create_test_image_with_details():
 
 
 def main():
-    logger = setup_logger(__name__)
     print("=== Advanced Expandor Features ===\n")
 
     # Create test image

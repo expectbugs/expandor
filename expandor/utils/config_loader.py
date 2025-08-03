@@ -18,13 +18,30 @@ except ImportError:
     # Python < 3.7
     HAS_IMPORTLIB_RESOURCES = False
 
+# Configuration file mapping
+CONFIG_FILES = {
+    "base_defaults": "base_defaults.yaml",
+    "strategies": "strategies.yaml",
+    "quality_presets": "quality_presets.yaml",
+    "vram_strategies": "vram_strategies.yaml",
+    "model_constraints": "model_constraints.yaml",
+    "processing_params": "processing_params.yaml",
+    "output_quality": "output_quality.yaml",
+    "strategy_parameters": "strategy_parameters.yaml",
+    "vram_thresholds": "vram_thresholds.yaml",
+    "quality_thresholds": "quality_thresholds.yaml",
+    "resolution_presets": "resolution_presets.yaml",
+    "controlnet_config": "controlnet_config.yaml",
+}
+
 
 class ConfigLoader:
     """
     Loads and manages configuration from YAML files
     """
 
-    def __init__(self, config_dir: Path, logger: Optional[logging.Logger] = None):
+    def __init__(self, config_dir: Path,
+                 logger: Optional[logging.Logger] = None):
         """
         Initialize config loader
 
@@ -52,13 +69,18 @@ class ConfigLoader:
 
         # List of config files to load in order
         config_files = [
+            "base_defaults.yaml",
             "strategies.yaml",
             "quality_presets.yaml",
+            "quality_thresholds.yaml",
+            "resolution_presets.yaml",
             "vram_strategies.yaml",
             "model_constraints.yaml",
-            "strategy_defaults.yaml",
             "processing_params.yaml",
             "output_quality.yaml",
+            "strategy_parameters.yaml",
+            "vram_thresholds.yaml",
+            "controlnet_config.yaml",
         ]
 
         for config_file in config_files:
@@ -86,12 +108,12 @@ class ConfigLoader:
                                 config["vram_strategies"] = file_config
                             elif config_file == "model_constraints.yaml":
                                 config["model_constraints"] = file_config
-                            elif config_file == "strategy_defaults.yaml":
-                                config["strategy_defaults"] = file_config
                             elif config_file == "processing_params.yaml":
                                 config["processing_params"] = file_config
                             elif config_file == "output_quality.yaml":
                                 config["output_quality"] = file_config
+                            elif config_file == "strategy_parameters.yaml":
+                                config["strategy_parameters"] = file_config
                             else:
                                 config.update(file_config)
 
@@ -129,20 +151,48 @@ class ConfigLoader:
             self.logger.error(f"Failed to load {filename}: {e}")
             raise
 
-    def save_config_file(self, filename: str, config: Dict[str, Any], 
-                        user_config: bool = False) -> Path:
+    def get_config(self, config_name: str) -> Dict[str, Any]:
+        """
+        Get configuration by name using CONFIG_FILES mapping
+
+        Args:
+            config_name: Configuration name (e.g., 'strategy_parameters')
+
+        Returns:
+            Configuration dictionary
+
+        Raises:
+            ValueError: If config name not recognized
+            FileNotFoundError: If config file doesn't exist
+        """
+        if config_name not in CONFIG_FILES:
+            raise ValueError(
+                f"Unknown configuration: {config_name}\n"
+                f"Valid configurations: {list(CONFIG_FILES.keys())}"
+            )
+
+        filename = CONFIG_FILES[config_name]
+        config_data = self.load_config_file(filename)
+
+        # Validate the config
+        self._validate_schema(config_name, config_data)
+
+        return config_data
+
+    def save_config_file(self, filename: str, config: Dict[str, Any],
+                         user_config: bool = False) -> Path:
         """
         Save configuration to YAML file
-        
+
         Args:
             filename: Config filename (e.g., 'controlnet_config.yaml')
             config: Configuration dictionary to save
             user_config: If True, save to user config dir (~/.config/expandor)
                         If False, save to package config dir (default)
-        
+
         Returns:
             Path to saved config file
-        
+
         Raises:
             PermissionError: If unable to write to config directory
             ValueError: If config validation fails
@@ -153,32 +203,34 @@ class ConfigLoader:
                 f"Config must be a dictionary, got {type(config)}\n"
                 "Ensure you're passing a valid configuration structure."
             )
-        
+
         if not filename.endswith(".yaml"):
             filename += ".yaml"
-        
+
         # Determine save location
         if user_config:
             config_dir = Path.home() / ".config" / "expandor"
             config_dir.mkdir(parents=True, exist_ok=True)
         else:
             config_dir = self.config_dir
-        
+
         file_path = config_dir / filename
-        
+
         try:
             # Save with helpful header when creating user configs
             with open(file_path, 'w') as f:
                 if user_config:
                     f.write("# Expandor Configuration File\n")
-                    f.write(f"# Generated by Expandor v{self._get_version()}\n")
+                    f.write(
+                        f"# Generated by Expandor v{
+                            self._get_version()}\n")
                     f.write(f"# Created: {datetime.now().isoformat()}\n")
                     f.write("# This file can be edited manually\n\n")
                 yaml.dump(config, f, default_flow_style=False, sort_keys=False)
-            
+
             self.logger.info(f"Saved config to {filename}")
             return file_path
-            
+
         except PermissionError as e:
             raise PermissionError(
                 f"Unable to save config to {file_path}\n"
@@ -206,14 +258,17 @@ class ConfigLoader:
             try:
                 # For Python 3.9+
                 if hasattr(resources, "files"):
-                    config_files = resources.files("expandor").joinpath("config")
+                    config_files = resources.files(
+                        "expandor").joinpath("config")
                     return Path(str(config_files.joinpath(filename)))
                 else:
                     # For Python 3.7-3.8
                     with resources.path("expandor.config", filename) as path:
                         return Path(path)
-            except Exception:
-                pass
+            except Exception as e:
+                self.logger.debug(
+                    f"Could not load config via importlib.resources: {e}")
+                # Fall back to file system path
         # Fallback to relative path
         return Path(__file__).parent.parent / "config" / filename
 
@@ -227,6 +282,20 @@ class ConfigLoader:
         Returns:
             Configuration dict or empty dict if file missing
         """
+        if not filename.endswith(".yaml"):
+            filename += ".yaml"
+            
+        # First try config_dir directly
+        file_path = self.config_dir / filename
+        if file_path.exists():
+            try:
+                with open(file_path, "r") as f:
+                    return yaml.safe_load(f) or {}
+            except Exception as e:
+                self.logger.error(f"Failed to load {filename}: {e}")
+                raise
+        
+        # Then try get_config_path for fallback locations
         try:
             file_path = self.get_config_path(filename)
             if file_path.exists():
@@ -234,6 +303,7 @@ class ConfigLoader:
                     return yaml.safe_load(f) or {}
         except Exception as e:
             self.logger.warning(f"Could not load {filename}: {e}")
+        
         return {}
 
     def load_quality_preset(self, preset_name: str) -> Dict[str, Any]:
@@ -283,23 +353,25 @@ class ConfigLoader:
         if preset_name in default_presets:
             return default_presets[preset_name]
 
-        self.logger.warning(f"Unknown quality preset: {preset_name}, using 'balanced'")
+        self.logger.warning(
+            f"Unknown quality preset: {preset_name}, using 'balanced'")
         return default_presets["balanced"]
 
-    def validate_config(self, config: Dict[str, Any], schema: Optional[Dict[str, Any]] = None) -> None:
+    def validate_config(
+            self, config: Dict[str, Any], schema: Optional[Dict[str, Any]] = None) -> None:
         """
         Validate configuration against schema
-        
+
         Args:
             config: Configuration to validate
             schema: Optional schema dict. If None, performs basic validation
-        
+
         Raises:
             ValueError: If validation fails with detailed error message
         """
         if not isinstance(config, dict):
             raise ValueError("Config must be a dictionary")
-        
+
         if schema:
             # TODO: Implement schema validation (jsonschema or similar)
             # For now, just check required keys exist
@@ -316,5 +388,24 @@ class ConfigLoader:
         try:
             import expandor
             return expandor.__version__
-        except:
+        except (OSError, IOError, yaml.YAMLError):
             return "unknown"
+
+    def _validate_schema(self, config_name: str, config_data: dict) -> bool:
+        """Validate config against schema - FAIL LOUD on invalid data"""
+        # For now, just ensure it's a dict
+        if not isinstance(config_data, dict):
+            raise TypeError(
+                f"Config {config_name} must be a dictionary, "
+                f"got {type(config_data).__name__}"
+            )
+
+        # Check for None values (common error)
+        none_keys = [k for k, v in config_data.items() if v is None]
+        if none_keys:
+            raise ValueError(
+                f"Config {config_name} has None values for keys: {none_keys}\n"
+                f"Please provide valid values in the config file"
+            )
+
+        return True

@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Expandor Processors Configuration Schema",
+  "description": "Schema for processor-specific configuration parameters",
+  "type": "object",
+  "properties": {
+    "artifact_detector": {
+      "type": "object",
+      "description": "Artifact detection processor configuration",
+      "required": [
+        "seam_threshold",
+        "color_threshold",
+        "gradient_threshold",
+        "frequency_threshold",
+        "min_quality_score",
+        "skip_validation"
+      ],
+      "properties": {
+        "seam_threshold": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "color_threshold": {"type": "number", "minimum": 0},
+        "gradient_threshold": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "frequency_threshold": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "min_quality_score": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "skip_validation": {"type": "boolean"},
+        "edge_sensitivity": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "gradient_deviation_allowed": {"type": "number", "minimum": 0.0},
+        "artifact_mask_dilation": {"type": "integer", "minimum": 0}
+      }
+    },
+    "artifact_removal": {
+      "type": "object",
+      "description": "Artifact removal processor configuration",
+      "properties": {
+        "max_detection_resolution": {"type": "integer", "minimum": 512},
+        "scale_min": {"type": "number", "minimum": 0.1}
+      }
+    },
+    "boundary_analysis": {
+      "type": "object",
+      "description": "Boundary analysis processor configuration",
+      "properties": {
+        "initial_quality_score": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "min_quality_score": {"type": "number", "minimum": 0.0, "maximum": 1.0}
+      }
+    },
+    "seam_repair": {
+      "type": "object",
+      "description": "Seam repair processor configuration",
+      "properties": {
+        "mask_expansion_pixels": {"type": "integer", "minimum": 0},
+        "mask_blur_radius": {"type": "integer", "minimum": 0}
+      }
+    }
+  },
+  "additionalProperties": true
+}

@@ -8,10 +8,9 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
-from PIL import Image, ImageDraw
+from PIL import Image
 
 from ..core.boundary_tracker import BoundaryTracker
-from ..core.exceptions import QualityError
 
 
 class BoundaryAnalyzer:
@@ -25,6 +24,19 @@ class BoundaryAnalyzer:
     def __init__(self, logger: Optional[logging.Logger] = None):
         """Initialize boundary analyzer."""
         self.logger = logger or logging.getLogger(__name__)
+        
+        # Get configuration from ConfigurationManager
+        from ..core.configuration_manager import ConfigurationManager
+        self.config_manager = ConfigurationManager()
+        
+        # Get processor config
+        try:
+            self.processor_config = self.config_manager.get_processor_config('boundary_analysis')
+        except ValueError as e:
+            # FAIL LOUD
+            raise ValueError(
+                f"Failed to load boundary_analysis configuration!\n{str(e)}"
+            )
 
     def analyze_boundaries(
         self, boundary_tracker: BoundaryTracker, image: Image.Image
@@ -48,7 +60,7 @@ class BoundaryAnalyzer:
             "issues": [],
             "severity_map": None,
             "recommendations": [],
-            "quality_score": 1.0,  # Start with perfect score
+            "quality_score": self.processor_config['initial_quality_score'],  # Start with perfect score
         }
 
         # Analyze each boundary
@@ -58,11 +70,11 @@ class BoundaryAnalyzer:
                 analysis["issues"].append(issue)
                 # Deduct from quality score
                 if issue["severity"] == "critical":
-                    analysis["quality_score"] -= 0.2
+                    analysis["quality_score"] -= self.processor_config['critical_penalty']
                 elif issue["severity"] == "high":
-                    analysis["quality_score"] -= 0.1
+                    analysis["quality_score"] -= self.processor_config['high_penalty']
                 elif issue["severity"] == "medium":
-                    analysis["quality_score"] -= 0.05
+                    analysis["quality_score"] -= self.processor_config['medium_penalty']
 
         # Create severity map
         analysis["severity_map"] = self._create_severity_map(
@@ -75,7 +87,7 @@ class BoundaryAnalyzer:
         )
 
         # Ensure quality score doesn't go negative
-        analysis["quality_score"] = max(0.0, analysis["quality_score"])
+        analysis["quality_score"] = max(self.processor_config['min_quality_score'], analysis["quality_score"])
 
         # Log summary
         self.logger.info(
@@ -99,7 +111,7 @@ class BoundaryAnalyzer:
             direction = boundary.direction
 
         # Create boundary region based on direction
-        margin = 10
+        margin = self.processor_config['boundary_margin']
         if direction == "vertical":
             # Vertical boundary at x=position
             region_bounds = (
@@ -144,23 +156,31 @@ class BoundaryAnalyzer:
         # Check vertical seam
         center_x = margin
         if center_x <= region_array.shape[1] - margin:
-            left_strip = region_array[:, center_x - 5 : center_x]
-            right_strip = region_array[:, center_x : center_x + 5]
+            strip_width = self.processor_config['strip_width']
+            left_strip = region_array[:, center_x - strip_width: center_x]
+            right_strip = region_array[:, center_x: center_x + strip_width]
 
             # Color difference
-            left_mean = np.mean(left_strip, axis=(0, 1))  # Mean color of left strip
-            right_mean = np.mean(right_strip, axis=(0, 1))  # Mean color of right strip
+            left_mean = np.mean(
+                left_strip, axis=(
+                    0, 1))  # Mean color of left strip
+            right_mean = np.mean(
+                right_strip, axis=(
+                    0, 1))  # Mean color of right strip
             color_diff = np.linalg.norm(left_mean - right_mean)
 
             # Texture difference (using std)
             texture_diff = abs(np.std(left_strip) - np.std(right_strip))
 
             # Determine severity
-            if color_diff > 40 or texture_diff > 30:
+            color_thresholds = self.processor_config['color_diff_thresholds']
+            texture_thresholds = self.processor_config['texture_diff_thresholds']
+            
+            if color_diff > color_thresholds['high'] or texture_diff > texture_thresholds['high']:
                 severity = "high"
-            elif color_diff > 20 or texture_diff > 15:
+            elif color_diff > color_thresholds['medium'] or texture_diff > texture_thresholds['medium']:
                 severity = "medium"
-            elif color_diff > 10 or texture_diff > 7:
+            elif color_diff > color_thresholds['low'] or texture_diff > texture_thresholds['low']:
                 severity = "low"
             else:
                 return None
@@ -186,8 +206,9 @@ class BoundaryAnalyzer:
         # Check horizontal seam
         center_y = margin
         if center_y <= region_array.shape[0] - margin:
-            top_strip = region_array[center_y - 5 : center_y, :]
-            bottom_strip = region_array[center_y : center_y + 5, :]
+            strip_width = self.processor_config['strip_width']
+            top_strip = region_array[center_y - strip_width:center_y, :]
+            bottom_strip = region_array[center_y:center_y + strip_width, :]
 
             # Color difference
             # Mean color of top strip
@@ -201,11 +222,14 @@ class BoundaryAnalyzer:
             texture_diff = abs(np.std(top_strip) - np.std(bottom_strip))
 
             # Determine severity
-            if color_diff > 40 or texture_diff > 30:
+            color_thresholds = self.processor_config['color_diff_thresholds']
+            texture_thresholds = self.processor_config['texture_diff_thresholds']
+            
+            if color_diff > color_thresholds['high'] or texture_diff > texture_thresholds['high']:
                 severity = "high"
-            elif color_diff > 20 or texture_diff > 15:
+            elif color_diff > color_thresholds['medium'] or texture_diff > texture_thresholds['medium']:
                 severity = "medium"
-            elif color_diff > 10 or texture_diff > 7:
+            elif color_diff > color_thresholds['low'] or texture_diff > texture_thresholds['low']:
                 severity = "low"
             else:
                 return None
@@ -231,38 +255,40 @@ class BoundaryAnalyzer:
         image_size: Tuple[int, int],
     ) -> np.ndarray:
         """Create a severity heatmap of boundary issues."""
-        severity_map = np.zeros((image_size[1], image_size[0]), dtype=np.float32)
+        severity_map = np.zeros(
+            (image_size[1], image_size[0]), dtype=np.float32)
 
         # Add severity for each issue
         for issue in issues:
             position = issue["position"]
             direction = issue["direction"]
 
-            severity_value = {
-                "low": 0.3,
-                "medium": 0.6,
-                "high": 0.9,
-                "critical": 1.0,
-            }.get(issue["severity"], 0.5)
+            severity_values = self.processor_config['severity_values']
+            severity_value = severity_values.get(
+                issue["severity"], 
+                severity_values['default']
+            )
 
             # Mark issue region with gradient falloff
             if direction == "vertical":
                 # Vertical boundary at x=position
+                falloff_dist = self.processor_config['gradient_falloff_distance']
                 for x in range(
-                    max(0, position - 10), min(image_size[0], position + 10)
+                    max(0, position - falloff_dist), min(image_size[0], position + falloff_dist)
                 ):
                     distance = abs(x - position)
-                    falloff = max(0, 1 - distance / 10)
+                    falloff = max(0, 1 - distance / falloff_dist)
                     severity_map[:, x] = np.maximum(
                         severity_map[:, x], severity_value * falloff
                     )
             else:
                 # Horizontal boundary at y=position
+                falloff_dist = self.processor_config['gradient_falloff_distance']
                 for y in range(
-                    max(0, position - 10), min(image_size[1], position + 10)
+                    max(0, position - falloff_dist), min(image_size[1], position + falloff_dist)
                 ):
                     distance = abs(y - position)
-                    falloff = max(0, 1 - distance / 10)
+                    falloff = max(0, 1 - distance / falloff_dist)
                     severity_map[y, :] = np.maximum(
                         severity_map[y, :], severity_value * falloff
                     )
@@ -276,7 +302,8 @@ class BoundaryAnalyzer:
         recommendations = []
 
         if not issues:
-            recommendations.append("No boundary issues detected. Excellent quality!")
+            recommendations.append(
+                "No boundary issues detected. Excellent quality!")
             return recommendations
 
         # Count issue types and severities
@@ -286,7 +313,8 @@ class BoundaryAnalyzer:
         for issue in issues:
             issue_type = issue["type"]
             issue_types[issue_type] = issue_types.get(issue_type, 0) + 1
-            severities[issue["severity"]] = severities.get(issue["severity"], 0) + 1
+            severities[issue["severity"]] = severities.get(
+                issue["severity"], 0) + 1
 
         # Generate recommendations based on findings
         if issue_types.get("color_discontinuity", 0) > 0:
@@ -307,11 +335,10 @@ class BoundaryAnalyzer:
                 "These require special attention during refinement."
             )
 
-        if len(issues) > 5:
+        if len(issues) > self.processor_config['max_issues_before_strategy_recommendation']:
             recommendations.append(
                 "Multiple boundary issues detected. Consider using a different "
-                "expansion strategy or increasing quality settings."
-            )
+                "expansion strategy or increasing quality settings.")
 
         # Add quality preset recommendation
         avg_color_diff = np.mean(
@@ -322,7 +349,7 @@ class BoundaryAnalyzer:
             ]
         )
 
-        if avg_color_diff > 25:
+        if avg_color_diff > self.processor_config['avg_color_diff_ultra_threshold']:
             recommendations.append(
                 "High average color difference at boundaries. "
                 "Use 'ultra' quality preset for best results."
@@ -335,7 +362,7 @@ class BoundaryAnalyzer:
     ) -> Image.Image:
         """Create a visual representation of the severity map."""
         # Normalize to 0-255 range
-        normalized = (severity_map * 255).astype(np.uint8)
+        normalized = (severity_map * self.processor_config['rgb_max_value']).astype(np.uint8)
 
         # Create RGB image with color coding
         height, width = severity_map.shape
@@ -345,15 +372,18 @@ class BoundaryAnalyzer:
         for y in range(height):
             for x in range(width):
                 severity = severity_map[y, x]
-                if severity < 0.3:
+                color_thresholds = self.processor_config['severity_color_thresholds']
+                colors = self.processor_config['severity_colors']
+                
+                if severity < color_thresholds['green_max']:
                     # Green
-                    rgb_map[y, x] = [0, 255, 0]
-                elif severity < 0.6:
+                    rgb_map[y, x] = colors['green']
+                elif severity < color_thresholds['yellow_max']:
                     # Yellow
-                    rgb_map[y, x] = [255, 255, 0]
+                    rgb_map[y, x] = colors['yellow']
                 else:
                     # Red
-                    rgb_map[y, x] = [255, 0, 0]
+                    rgb_map[y, x] = colors['red']
 
         # Apply the severity as alpha
         result = Image.fromarray(rgb_map)

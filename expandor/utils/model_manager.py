@@ -8,13 +8,12 @@ import os
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
-import requests
 from huggingface_hub import HfApi, model_info, snapshot_download
-from huggingface_hub.utils import RepositoryNotFoundError, RevisionNotFoundError
-from tqdm import tqdm
+from huggingface_hub.utils import RepositoryNotFoundError
 
 from ..config.user_config import ModelConfig
 from ..utils.logging_utils import setup_logger
+from ..utils.path_resolver import PathResolver
 
 
 class ModelManager:
@@ -24,9 +23,9 @@ class ModelManager:
     QUALITY OVER ALL: Ensures models are properly downloaded and cached
     """
 
-    def __init__(
-        self, cache_dir: Optional[Path] = None, logger: Optional[logging.Logger] = None
-    ):
+    def __init__(self,
+                 cache_dir: Optional[Path] = None,
+                 logger: Optional[logging.Logger] = None):
         """
         Initialize model manager
 
@@ -35,22 +34,37 @@ class ModelManager:
             logger: Logger instance
         """
         self.logger = logger or setup_logger(__name__)
+        self.path_resolver = PathResolver(self.logger)
         self.cache_dir = cache_dir or self._get_default_cache_dir()
         self.api = HfApi()
 
-        # Ensure cache directory exists
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        # Ensure cache directory exists using PathResolver
+        self.cache_dir = self.path_resolver.resolve_path(self.cache_dir, create=True, path_type="directory")
         self.logger.info(f"Model cache directory: {self.cache_dir}")
 
     def _get_default_cache_dir(self) -> Path:
         """Get default cache directory"""
         # Use HuggingFace default cache if available
-        hf_cache = os.environ.get("HF_HOME") or os.environ.get("HUGGINGFACE_HUB_CACHE")
+        hf_cache = os.environ.get("HF_HOME") or os.environ.get(
+            "HUGGINGFACE_HUB_CACHE")
         if hf_cache:
             return Path(hf_cache)
 
-        # Fall back to ~/.cache/huggingface
-        return Path.home() / ".cache" / "huggingface"
+        # Use ConfigurationManager for cache directory - NO HARDCODED VALUES
+        from ..core.configuration_manager import ConfigurationManager
+        config_manager = ConfigurationManager()
+        
+        # Get cache directory from configuration
+        try:
+            cache_dir = config_manager.get_value('paths.cache_dir')
+            return Path(cache_dir)
+        except ValueError:
+            # FAIL LOUD if cache directory not configured
+            raise ValueError(
+                "Cache directory not configured. "
+                "Please add 'paths.cache_dir' to your configuration file or "
+                "set HF_HOME/HUGGINGFACE_HUB_CACHE environment variable."
+            )
 
     def download_model(
         self,
@@ -106,7 +120,8 @@ class ModelManager:
                             f"  huggingface-cli login\n"
                             f"Then try again."
                         )
-                    self.logger.info("Accessing gated model with authentication")
+                    self.logger.info(
+                        "Accessing gated model with authentication")
 
             except RepositoryNotFoundError:
                 # FAIL LOUD - model doesn't exist
@@ -166,14 +181,13 @@ class ModelManager:
                 model_path = Path(model_path)
                 if not model_path.exists():
                     raise RuntimeError(
-                        f"Download appeared to succeed but model path doesn't exist: {model_path}"
-                    )
+                        f"Download appeared to succeed but model path doesn't exist: {model_path}")
 
                 # Check for essential files
-                essential_patterns = ["*.bin", "*.safetensors", "*.ckpt", "*.pth"]
-                has_model_files = any(
-                    list(model_path.glob(pattern)) for pattern in essential_patterns
-                )
+                essential_patterns = [
+                    "*.bin", "*.safetensors", "*.ckpt", "*.pth"]
+                has_model_files = any(list(model_path.glob(pattern))
+                                      for pattern in essential_patterns)
 
                 if not has_model_files:
                     # FAIL LOUD - no model files found
@@ -183,7 +197,8 @@ class ModelManager:
                         f"This may indicate a partial or corrupted download."
                     )
 
-                self.logger.info(f"✓ Model downloaded successfully to: {model_path}")
+                self.logger.info(
+                    f"✓ Model downloaded successfully to: {model_path}")
                 return model_path
 
             except Exception as e:
@@ -222,7 +237,8 @@ class ModelManager:
                 # Verify it's a valid model file/directory
                 if path.is_file():
                     # Check file extension
-                    valid_extensions = [".bin", ".safetensors", ".ckpt", ".pth", ".pt"]
+                    valid_extensions = [
+                        ".bin", ".safetensors", ".ckpt", ".pth", ".pt"]
                     if path.suffix.lower() in valid_extensions:
                         return True, f"Local model file found: {path}"
                     else:
@@ -245,9 +261,7 @@ class ModelManager:
                         )
                     else:
                         return (
-                            False,
-                            f"Directory exists but contains no model files: {path}",
-                        )
+                            False, f"Directory exists but contains no model files: {path}", )
             else:
                 return False, f"Local path does not exist: {path}"
 
@@ -264,7 +278,7 @@ class ModelManager:
                     return (
                         True,
                         f"Model cached locally: {
-                        model_config.model_id}",
+                            model_config.model_id}",
                     )
                 else:
                     # Model exists on HF but not cached
@@ -283,7 +297,7 @@ class ModelManager:
                 return (
                     False,
                     f"Model not found on HuggingFace: {
-                    model_config.model_id}",
+                        model_config.model_id}",
                 )
             except Exception as e:
                 if "401" in str(e):
@@ -431,6 +445,8 @@ class ModelManager:
             else:
                 return 5 * 1024 * 1024 * 1024  # 5GB default
 
-        except Exception:
+        except (AttributeError, ValueError, OSError, ConnectionError) as e:
             # Return conservative estimate
+            self.logger.warning(
+                f"Could not get model info for {model_id}: {e}")
             return 5 * 1024 * 1024 * 1024  # 5GB default

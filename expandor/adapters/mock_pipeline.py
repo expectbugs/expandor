@@ -3,7 +3,7 @@ Mock Pipeline Interfaces for Testing
 """
 
 from dataclasses import dataclass
-from typing import Any, List, Optional
+from typing import List, Optional
 
 import numpy as np
 from PIL import Image

@@ -3,13 +3,13 @@ Installation validation utilities for Expandor
 Checks dependencies, hardware, and provides fix instructions
 """
 
+import errno
 import importlib
 import logging
 import platform
-import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional
 
 import torch
 
@@ -91,8 +91,8 @@ class InstallationValidator:
         else:
             self.info["python_version"] = (
                 f"{
-                current_version[0]}.{
-                current_version[1]}"
+                    current_version[0]}.{
+                    current_version[1]}"
             )
 
     def _check_cuda_availability(self):
@@ -109,12 +109,10 @@ class InstallationValidator:
                 gpus = []
                 for i in range(device_count):
                     gpu_name = torch.cuda.get_device_name(i)
-                    gpu_memory = torch.cuda.get_device_properties(i).total_memory / (
-                        1024**3
-                    )  # GB
-                    gpus.append(
-                        {"index": i, "name": gpu_name, "memory_gb": f"{gpu_memory:.1f}"}
-                    )
+                    gpu_memory = torch.cuda.get_device_properties(
+                        i).total_memory / (1024**3)  # GB
+                    gpus.append({"index": i, "name": gpu_name,
+                                 "memory_gb": f"{gpu_memory:.1f}"})
 
                 self.info["gpus"] = gpus
 
@@ -134,8 +132,7 @@ class InstallationValidator:
                                     total_vram_gb:.1f}GB",
                                 "impact": "Limited to smaller resolutions or CPU offload mode",
                                 "solution": "Use --strategy cpu_offload or --vram-limit flags",
-                            }
-                        )
+                            })
 
                     self.info["total_vram_gb"] = f"{total_vram_gb:.1f}"
             else:
@@ -150,8 +147,7 @@ class InstallationValidator:
                                 "issue": "PyTorch installed without CUDA support",
                                 "solution": "Reinstall PyTorch with CUDA support",
                                 "command": "pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118",
-                            }
-                        )
+                            })
                     else:
                         # CUDA not available on system
                         self.warnings.append(
@@ -160,10 +156,10 @@ class InstallationValidator:
                                 "warning": "No CUDA-capable GPU detected",
                                 "impact": "Will use CPU mode (much slower)",
                                 "solution": "Install NVIDIA GPU and CUDA drivers, or use cloud GPU services",
-                            }
-                        )
-                except ImportError:
-                    pass  # PyTorch check handled elsewhere
+                            })
+                except ImportError as e:
+                    self.logger.debug(f"PyTorch import check: {e}")
+                    # PyTorch check handled in check_dependencies()
 
         except Exception as e:
             self.issues.append(
@@ -229,7 +225,8 @@ class InstallationValidator:
                     current_version = module.__version__
                     min_version = config["min_version"]
 
-                    if self._compare_versions(current_version, min_version) < 0:
+                    if self._compare_versions(
+                            current_version, min_version) < 0:
                         issue = {
                             "category": "Package Version",
                             "issue": f"{package_name} {current_version} is older than required {min_version}",
@@ -344,12 +341,12 @@ class InstallationValidator:
                                 free_gb:.1f}GB free",
                             "impact": "May not have space for model downloads",
                             "solution": "Free up disk space or change cache directory",
-                        }
-                    )
+                        })
 
                 self.info["disk_free_gb"] = f"{free_gb:.1f}"
-        except Exception:
-            pass
+        except Exception as e:
+            self.logger.warning(f"Could not check disk space: {e}")
+            # Non-critical - continue without disk space check
 
         # Check RAM
         try:
@@ -364,12 +361,12 @@ class InstallationValidator:
                             total_ram_gb:.1f}GB",
                         "impact": "May have issues with large images or CPU mode",
                         "solution": "Close other applications or upgrade RAM",
-                    }
-                )
+                    })
 
             self.info["ram_gb"] = f"{total_ram_gb:.1f}"
-        except Exception:
-            pass
+        except Exception as e:
+            self.logger.warning(f"Could not check system memory: {e}")
+            # Non-critical - continue without memory check
 
     def _check_expandor_components(self):
         """Check Expandor-specific components"""
@@ -402,8 +399,7 @@ class InstallationValidator:
                         "warning": "Config directory doesn't exist",
                         "impact": "Will use default settings",
                         "solution": "Run 'expandor --setup' to create configuration",
-                    }
-                )
+                    })
 
         except ImportError as e:
             self.issues.append(
@@ -442,9 +438,10 @@ class InstallationValidator:
                         "command": f"chmod -R u+w {path}",
                     }
                 )
-            except Exception:
-                # Other errors are okay (directory might not need to exist)
-                pass
+            except OSError as e:
+                if e.errno != errno.EEXIST:
+                    self.logger.debug(f"Directory check for {path}: {e}")
+                # Directory might not need to exist yet
 
     def _compare_versions(self, version1: str, version2: str) -> int:
         """Compare version strings (returns -1, 0, 1)"""
@@ -462,7 +459,8 @@ class InstallationValidator:
                 return 0
         except BaseException:
             # Fallback to simple comparison
-            return -1 if version1 < version2 else (1 if version1 > version2 else 0)
+            return - \
+                1 if version1 < version2 else (1 if version1 > version2 else 0)
 
     def _get_expandor_version(self) -> str:
         """Get Expandor version"""
@@ -513,7 +511,7 @@ class InstallationValidator:
         if results["issues"]:
             print(f"\n❌ CRITICAL ISSUES ({len(results['issues'])}):")
             for i, issue in enumerate(results["issues"], 1):
-                print(f"\n  {i}. {issue['category']}: {issue['issue']}")
+                print(f"\n  {i}. {issue['category']}:{issue['issue']}")
                 print(f"     Fix: {issue['solution']}")
                 if "command" in issue:
                     print(f"     Run: {issue['command']}")
@@ -522,7 +520,7 @@ class InstallationValidator:
         if results["warnings"]:
             print(f"\n⚠️  WARNINGS ({len(results['warnings'])}):")
             for warning in results["warnings"]:
-                print(f"\n  • {warning['category']}: {warning['warning']}")
+                print(f"\n  • {warning['category']}:{warning['warning']}")
                 print(f"    Impact: {warning['impact']}")
                 print(f"    Suggestion: {warning['solution']}")
 

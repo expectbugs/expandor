@@ -762,51 +762,142 @@ hardware_profiles:
 
 ## Environment Variables
 
-### Core Variables
+Expandor supports comprehensive environment variable configuration using the pattern `EXPANDOR_<SECTION>_<KEY>`. Environment variables override all configuration files but are overridden by command-line arguments.
+
+### Configuration Override Pattern
+
+Any configuration value can be overridden using environment variables:
 
 ```bash
-# Configuration directory
+# Pattern: EXPANDOR_<SECTION>_<KEY>=<VALUE>
+# Nested keys use underscores
+
+# Override vram.safety_factor
+export EXPANDOR_VRAM_SAFETY_FACTOR=0.95
+
+# Override strategies.progressive_outpaint.base_steps
+export EXPANDOR_STRATEGIES_PROGRESSIVE_OUTPAINT_BASE_STEPS=100
+
+# Override output.formats.png.compression
+export EXPANDOR_OUTPUT_FORMATS_PNG_COMPRESSION=3
+
+# Override quality_presets.ultra.generation.num_inference_steps
+export EXPANDOR_QUALITY_PRESETS_ULTRA_GENERATION_NUM_INFERENCE_STEPS=120
+```
+
+### Special Environment Variables
+
+These environment variables have special handling:
+
+```bash
+# User configuration file path (overrides default search)
+export EXPANDOR_USER_CONFIG_PATH=/custom/path/to/config.yaml
+
+# Master defaults path (for development/testing)
+export EXPANDOR_MASTER_DEFAULTS_PATH=/path/to/master_defaults.yaml
+
+# Disable user config loading entirely
+export EXPANDOR_NO_USER_CONFIG=1
+```
+
+### Core Directory Variables
+
+```bash
+# Configuration directory (default: ~/.config/expandor)
 export EXPANDOR_CONFIG_DIR=/custom/config/path
 
-# Cache directory
+# Cache directory for models (default: ~/.cache/expandor)
 export EXPANDOR_CACHE_DIR=/large/disk/cache
 
-# Model directory
+# Model directory (default: from config)
 export EXPANDOR_MODEL_DIR=/models
 
-# Output directory
+# Output directory (default: current directory)
 export EXPANDOR_OUTPUT_DIR=/outputs
 
-# Temp directory
+# Temp directory (default: system temp)
 export EXPANDOR_TEMP_DIR=/tmp/expandor
 ```
 
 ### Performance Variables
 
 ```bash
-# VRAM limit (MB)
+# VRAM limit in MB (overrides auto-detection)
 export EXPANDOR_VRAM_LIMIT=8000
 
-# CPU threads
+# CPU threads for processing
 export EXPANDOR_CPU_THREADS=8
 
-# Enable optimizations
+# Enable performance optimizations
 export EXPANDOR_ENABLE_TF32=1
 export EXPANDOR_ENABLE_CUDNN_BENCHMARK=1
 export EXPANDOR_COMPILE_MODEL=1
+
+# Disable specific features
+export EXPANDOR_DISABLE_ARTIFACT_DETECTION=1
+export EXPANDOR_DISABLE_CONTROLNET=1
 ```
 
 ### Debug Variables
 
 ```bash
-# Logging
+# Logging level (DEBUG, INFO, WARNING, ERROR)
 export EXPANDOR_LOG_LEVEL=DEBUG
+
+# Log file path
 export EXPANDOR_LOG_FILE=/var/log/expandor.log
 
 # Debug features
 export EXPANDOR_SAVE_STAGES=1
 export EXPANDOR_SAVE_METADATA=1
 export EXPANDOR_VERBOSE=1
+
+# Development mode (shows more errors)
+export EXPANDOR_DEV_MODE=1
+```
+
+### Type Conversion
+
+Environment variables are automatically converted to the appropriate type:
+
+- **Booleans**: `1`, `true`, `yes`, `on` → True; `0`, `false`, `no`, `off` → False
+- **Numbers**: Automatically detected as int or float
+- **Lists**: Not supported via environment variables (use config files)
+- **Strings**: Default type if no conversion applies
+
+### Examples
+
+```bash
+# Set high quality as default
+export EXPANDOR_CORE_QUALITY_PRESET=ultra
+
+# Increase VRAM safety margin
+export EXPANDOR_VRAM_SAFETY_FACTOR=0.95
+
+# Use specific strategy thresholds
+export EXPANDOR_STRATEGIES_PROGRESSIVE_OUTPAINT_ASPECT_RATIO_THRESHOLDS_EXTREME=6.0
+
+# Override output quality for JPEG
+export EXPANDOR_OUTPUT_FORMATS_JPEG_QUALITY=98
+
+# Custom cache location
+export EXPANDOR_PATHS_CACHE_DIR=/mnt/fast-ssd/expandor-cache
+
+# Run with all environment overrides
+expandor input.jpg --resolution 4K
+```
+
+### Debugging Environment Variables
+
+To see which environment variables are being used:
+
+```bash
+# Show all EXPANDOR environment variables
+env | grep ^EXPANDOR_
+
+# Run with verbose logging to see overrides
+export EXPANDOR_VERBOSE=1
+expandor --test
 ```
 
 ## Examples

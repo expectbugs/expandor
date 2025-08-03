@@ -1,0 +1,75 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Expandor Strategies Configuration Schema",
+  "description": "Schema for strategy-specific configuration parameters",
+  "type": "object",
+  "properties": {
+    "progressive_outpaint": {
+      "type": "object",
+      "description": "Progressive outpainting strategy configuration",
+      "required": [
+        "first_step_ratio",
+        "middle_step_ratio",
+        "final_step_ratio",
+        "base_mask_blur",
+        "base_steps",
+        "max_supported_ratio",
+        "base_strength",
+        "min_strength",
+        "max_strength"
+      ],
+      "properties": {
+        "first_step_ratio": {"type": "number", "minimum": 1.0, "maximum": 2.0},
+        "middle_step_ratio": {"type": "number", "minimum": 1.0, "maximum": 2.0},
+        "final_step_ratio": {"type": "number", "minimum": 1.0, "maximum": 2.0},
+        "base_mask_blur": {"type": "integer", "minimum": 1},
+        "base_steps": {"type": "integer", "minimum": 1},
+        "max_supported_ratio": {"type": "number", "minimum": 1.0},
+        "base_strength": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "min_strength": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "max_strength": {"type": "number", "minimum": 0.0, "maximum": 1.0}
+      }
+    },
+    "tiled_expansion": {
+      "type": "object", 
+      "description": "Tiled expansion strategy configuration",
+      "required": [
+        "default_tile_size",
+        "overlap",
+        "blend_width"
+      ],
+      "properties": {
+        "default_tile_size": {"type": "integer", "minimum": 256},
+        "overlap": {"type": "integer", "minimum": 0},
+        "blend_width": {"type": "integer", "minimum": 0}
+      }
+    },
+    "cpu_offload": {
+      "type": "object",
+      "description": "CPU offload strategy configuration",
+      "required": [
+        "safety_factor",
+        "min_tile_size",
+        "default_tile_size"
+      ],
+      "properties": {
+        "safety_factor": {"type": "number", "minimum": 0.1, "maximum": 1.0},
+        "min_tile_size": {"type": "integer", "minimum": 256},
+        "default_tile_size": {"type": "integer", "minimum": 256}
+      }
+    },
+    "swpo": {
+      "type": "object",
+      "description": "SWPO strategy configuration",
+      "required": [
+        "default_window_size",
+        "default_overlap_ratio"
+      ],
+      "properties": {
+        "default_window_size": {"type": "integer", "minimum": 100},
+        "default_overlap_ratio": {"type": "number", "minimum": 0.1, "maximum": 1.0}
+      }
+    }
+  },
+  "additionalProperties": true
+}

@@ -10,6 +10,7 @@ from PIL import Image
 
 from ..core.config import ExpandorConfig
 from ..core.expandor import Expandor
+from ..utils.path_resolver import PathResolver
 
 
 def process_single_image(
@@ -45,17 +46,25 @@ def process_single_image(
             config.negative_prompt = args.negative_prompt
 
         # Process image
-        result = expandor.expand(image=image, config=config, dry_run=args.dry_run)
+        result = expandor.expand(config)
 
         if args.dry_run:
             # Dry run - just report what would happen
             logger.info("DRY RUN: Expansion validated successfully")
             logger.info(f"  Would save to: {output_path}")
             logger.info(f"  Strategy: {result.strategy_used}")
-            if result.metadata.get("would_succeed", True):
+            # Check if would_succeed key exists in metadata
+            if "would_succeed" not in result.metadata:
+                raise ValueError(
+                    "Missing 'would_succeed' key in dry run metadata!\n"
+                    "This indicates an error in the expansion strategy.\n"
+                    "Please report this issue."
+                )
+            if result.metadata["would_succeed"]:
                 logger.info("  Status: Would succeed ✓")
             else:
-                logger.warning("  Status: Would fail due to insufficient resources ✗")
+                logger.warning(
+                    "  Status: Would fail due to insufficient resources ✗")
             return True
 
         # Check if successful
@@ -64,50 +73,80 @@ def process_single_image(
             return False
 
         # Save output (non-dry-run)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
+        # Use PathResolver for consistent path handling
+        path_resolver = PathResolver(logger)
+        output_dir = path_resolver.resolve_path(output_path.parent, create=True, path_type="directory")
+        
+        # Load the image from result path if not already loaded
+        if result.image is None:
+            logger.debug(f"Loading result image from: {result.image_path}")
+            result.image = Image.open(result.image_path)
 
         # Handle different output formats
-        # Load output quality config
-        try:
-            from ..utils.config_loader import ConfigLoader
-            loader = ConfigLoader()
-            quality_config = loader.load_config("output_quality.yaml")
-        except:
-            raise ValueError("Failed to load output quality configuration")
-        
+        # Use ConfigurationManager for all output settings - NO HARDCODED VALUES
+        from ..core.configuration_manager import ConfigurationManager
+        config_manager = ConfigurationManager()
+
         if args.output_format and args.output_format != "png":
             if args.output_format in ["jpg", "jpeg"]:
-                jpeg_config = quality_config.get('jpeg', {})
-                result.final_image.save(
-                    output_path, "JPEG", 
-                    quality=jpeg_config.get('quality', 95), 
-                    optimize=jpeg_config.get('optimize', True)
+                # FAIL LOUD - get required JPEG configuration
+                jpeg_quality = config_manager.get_value('output.formats.jpeg.quality')
+                jpeg_optimize = config_manager.get_value('output.formats.jpeg.optimize')
+                
+                result.image.save(
+                    output_path, "JPEG",
+                    quality=jpeg_quality,
+                    optimize=jpeg_optimize
                 )
             elif args.output_format == "webp":
-                webp_config = quality_config.get('webp', {})
-                result.final_image.save(
-                    output_path, "WEBP", 
-                    quality=webp_config.get('quality', 95), 
-                    lossless=webp_config.get('lossless', False)
+                # FAIL LOUD - get required WebP configuration
+                webp_quality = config_manager.get_value('output.formats.webp.quality')
+                webp_lossless = config_manager.get_value('output.formats.webp.lossless')
+                
+                result.image.save(
+                    output_path, "WEBP",
+                    quality=webp_quality,
+                    lossless=webp_lossless
                 )
             else:
-                result.final_image.save(output_path, args.output_format.upper())
+                result.image.save(
+                    output_path, args.output_format.upper())
         else:
             # PNG by default
-            png_config = quality_config.get('png', {})
-            result.final_image.save(
-                output_path, "PNG", 
-                compress_level=png_config.get('compress_level', 1)
+            # FAIL LOUD - get required PNG configuration
+            png_compress_level = config_manager.get_value('output.formats.png.compression')
+            
+            result.image.save(
+                output_path, "PNG",
+                compress_level=png_compress_level
             )
 
-        # Save metadata if requested
-        if config.save_metadata:
+        # Save metadata if stages are being saved (implies user wants metadata)
+        if config.save_stages:
             metadata_path = output_path.with_suffix(".json")
             import json
 
             with open(metadata_path, "w") as f:
-                json_config = quality_config.get('json', {})
-                json.dump(result.metadata, f, indent=json_config.get('indent', 2))
+                # Get JSON config from quality config - FAIL LOUD if missing
+                if 'json' not in quality_config:
+                    raise ValueError(
+                        "JSON configuration missing from quality config!\n"
+                        "This should be defined in the quality preset.\n"
+                        "Please check your configuration files."
+                    )
+                json_config = quality_config['json']
+                
+                # Get indent value - FAIL LOUD if missing
+                if 'indent' not in json_config:
+                    raise ValueError(
+                        "JSON indent configuration missing!\n"
+                        "Please add 'indent' to the json section of your quality config."
+                    )
+                
+                json.dump(
+                    result.metadata,
+                    f,
+                    indent=json_config['indent'])
             logger.debug(f"Saved metadata to: {metadata_path}")
 
         # Report results

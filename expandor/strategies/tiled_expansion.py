@@ -10,7 +10,6 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 from PIL import Image
 
-from ..core.config import ExpandorConfig
 from ..core.exceptions import StrategyError
 from .base_strategy import BaseExpansionStrategy
 
@@ -25,19 +24,37 @@ class TiledExpansionStrategy(BaseExpansionStrategy):
 
     def _initialize(self):
         """Initialize tiled processing settings"""
-        # Default tile settings from config
-        params = self.config.get('parameters', {})
-        self.default_tile_size = params.get('default_tile_size', 1024)
-        self.overlap = params.get('overlap', 256)
-        self.blend_width = params.get('blend_width', 256)  # Increased for smoother tile blending
-        self.min_tile_size = params.get('min_tile_size', 512)
-        self.max_tile_size = params.get('max_tile_size', 2048)
+        # Get configuration from ConfigurationManager
+        from ..core.configuration_manager import ConfigurationManager
+        self.config_manager = ConfigurationManager()
+        
+        # Get all strategy config at once
+        try:
+            self.strategy_config = self.config_manager.get_strategy_config('tiled_expansion')
+        except ValueError as e:
+            # FAIL LOUD
+            raise ValueError(
+                f"Failed to load tiled_expansion configuration!\n{str(e)}"
+            )
+        
+        # Assign all values from config - NO DEFAULTS!
+        self.default_tile_size = self.strategy_config['default_tile_size']
+        self.overlap = self.strategy_config['overlap']
+        self.blend_width = self.strategy_config['blend_width']
+        self.min_tile_size = self.strategy_config['min_tile_size']
+        self.max_tile_size = self.strategy_config['max_tile_size']
+        
+        # Store all strategy parameters
+        self.vram_safety_ratio = self.strategy_config['vram_safety_ratio']
+        self.refinement_strength = self.strategy_config['refinement_strength']
+        self.edge_fix_strength = self.strategy_config['edge_fix_strength']
+        self.final_pass_strength = self.strategy_config['final_pass_strength']
 
     def validate_requirements(self):
         """Validate at least one pipeline is available"""
-        if not any(
-            [self.inpaint_pipeline, self.refiner_pipeline, self.img2img_pipeline]
-        ):
+        if not any([self.inpaint_pipeline,
+                    self.refiner_pipeline,
+                    self.img2img_pipeline]):
             raise StrategyError(
                 "TiledExpansionStrategy requires at least one pipeline "
                 "(inpaint, refiner, or img2img)"
@@ -77,7 +94,8 @@ class TiledExpansionStrategy(BaseExpansionStrategy):
         # This gives us the base to refine
         stage_start = time.time()
 
-        base_image = source_image.resize((target_w, target_h), Image.Resampling.LANCZOS)
+        base_image = source_image.resize(
+            (target_w, target_h), Image.Resampling.LANCZOS)
         base_path = self.save_temp_image(base_image, "tiled_base")
 
         self.record_stage(
@@ -166,8 +184,7 @@ class TiledExpansionStrategy(BaseExpansionStrategy):
         blend_start = time.time()
 
         final_image = self._blend_tiles(
-            processed_tiles, (target_w, target_h), self.overlap, self.blend_width
-        )
+            processed_tiles, (target_w, target_h), self.overlap, self.blend_width)
 
         final_path = self.save_temp_image(final_image, "tiled_final")
 
@@ -209,9 +226,12 @@ class TiledExpansionStrategy(BaseExpansionStrategy):
             return self.min_tile_size
 
         # Calculate VRAM needed for different tile sizes
-        for tile_size in [self.max_tile_size, 1536, 1024, 768, self.min_tile_size]:
-            vram_req = self.vram_manager.calculate_generation_vram(tile_size, tile_size)
-            if vram_req <= available_vram * 0.7:  # 70% safety
+        tile_sizes = [self.max_tile_size] + self.strategy_config['tile_size_candidates'] + [self.min_tile_size]
+        for tile_size in tile_sizes:
+            vram_req = self.vram_manager.calculate_generation_vram(
+                tile_size, tile_size)
+            if vram_req <= available_vram * \
+                    self.strategy_config['vram_safety_ratio']:  # Safety ratio from config
                 return tile_size
 
         # If even minimum doesn't fit, return it anyway (will fail loudly)
@@ -227,7 +247,7 @@ class TiledExpansionStrategy(BaseExpansionStrategy):
         step = tile_size - self.overlap
 
         # Ensure we don't have tiny edge tiles
-        min_edge_size = tile_size // 2
+        min_edge_size = tile_size // self.strategy_config['min_edge_size_divisor']
 
         # Generate tiles
         y = 0
@@ -268,9 +288,10 @@ class TiledExpansionStrategy(BaseExpansionStrategy):
             result = self.refiner_pipeline(
                 prompt=prompt,
                 image=tile,
-                strength=self.config.get('parameters', {}).get('refinement_strength', 0.2),  # Very light refinement to preserve details
-                num_inference_steps=self.config.get('parameters', {}).get('refinement_steps', 20),
-                guidance_scale=self.config.get('parameters', {}).get('refinement_guidance', 6.5),  # Lower guidance for better preservation
+                # Very light refinement to preserve details
+                strength=self.strategy_config['refinement_strength'],
+                num_inference_steps=self.strategy_config['refinement_steps'],
+                guidance_scale=self.strategy_config['refinement_guidance']
             ).images[0]
             return result
         except Exception as e:
@@ -283,9 +304,10 @@ class TiledExpansionStrategy(BaseExpansionStrategy):
             result = self.img2img_pipeline(
                 prompt=prompt,
                 image=tile,
-                strength=self.config.get('parameters', {}).get('edge_fix_strength', 0.3),  # Lower strength to preserve tile coherence
-                num_inference_steps=self.config.get('parameters', {}).get('edge_fix_steps', 30),
-                guidance_scale=self.config.get('parameters', {}).get('edge_fix_guidance', 7.0),
+                # Lower strength to preserve tile coherence
+                strength=self.strategy_config['edge_fix_strength'],
+                num_inference_steps=self.strategy_config['edge_fix_steps'],
+                guidance_scale=self.strategy_config['edge_fix_guidance'],
             ).images[0]
             return result
         except Exception as e:
@@ -295,16 +317,17 @@ class TiledExpansionStrategy(BaseExpansionStrategy):
     def _inpaint_tile(self, tile: Image.Image, prompt: str) -> Image.Image:
         """Process tile using inpaint pipeline (with full mask)"""
         # Create a mask that processes the entire tile
-        mask = Image.new("L", tile.size, 255)  # Full white = process all
+        mask = Image.new("L", tile.size, self.strategy_config['final_pass_mask_value'])  # Full white = process all
 
         try:
             result = self.inpaint_pipeline(
                 prompt=prompt,
                 image=tile,
                 mask_image=mask,
-                strength=self.config.get('parameters', {}).get('final_pass_strength', 0.4),  # Much lower for tile processing
-                num_inference_steps=self.config.get('parameters', {}).get('final_pass_steps', 40),
-                guidance_scale=self.config.get('parameters', {}).get('final_pass_guidance', 7.0),
+                # Much lower for tile processing
+                strength=self.strategy_config['final_pass_strength'],
+                num_inference_steps=self.strategy_config['final_pass_steps'],
+                guidance_scale=self.strategy_config['final_pass_guidance'],
             ).images[0]
             return result
         except Exception as e:
@@ -320,7 +343,8 @@ class TiledExpansionStrategy(BaseExpansionStrategy):
     ) -> Image.Image:
         """Blend tiles together with smooth transitions"""
         canvas = Image.new("RGB", canvas_size)
-        weight_map = np.zeros((canvas_size[1], canvas_size[0]), dtype=np.float32)
+        weight_map = np.zeros(
+            (canvas_size[1], canvas_size[0]), dtype=np.float32)
 
         # Process each tile
         for tile_info in tiles:
@@ -333,7 +357,7 @@ class TiledExpansionStrategy(BaseExpansionStrategy):
             tile_weight = np.ones((tile_h, tile_w), dtype=np.float32)
 
             # Apply gradients at edges if not at canvas boundary
-            blend_size = min(blend_width, overlap // 2)
+            blend_size = min(blend_width, overlap // self.strategy_config['blend_size_divisor'])
 
             if blend_size > 0:
                 # Left edge
@@ -370,7 +394,8 @@ class TiledExpansionStrategy(BaseExpansionStrategy):
 
             # Weighted blend
             total_weight = region_weight + tile_weight
-            total_weight = np.maximum(total_weight, 1e-8)  # Avoid division by zero
+            total_weight = np.maximum(
+                total_weight, self.strategy_config['division_epsilon'])  # Avoid division by zero
 
             blended = (
                 region * region_weight[:, :, np.newaxis]

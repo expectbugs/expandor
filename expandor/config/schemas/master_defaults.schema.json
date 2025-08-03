@@ -1,0 +1,46 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$ref": "base_schema.json",
+  "title": "Master Defaults Configuration",
+  "type": "object",
+  "required": ["version", "core", "strategies", "processing", "vram", "models", "output", "paths"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+$"
+    },
+    "core": {
+      "type": "object",
+      "required": ["quality_preset", "strategy", "denoising_strength", "guidance_scale", "num_inference_steps"],
+      "properties": {
+        "quality_preset": {
+          "type": "string",
+          "enum": ["ultra", "high", "balanced", "fast", "custom"]
+        },
+        "strategy": {
+          "type": "string",
+          "enum": ["auto", "progressive_outpaint", "direct_upscale", "tiled_expansion", "cpu_offload", "swpo", "controlnet_progressive"]
+        },
+        "denoising_strength": {
+          "$ref": "#/definitions/probability"
+        },
+        "guidance_scale": {
+          "type": "number",
+          "minimum": 1.0,
+          "maximum": 20.0
+        },
+        "num_inference_steps": {
+          "$ref": "#/definitions/positiveInteger"
+        }
+      }
+    },
+    "strategies": {
+      "type": "object",
+      "properties": {
+        "progressive_outpaint": {
+          "$ref": "progressive_outpaint.schema.json"
+        }
+      }
+    }
+  }
+}

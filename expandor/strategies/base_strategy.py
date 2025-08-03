@@ -6,16 +6,17 @@ import logging
 import time
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import torch
 from PIL import Image
 
 from ..core.config import ExpandorConfig
-from ..core.exceptions import StrategyError, VRAMError
+from ..core.exceptions import StrategyError
 from ..core.result import StageResult
 from ..core.vram_manager import VRAMManager
 from ..processors.artifact_removal import ArtifactDetector
+from ..utils.path_resolver import PathResolver
 
 
 class BaseExpansionStrategy(ABC):
@@ -52,12 +53,41 @@ class BaseExpansionStrategy(ABC):
         self.stage_results = []
         self.temp_files = []
 
+        # Validate required parameters
+        self._validate_required_params()
+
         # Initialize strategy-specific components
         self._initialize()
 
+    def _validate_required_params(self):
+        """Validate all required parameters are present"""
+        # Get strategy name from class
+        strategy_name = self.__class__.__name__.lower()
+        if 'progressiveoutpaint' in strategy_name:
+            strategy_name = 'progressive_outpaint'
+        elif 'cpuoffload' in strategy_name:
+            strategy_name = 'cpu_offload'
+        elif 'tiledexpansion' in strategy_name:
+            strategy_name = 'tiled_expansion'
+
+        # Get required params from config if available
+        if hasattr(self, 'config') and 'required_params' in self.config:
+            required = self.config['required_params']
+            params = self.config.get('parameters', self.config)
+
+            missing = []
+            for param in required:
+                if param not in params:
+                    missing.append(param)
+
+            if missing:
+                raise ValueError(
+                    f"{self.__class__.__name__} missing required parameters: {missing}\n"
+                    f"Add these to your strategy configuration or provide at runtime."
+                )
+
     def _initialize(self):
         """Override to perform strategy-specific initialization"""
-        pass
 
     @abstractmethod
     def execute(
@@ -78,7 +108,6 @@ class BaseExpansionStrategy(ABC):
             - boundaries: List of boundary positions
             - metadata: Additional metadata
         """
-        pass
 
     def validate_requirements(self):
         """
@@ -88,7 +117,6 @@ class BaseExpansionStrategy(ABC):
             StrategyError: If requirements not met
         """
         # Override in subclasses to check specific requirements
-        pass
 
     def estimate_vram(self, config: ExpandorConfig) -> Dict[str, float]:
         """
@@ -101,7 +129,8 @@ class BaseExpansionStrategy(ABC):
             Dictionary with VRAM estimates
         """
         target_w, target_h = config.target_resolution
-        base_req = self.vram_manager.calculate_generation_vram(target_w, target_h)
+        base_req = self.vram_manager.calculate_generation_vram(
+            target_w, target_h)
 
         return {
             "base_vram_mb": base_req,
@@ -124,11 +153,17 @@ class BaseExpansionStrategy(ABC):
             return False
         return available_mb >= required_mb
 
-    def check_vram_requirements(self, width: int, height: int) -> Dict[str, Any]:
+    def check_vram_requirements(
+            self, width: int, height: int) -> Dict[str, Any]:
         """Check if operation can fit in VRAM"""
         return self.vram_manager.determine_strategy(width, height)
 
-    def track_boundary(self, position: int, direction: str, step: int, **kwargs):
+    def track_boundary(
+            self,
+            position: int,
+            direction: str,
+            step: int,
+            **kwargs):
         """Track expansion boundary for seam detection"""
         if self.boundary_tracker:
             self.boundary_tracker.add_boundary(
@@ -165,7 +200,8 @@ class BaseExpansionStrategy(ABC):
         ):
             self._context["stage_callback"](stage)
 
-    def save_stage(self, name: str, image_path: Path, metadata: Dict[str, Any]):
+    def save_stage(self, name: str, image_path: Path,
+                   metadata: Dict[str, Any]):
         """
         Save stage information
 
@@ -185,14 +221,23 @@ class BaseExpansionStrategy(ABC):
 
         # Get temp directory from context or use default
         temp_base = Path("temp")
-        if hasattr(self, "_context") and self._context and "temp_dir" in self._context:
+        if hasattr(
+                self,
+                "_context") and self._context and "temp_dir" in self._context:
             temp_base = self._context["temp_dir"]
 
-        temp_path = temp_base / f"{name}_{timestamp}.png"
-        temp_path.parent.mkdir(parents=True, exist_ok=True)
+        # Get file format config
+        from ..core.configuration_manager import ConfigurationManager
+        config_manager = ConfigurationManager()
+        default_ext = config_manager.get_value("output.default_extension")
+        png_compression = config_manager.get_value("output.formats.png.compression")
+        
+        temp_path = temp_base / f"{name}_{timestamp}{default_ext}"
+        path_resolver = PathResolver(self.logger)
+        path_resolver.resolve_path(temp_path.parent, create=True, path_type="directory")
 
-        # Use lossless PNG
-        image.save(temp_path, "PNG", compress_level=0)
+        # Use configured PNG compression
+        image.save(temp_path, "PNG", compress_level=png_compression)
         self.temp_files.append(temp_path)
 
         return temp_path
@@ -210,6 +255,21 @@ class BaseExpansionStrategy(ABC):
         # Clear CUDA cache if available
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
+            torch.cuda.synchronize()
+
+    def _cleanup_temp_files(self, keep_last: int = 5):
+        """Clean up old temp files to prevent memory growth"""
+        if len(self.temp_files) > keep_last:
+            # Clean oldest files
+            for file_path in self.temp_files[:-keep_last]:
+                try:
+                    if Path(file_path).exists():
+                        Path(file_path).unlink()
+                except Exception as e:
+                    self.logger.debug(
+                        f"Failed to clean temp file {file_path}: {e}")
+            # Keep only recent files
+            self.temp_files = self.temp_files[-keep_last:]
 
     def validate_image_path(self, path: Path) -> Image.Image:
         """Validate and load image from path"""

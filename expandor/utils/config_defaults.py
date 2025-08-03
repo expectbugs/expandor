@@ -3,21 +3,22 @@ Default configurations for ControlNet
 Used by setup command to create initial config files
 """
 
+
 def create_default_controlnet_config() -> dict:
     """
     Create default ControlNet configuration
-    
+
     This function is called by the setup command to create initial configs.
     After creation, all values MUST come from the config file.
     These are NOT hardcoded defaults - they're initial config values.
-    
+
     Returns:
         dict: Initial configuration to be saved as YAML
     """
     return {
         "# ControlNet Configuration": None,
         "# All values have sensible defaults but can be customized": None,
-        
+
         # Default parameter values for all ControlNet operations
         "defaults": {
             "negative_prompt": "",
@@ -26,7 +27,7 @@ def create_default_controlnet_config() -> dict:
             "num_inference_steps": 50,
             "guidance_scale": 7.5,
         },
-        
+
         # Extractor settings
         "extractors": {
             "canny": {
@@ -42,7 +43,7 @@ def create_default_controlnet_config() -> dict:
                 "kernel_size": 3,
                 "dilation_iterations": 1,
             },
-            
+
             "blur": {
                 # Blur types
                 "valid_types": ["gaussian", "box", "motion"],
@@ -52,7 +53,7 @@ def create_default_controlnet_config() -> dict:
                 # Default blur radius
                 "default_radius": 5,
             },
-            
+
             "depth": {
                 # Model for depth extraction
                 "model_id": "Intel/dpt-large",
@@ -60,13 +61,13 @@ def create_default_controlnet_config() -> dict:
                 "normalize": True,
                 "invert": False,
             },
-            
+
             "resampling": {
                 # PIL resampling method
                 "method": "LANCZOS",
             },
         },
-        
+
         # Pipeline settings
         "pipelines": {
             # SDXL dimension requirements
@@ -74,7 +75,7 @@ def create_default_controlnet_config() -> dict:
             # FAIL LOUD on invalid dimensions - NO AUTO-RESIZE
             "validate_dimensions": True,
         },
-        
+
         # Model references - these are defaults that can be customized
         # Users can change these to use different ControlNet models
         # Example: "canny": "your-username/your-custom-canny-model"
@@ -82,7 +83,7 @@ def create_default_controlnet_config() -> dict:
             "sdxl": {
                 # Default HuggingFace model IDs - CUSTOMIZABLE
                 "canny": "diffusers/controlnet-canny-sdxl-1.0",
-                "depth": "diffusers/controlnet-depth-sdxl-1.0", 
+                "depth": "diffusers/controlnet-depth-sdxl-1.0",
                 "openpose": "diffusers/controlnet-openpose-sdxl-1.0",
                 # Add custom models here:
                 # "custom_type": "your-model-id",
@@ -93,19 +94,19 @@ def create_default_controlnet_config() -> dict:
             #     ...
             # }
         },
-        
+
         # Strategy settings
         "strategy": {
             # Default values for strategies - users can override
             "default_extract_at_each_step": True,
         },
-        
+
         # VRAM overhead estimates (MB)
         "vram_overhead": {
             "model_load": 2000,  # Per ControlNet model
             "operation_active": 1500,  # Additional for active operations
         },
-        
+
         # Calculation constants
         "calculations": {
             "megapixel_divisor": 1000000,  # 1e6 for MP calculations
@@ -116,7 +117,7 @@ def create_default_controlnet_config() -> dict:
 def update_vram_strategies_with_defaults() -> dict:
     """
     Create default operation_estimates section for vram_strategies.yaml
-    
+
     This is added to existing vram_strategies.yaml if missing
     """
     return {
@@ -133,7 +134,7 @@ def update_vram_strategies_with_defaults() -> dict:
                 "controlnet_inpaint": 8000,
                 "controlnet_img2img": 7500,
             },
-            
+
             "sd3": {
                 "generate": 8000,
                 "inpaint": 7500,
@@ -144,7 +145,7 @@ def update_vram_strategies_with_defaults() -> dict:
                 "controlnet_inpaint": 10000,
                 "controlnet_img2img": 9500,
             },
-            
+
             "flux": {
                 "generate": 12000,
                 "inpaint": 11000,
@@ -155,7 +156,7 @@ def update_vram_strategies_with_defaults() -> dict:
                 "controlnet_inpaint": 14000,
                 "controlnet_img2img": 13500,
             },
-            
+
             "sd15": {
                 "generate": 3000,
                 "inpaint": 2800,
@@ -166,7 +167,7 @@ def update_vram_strategies_with_defaults() -> dict:
                 "controlnet_inpaint": 4300,
                 "controlnet_img2img": 4000,
             },
-            
+
             "sd2": {
                 "generate": 4000,
                 "inpaint": 3800,
@@ -177,13 +178,13 @@ def update_vram_strategies_with_defaults() -> dict:
                 "controlnet_inpaint": 5300,
                 "controlnet_img2img": 5000,
             },
-            
+
             # Resolution scaling factors (multiplier per megapixel)
             "resolution_scaling": {
                 "per_megapixel": 150,  # Additional MB per megapixel
                 "batch_size_multiplier": 0.8,  # Additional factor per batch item
             },
-            
+
             # LoRA overhead
             "lora_overhead": 200,  # MB per LoRA
         }

@@ -3,13 +3,14 @@ Interactive setup wizard for Expandor
 """
 
 import os
-import shutil
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
-from ..config.user_config import LoRAConfig, ModelConfig, UserConfig, UserConfigManager
+from ..config.user_config import (LoRAConfig, ModelConfig, UserConfig,
+                                  UserConfigManager)
 from ..utils.logging_utils import setup_logger
+from ..utils.path_resolver import PathResolver
 
 
 class SetupWizard:
@@ -27,10 +28,11 @@ class SetupWizard:
         # Check if config already exists
         if self.user_config_manager.config_path.exists():
             if not self._confirm("Configuration already exists. Overwrite?"):
-                print("Setup cancelled.")
+                self.logger.info("Setup cancelled.")
                 return
 
         # Run setup steps
+        self._setup_device()  # Ask for device preference first
         self._setup_models()
         self._setup_quality()
         self._setup_performance()
@@ -46,98 +48,131 @@ class SetupWizard:
 
         self._print_complete()
 
+    def _setup_device(self):
+        """Setup device preference"""
+        self.logger.info("\n--- Device Configuration ---")
+        self.logger.info("Select the device to use for processing.")
+
+        device = self._get_choice(
+            "Select device:",
+            {
+                "1": ("CUDA (NVIDIA GPU) - Recommended", "cuda"),
+                "2": ("CPU - Slower but works everywhere", "cpu"),
+                "3": ("MPS (Apple Silicon) - For Mac", "mps"),
+            },
+            default="1"
+        )
+        self.config.default_device = device
+        self.logger.info(f"Device set to: {device}")
+
     def _print_welcome(self):
         """Print welcome message"""
-        print("\n" + "=" * 60)
-        print("EXPANDOR SETUP WIZARD")
-        print("=" * 60)
-        print("\nThis wizard will help you configure Expandor for first use.")
-        print("Press Ctrl+C at any time to cancel.\n")
+        self.logger.info("\n" + "=" * 60)
+        self.logger.info("EXPANDOR SETUP WIZARD")
+        self.logger.info("=" * 60)
+        self.logger.info(
+            "\nThis wizard will help you configure Expandor for first use.")
+        self.logger.info("Press Ctrl+C at any time to cancel.\n")
 
     def _setup_models(self):
         """Setup model configurations"""
-        print("\n--- Model Configuration ---")
-        print("Expandor supports multiple AI models for image expansion.")
-        print("You can use local model files or download from HuggingFace.\n")
+        self.logger.info("\n--- Model Configuration ---")
+        self.logger.info(
+            "Expandor supports multiple AI models for image expansion.")
+        self.logger.info(
+            "You can use local model files or download from HuggingFace.\n")
 
         # SDXL (default model)
-        print("1. Stable Diffusion XL (SDXL) - Recommended")
+        self.logger.info("1. Stable Diffusion XL (SDXL) - Recommended")
         if self._confirm("   Enable SDXL?", default=True):
-            use_local = self._confirm("   Do you have SDXL downloaded locally?")
+            use_local = self._confirm(
+                "   Do you have SDXL downloaded locally?")
             if use_local:
-                path = self._get_path("   Enter path to SDXL model directory: ")
+                path = self._get_path(
+                    "   Enter path to SDXL model directory: ")
                 self.config.models["sdxl"] = ModelConfig(
-                    path=str(path), dtype="fp16", device="cuda"
-                )
+                    path=str(path), dtype="fp16", device=self.config.default_device)
             else:
-                print("   Will use HuggingFace model (downloads on first use)")
+                self.logger.info(
+                    "   Will use HuggingFace model (downloads on first use)")
                 self.config.models["sdxl"] = ModelConfig(
                     model_id="stabilityai/stable-diffusion-xl-base-1.0",
                     variant="fp16",
                     dtype="fp16",
-                    device="cuda",
+                    device=self.config.default_device,
                 )
 
             # SDXL Refiner
-            if self._confirm("   Enable SDXL Refiner? (improves quality but slower)"):
+            if self._confirm(
+                    "   Enable SDXL Refiner? (improves quality but slower)"):
                 self.config.models["sdxl_refiner"] = ModelConfig(
                     model_id="stabilityai/stable-diffusion-xl-refiner-1.0",
                     variant="fp16",
                     dtype="fp16",
-                    device="cuda",
+                    device=self.config.default_device,
                     enabled=True,
                 )
 
         # SD3
-        print("\n2. Stable Diffusion 3")
+        self.logger.info("\n2. Stable Diffusion 3")
         if self._confirm("   Enable SD3?"):
             self.config.models["sd3"] = ModelConfig(
                 model_id="stabilityai/stable-diffusion-3-medium",
                 dtype="fp16",
-                device="cuda",
+                device=self.config.default_device,
                 enabled=True,
             )
 
         # FLUX
-        print("\n3. FLUX")
+        self.logger.info("\n3. FLUX")
         if self._confirm("   Enable FLUX?"):
             model_id = self._get_choice(
-                "   Select FLUX variant:",
-                {
-                    "1": ("FLUX.1-schnell (fast)", "black-forest-labs/FLUX.1-schnell"),
-                    "2": ("FLUX.1-dev (quality)", "black-forest-labs/FLUX.1-dev"),
-                },
-            )
+                "   Select FLUX variant:", {
+                    "1": (
+                        "FLUX.1-schnell (fast)", "black-forest-labs/FLUX.1-schnell"), "2": (
+                        "FLUX.1-dev (quality)", "black-forest-labs/FLUX.1-dev"), }, )
             self.config.models["flux"] = ModelConfig(
-                model_id=model_id, dtype="fp16", device="cuda", enabled=True
-            )
+                model_id=model_id,
+                dtype="fp16",
+                device=self.config.default_device,
+                enabled=True)
 
         # Real-ESRGAN
-        print("\n4. Real-ESRGAN (for upscaling)")
-        print("   Real-ESRGAN will be downloaded automatically when needed.")
-        self.config.models["realesrgan"] = ModelConfig(dtype="fp32", device="cuda")
+        self.logger.info("\n4. Real-ESRGAN (for upscaling)")
+        self.logger.info(
+            "   Real-ESRGAN will be downloaded automatically when needed.")
+        self.config.models["realesrgan"] = ModelConfig(
+            dtype="fp32", device=self.config.default_device)
 
         # ControlNet
-        print("\n5. ControlNet (optional, improves quality)")
+        self.logger.info("\n5. ControlNet (optional, improves quality)")
         if self._confirm("   Enable ControlNet support?"):
             self.config.models["controlnet_tile"] = ModelConfig(
                 model_id="lllyasviel/control_v11f1e_sd15_tile",
                 dtype="fp16",
-                device="cuda",
+                device=self.config.default_device,
                 enabled=True,
             )
 
     def _setup_quality(self):
         """Setup quality preferences"""
-        print("\n--- Quality Settings ---")
+        self.logger.info("\n--- Quality Settings ---")
 
         quality = self._get_choice(
             "Select default quality preset:",
             {
-                "1": ("fast - Quick results, good quality", "fast"),
-                "2": ("balanced - Good balance of speed and quality", "balanced"),
-                "3": ("high - High quality, slower", "high"),
-                "4": ("ultra - Maximum quality, no time limit", "ultra"),
+                "1": (
+                    "fast - Quick results, good quality",
+                    "fast"),
+                "2": (
+                    "balanced - Good balance of speed and quality",
+                    "balanced"),
+                "3": (
+                    "high - High quality, slower",
+                    "high"),
+                "4": (
+                    "ultra - Maximum quality, no time limit",
+                    "ultra"),
             },
         )
         self.config.default_quality = quality
@@ -148,7 +183,7 @@ class SetupWizard:
 
     def _setup_performance(self):
         """Setup performance settings"""
-        print("\n--- Performance Settings ---")
+        self.logger.info("\n--- Performance Settings ---")
 
         # VRAM limit
         if self._confirm("Set a VRAM limit? (recommended for shared systems)"):
@@ -171,19 +206,21 @@ class SetupWizard:
 
         # Cache directory
         if self._confirm("Set a custom cache directory for models?"):
-            cache_dir = self._get_path("Enter cache directory path: ", create=True)
+            cache_dir = self._get_path(
+                "Enter cache directory path: ", create=True)
             self.config.cache_directory = str(cache_dir)
 
     def _setup_loras(self):
         """Setup LoRA configurations"""
-        print("\n--- LoRA Configuration ---")
-        print("LoRAs are small model modifications that can enhance specific aspects.")
+        self.logger.info("\n--- LoRA Configuration ---")
+        self.logger.info(
+            "LoRAs are small model modifications that can enhance specific aspects.")
 
         if not self._confirm("Do you have any LoRA files to configure?"):
             return
 
         while True:
-            print("\nConfiguring new LoRA:")
+            self.logger.info("\nConfiguring new LoRA:")
 
             name = input("LoRA name (for reference): ").strip()
             if not name:
@@ -200,7 +237,7 @@ class SetupWizard:
 
             # Auto-apply keywords
             keywords = []
-            print(
+            self.logger.info(
                 "Enter keywords that will auto-apply this LoRA (one per line, empty to finish):"
             )
             while True:
@@ -224,7 +261,7 @@ class SetupWizard:
 
     def _setup_output(self):
         """Setup output preferences"""
-        print("\n--- Output Settings ---")
+        self.logger.info("\n--- Output Settings ---")
 
         # Output format
         fmt = self._get_choice(
@@ -239,7 +276,8 @@ class SetupWizard:
 
         # Default output directory
         if self._confirm("Set a default output directory?"):
-            output_dir = self._get_path("Enter output directory path: ", create=True)
+            output_dir = self._get_path(
+                "Enter output directory path: ", create=True)
             self.config.default_output_dir = str(output_dir)
 
         # Save stages
@@ -254,11 +292,11 @@ class SetupWizard:
 
     def _save_config(self):
         """Save the configuration"""
-        print("\n--- Saving Configuration ---")
+        self.logger.info("\n--- Saving Configuration ---")
 
         try:
             self.user_config_manager.save(self.config)
-            print(
+            self.logger.info(
                 f"✓ Configuration saved to: {
                     self.user_config_manager.config_path}"
             )
@@ -267,12 +305,12 @@ class SetupWizard:
             self.user_config_manager.create_example_config()
 
         except Exception as e:
-            print(f"✗ Failed to save configuration: {e}")
+            self.logger.info(f"✗ Failed to save configuration: {e}")
             sys.exit(1)
 
     def _test_config(self):
         """Test the configuration"""
-        print("\n--- Testing Configuration ---")
+        self.logger.info("\n--- Testing Configuration ---")
 
         # Import test function
         from .utils import test_configuration
@@ -280,21 +318,22 @@ class SetupWizard:
         success = test_configuration(self.user_config_manager.config_path)
 
         if not success:
-            print("\nSome tests failed. You may need to:")
-            print("- Download missing models")
-            print("- Check file paths")
-            print("- Ensure CUDA is properly installed")
+            self.logger.info("\nSome tests failed. You may need to:")
+            self.logger.info("- Download missing models")
+            self.logger.info("- Check file paths")
+            self.logger.info("- Ensure CUDA is properly installed")
 
     def _print_complete(self):
         """Print completion message"""
-        print("\n" + "=" * 60)
-        print("SETUP COMPLETE!")
-        print("=" * 60)
-        print("\nYou can now use Expandor with commands like:")
-        print("  expandor image.jpg --resolution 4K")
-        print("  expandor photo.png --resolution 3840x1080 --quality ultra")
-        print("\nFor more options, run: expandor --help")
-        print("\nTo reconfigure later, run: expandor --setup")
+        self.logger.info("\n" + "=" * 60)
+        self.logger.info("SETUP COMPLETE!")
+        self.logger.info("=" * 60)
+        self.logger.info("\nYou can now use Expandor with commands like:")
+        self.logger.info("  expandor image.jpg --resolution 4K")
+        self.logger.info(
+            "  expandor photo.png --resolution 3840x1080 --quality ultra")
+        self.logger.info("\nFor more options, run: expandor --help")
+        self.logger.info("\nTo reconfigure later, run: expandor --setup")
 
     # Utility methods
 
@@ -310,16 +349,16 @@ class SetupWizard:
 
     def _get_choice(self, prompt: str, choices: Dict[str, tuple]) -> Any:
         """Get choice from options"""
-        print(f"\n{prompt}")
+        self.logger.info(f"\n{prompt}")
 
         for key, (description, _) in choices.items():
-            print(f"  {key}. {description}")
+            self.logger.info(f"  {key}. {description}")
 
         while True:
             response = input("\nChoice: ").strip()
             if response in choices:
                 return choices[response][1]
-            print("Invalid choice. Please try again.")
+            self.logger.info("Invalid choice. Please try again.")
 
     def _get_path(
         self, prompt: str, must_exist: bool = False, create: bool = False
@@ -329,21 +368,22 @@ class SetupWizard:
             path_str = input(prompt).strip()
 
             if not path_str:
-                print("Path cannot be empty. Please try again.")
+                self.logger.info("Path cannot be empty. Please try again.")
                 continue
 
-            # Expand user and environment variables
-            path_str = os.path.expanduser(path_str)
-            path_str = os.path.expandvars(path_str)
-
+            # Use PathResolver for consistent path handling
+            path_resolver = PathResolver(self.logger)
+            
             try:
-                path = Path(path_str).resolve()
+                path = path_resolver.resolve_path(path_str, create=False, path_type=path_type)
 
                 # Validate path isn't trying to access system directories
                 forbidden_paths = ["/sys", "/proc", "/dev", "/boot"]
                 path_str_lower = str(path).lower()
-                if any(path_str_lower.startswith(fp) for fp in forbidden_paths):
-                    print(f"Error: Cannot access system directory: {path}")
+                if any(path_str_lower.startswith(fp)
+                       for fp in forbidden_paths):
+                    self.logger.info(
+                        f"Error: Cannot access system directory: {path}")
                     continue
 
                 # Check permissions
@@ -353,7 +393,7 @@ class SetupWizard:
 
                     # Ensure parent exists for permission check
                     if not test_path.exists():
-                        print(
+                        self.logger.info(
                             f"Error: Parent directory does not exist: {
                                 test_path.parent}"
                         )
@@ -361,18 +401,21 @@ class SetupWizard:
 
                     # Check write permissions
                     if not os.access(test_path, os.W_OK):
-                        print(f"Error: No write permission for {test_path}")
-                        print("Please choose a different location or fix permissions.")
+                        self.logger.info(
+                            f"Error: No write permission for {test_path}")
+                        self.logger.info(
+                            "Please choose a different location or fix permissions.")
                         continue
 
                     # Check read permissions if path must exist
                     if must_exist and not os.access(path, os.R_OK):
-                        print(f"Error: No read permission for {path}")
+                        self.logger.info(
+                            f"Error: No read permission for {path}")
                         continue
 
                 # Validate the path exists if required
                 if must_exist and not path.exists():
-                    print(f"Error: Path does not exist: {path}")
+                    self.logger.info(f"Error: Path does not exist: {path}")
                     continue
 
                 # Create the path if requested
@@ -384,38 +427,39 @@ class SetupWizard:
                             path.touch(exist_ok=True)
                         else:  # It's a directory
                             path.mkdir(parents=True, exist_ok=True)
-                        print(f"✓ Created: {path}")
+                        self.logger.info(f"✓ Created: {path}")
                     except PermissionError:
-                        print(f"Error: Permission denied creating {path}")
-                        print(
+                        self.logger.info(
+                            f"Error: Permission denied creating {path}")
+                        self.logger.info(
                             "Please choose a different location or run with appropriate permissions."
                         )
                         continue
                     except OSError as e:
-                        print(f"Error: Failed to create path: {e}")
+                        self.logger.info(f"Error: Failed to create path: {e}")
                         continue
 
                 # Final validation - ensure we can actually use this path
                 if path.exists():
                     if path.is_dir() and path.suffix:
-                        print(
-                            f"Error: {path} exists as a directory but you specified a file"
-                        )
+                        self.logger.info(
+                            f"Error: {path} exists as a directory but you specified a file")
                         continue
                     elif path.is_file() and not path.suffix and create:
-                        print(
-                            f"Error: {path} exists as a file but you want to create a directory"
-                        )
+                        self.logger.info(
+                            f"Error: {path} exists as a file but you want to create a directory")
                         continue
 
                 return path
 
             except ValueError as e:
-                print(f"Error: Invalid path: {e}")
+                self.logger.info(f"Error: Invalid path: {e}")
                 continue
             except Exception as e:
-                print(f"Error: Unexpected error processing path: {e}")
-                print("Please enter a valid file or directory path.")
+                self.logger.info(
+                    f"Error: Unexpected error processing path: {e}")
+                self.logger.info(
+                    "Please enter a valid file or directory path.")
                 continue
 
     def _get_number(
@@ -436,14 +480,14 @@ class SetupWizard:
                 value = float(response)
 
                 if min_val is not None and value < min_val:
-                    print(f"Value must be at least {min_val}")
+                    self.logger.info(f"Value must be at least {min_val}")
                     continue
 
                 if max_val is not None and value > max_val:
-                    print(f"Value must be at most {max_val}")
+                    self.logger.info(f"Value must be at most {max_val}")
                     continue
 
                 return value
 
             except ValueError:
-                print("Please enter a valid number")
+                self.logger.info("Please enter a valid number")

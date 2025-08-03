@@ -8,51 +8,45 @@ import sys
 import traceback
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
 
 import torch
 
 from ..config.pipeline_config import PipelineConfigurator
 from ..config.user_config import UserConfigManager
-from ..core.config import ExpandorConfig
-from ..core.exceptions import ExpandorError, QualityError, StrategyError, VRAMError
+from ..core.exceptions import (ExpandorError, QualityError, StrategyError,
+                               VRAMError)
 from ..core.expandor import Expandor
 from ..utils.logging_utils import setup_logger
 from .args import create_parser, validate_args
 from .commands import parse_resolution
 from .process import process_single_image
 from .setup_wizard import SetupWizard
-from .utils import (
-    generate_output_path,
-    print_stage_info,
-    print_summary,
-    test_configuration,
-)
+from .utils import generate_output_path, test_configuration
 
 
 def setup_controlnet(args, logger):
     """Set up ControlNet configuration files"""
+    from ..utils.config_defaults import (create_default_controlnet_config,
+                                         update_vram_strategies_with_defaults)
     from ..utils.config_loader import ConfigLoader
-    from ..utils.config_defaults import (
-        create_default_controlnet_config,
-        update_vram_strategies_with_defaults
-    )
-    
+
     # Determine config directory
-    config_dir = args.config.parent if args.config else (Path.home() / ".config" / "expandor")
+    config_dir = args.config.parent if args.config else (
+        Path.home() / ".config" / "expandor")
     config_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Initialize config loader
     config_loader = ConfigLoader(config_dir, logger=logger)
-    
+
     # Check existing files
     controlnet_config_path = config_dir / "controlnet_config.yaml"
     vram_config_path = config_dir / "vram_strategies.yaml"
-    
+
     # Handle ControlNet config
     force = hasattr(args, 'force') and args.force
     if controlnet_config_path.exists() and not force:
-        logger.warning(f"ControlNet config already exists: {controlnet_config_path}")
+        logger.warning(
+            f"ControlNet config already exists: {controlnet_config_path}")
         logger.info("Use --force to overwrite")
     else:
         try:
@@ -62,23 +56,26 @@ def setup_controlnet(args, logger):
                 config,
                 user_config=True
             )
-            logger.info(f"✓ Created ControlNet config: {controlnet_config_path}")
+            logger.info(
+                f"✓ Created ControlNet config: {controlnet_config_path}")
         except Exception as e:
             logger.error(f"Failed to create ControlNet config: {e}")
             return 1
-    
+
     # Update VRAM strategies if needed
     try:
         if vram_config_path.exists():
             # Load existing config
-            vram_config = config_loader.load_config_file("vram_strategies.yaml")
-            
+            vram_config = config_loader.load_config_file(
+                "vram_strategies.yaml")
+
             # Check if operation_estimates exists
             if "operation_estimates" not in vram_config:
-                logger.info("Adding operation_estimates to vram_strategies.yaml")
+                logger.info(
+                    "Adding operation_estimates to vram_strategies.yaml")
                 updates = update_vram_strategies_with_defaults()
                 vram_config.update(updates)
-                
+
                 config_loader.save_config_file(
                     "vram_strategies.yaml",
                     vram_config,
@@ -95,7 +92,7 @@ def setup_controlnet(args, logger):
     except Exception as e:
         logger.error(f"Failed to update VRAM config: {e}")
         return 1
-    
+
     logger.info("\n✓ ControlNet setup complete!")
     logger.info("You can now use ControlNet features with Expandor")
     return 0
@@ -116,9 +113,47 @@ def main():
         wizard = SetupWizard()
         wizard.run()
         return 0
-    
+
     if hasattr(args, 'setup_controlnet') and args.setup_controlnet:
         return setup_controlnet(args, logger)
+
+    if args.init_config:
+        from pathlib import Path
+        import shutil
+        import yaml
+        
+        user_config_dir = Path.home() / ".config" / "expandor"
+        user_config_dir.mkdir(parents=True, exist_ok=True)
+        user_config_path = user_config_dir / "config.yaml"
+        
+        if user_config_path.exists():
+            logger.info(f"User config already exists at {user_config_path}")
+            response = input("Overwrite? (y/N): ")
+            if response.lower() != 'y':
+                return 0
+        
+        # Copy template and update version
+        template_path = Path(__file__).parent.parent / "config" / "examples" / "user_config_example.yaml"
+        
+        # Read template and update version to 2.0
+        with open(template_path, 'r') as f:
+            template_config = yaml.safe_load(f)
+        
+        # Update to current version
+        template_config['version'] = '2.0'
+        
+        # Write updated config
+        with open(user_config_path, 'w') as f:
+            yaml.dump(template_config, f, default_flow_style=False, sort_keys=False)
+        
+        logger.info(f"✓ Created user configuration at {user_config_path}")
+        logger.info("Edit this file to customize Expandor for your system.")
+        logger.info("\nCommon customizations:")
+        logger.info("  - Set 'vram.limit_mb' for your GPU memory")
+        logger.info("  - Adjust 'core.quality_preset' for default quality")
+        logger.info("  - Configure 'paths' for your storage locations")
+        logger.info("  - Add custom quality presets under 'custom_presets'")
+        return 0
 
     if args.test:
         success = test_configuration(args.config)
@@ -150,9 +185,18 @@ def main():
         logger.info("Initializing Expandor...")
 
         # Create pipeline adapter using factory method
-        model_name = args.model or "sdxl"
+        if args.model is None:
+            raise ValueError(
+                "Model name is required!\n"
+                "Solutions:\n"
+                "1. Specify with --model flag (e.g., --model sdxl)\n"
+                "2. Set model in your config file\n"
+                "3. Use expandor --setup to configure defaults"
+            )
+        model_name = args.model
         try:
-            adapter = configurator.create_adapter(model_name, adapter_type="auto")
+            adapter = configurator.create_adapter(
+                model_name, adapter_type="auto")
             logger.info(f"Created adapter for model: {model_name}")
         except ValueError as e:
             logger.error(f"Failed to create adapter: {e}")
@@ -174,7 +218,7 @@ def main():
                     # FAIL LOUD - requested LoRA not found
                     raise ValueError(
                         f"LoRA '{lora_name}' not found or disabled in configuration. "
-                        f"Available LoRAs: {[l.name for l in user_config.loras if l.enabled]}"
+                        f"Available LoRAs: {[lora.name for lora in user_config.loras if lora.enabled]}"
                     )
 
         # Add auto-applied LoRAs based on prompt
@@ -191,7 +235,8 @@ def main():
             lora_manager = LoRAManager(logger)
 
             try:
-                resolved_loras = lora_manager.resolve_lora_stack(loras_to_apply)
+                resolved_loras = lora_manager.resolve_lora_stack(
+                    loras_to_apply)
 
                 # Apply resolved LoRAs with adjusted weights
                 for lora_config, adjusted_weight in resolved_loras:
@@ -208,11 +253,9 @@ def main():
 
                 # Get recommended inference steps
                 recommended_steps = lora_manager.get_recommended_inference_steps(
-                    resolved_loras
-                )
+                    resolved_loras)
                 logger.info(
-                    f"Recommended inference steps for LoRA stack: {recommended_steps}"
-                )
+                    f"Recommended inference steps for LoRA stack: {recommended_steps}")
 
             except LoRAConflictError as e:
                 # FAIL LOUD - LoRA conflicts are unrecoverable
@@ -230,7 +273,8 @@ def main():
         for i, input_path in enumerate(
             tqdm(input_files, desc="Processing images", unit="image"), 1
         ):
-            logger.info(f"\n[{i}/{len(input_files)}] Processing {input_path.name}")
+            logger.info(
+                f"\n[{i}/{len(input_files)}] Processing {input_path.name}")
 
             # Parse resolution - may need to load image for multipliers
             if (
@@ -247,8 +291,7 @@ def main():
                     )
                     logger.info(
                         f"Applying {
-                            args.resolution} multiplier: {current_resolution} -> {target_resolution}"
-                    )
+                            args.resolution} multiplier: {current_resolution} -> {target_resolution}")
             else:
                 # Standard resolution format
                 target_resolution = parse_resolution(args.resolution)
@@ -311,6 +354,7 @@ def main():
                     gc.collect()
                     if torch.cuda.is_available():
                         torch.cuda.empty_cache()
+                        torch.cuda.synchronize()
                     logger.debug(f"Performed memory cleanup after {i} images")
 
         # Final summary

@@ -8,16 +8,15 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import numpy as np
 from PIL import Image
 
 from ..core.boundary_tracker import BoundaryTracker
 from ..core.config import ExpandorConfig
 from ..core.exceptions import QualityError
-from .artifact_detector_enhanced import ArtifactSeverity, EnhancedArtifactDetector
+from .artifact_detector_enhanced import (ArtifactSeverity,
+                                         EnhancedArtifactDetector)
 from .boundary_analysis import BoundaryAnalyzer
-from .edge_analysis import EdgeInfo
-from .refinement.smart_refiner import RefinementResult, SmartRefiner
+from .refinement.smart_refiner import SmartRefiner
 
 
 class QualityOrchestrator:
@@ -27,21 +26,34 @@ class QualityOrchestrator:
     Follows FAIL LOUD philosophy - any quality issue is addressed or fails.
     """
 
-    def __init__(self, config: Dict[str, Any], logger: Optional[logging.Logger] = None):
+    def __init__(self, config: Dict[str, Any],
+                 logger: Optional[logging.Logger] = None):
         """Initialize quality orchestrator."""
         self.logger = logger or logging.getLogger(__name__)
         self.config = config
+
+        # Get configuration from ConfigurationManager
+        from ..core.configuration_manager import ConfigurationManager
+        self.config_manager = ConfigurationManager()
+        
+        # Get processor config
+        try:
+            self.processor_config = self.config_manager.get_processor_config('quality_orchestrator')
+        except ValueError as e:
+            # FAIL LOUD
+            raise ValueError(
+                f"Failed to load quality_orchestrator configuration!\n{str(e)}"
+            )
 
         # Initialize components
         self.artifact_detector = EnhancedArtifactDetector(logger)
         self.boundary_analyzer = BoundaryAnalyzer(logger)
         self.smart_refiner = SmartRefiner(logger=logger)
 
-        # Quality thresholds from config
-        quality_config = config.get("quality_validation", {})
-        self.quality_threshold = quality_config.get("quality_threshold", 0.85)
-        self.max_refinement_passes = quality_config.get("max_refinement_passes", 3)
-        self.auto_fix_threshold = quality_config.get("auto_fix_threshold", 0.7)
+        # Quality thresholds from processor config (FAIL LOUD - no defaults)
+        self.quality_threshold = self.processor_config['quality_threshold']
+        self.max_refinement_passes = self.processor_config['max_refinement_passes']
+        self.auto_fix_threshold = self.processor_config['auto_fix_threshold']
 
     def validate_and_refine(
         self,
@@ -71,14 +83,15 @@ class QualityOrchestrator:
         image = Image.open(image_path)
 
         # Get boundaries for analysis
-        boundaries = self._convert_boundaries(boundary_tracker.get_all_boundaries())
+        boundaries = self._convert_boundaries(
+            boundary_tracker.get_all_boundaries())
 
         self.logger.info(f"Starting quality validation for {image_path}")
 
         # Initialize results
         results = {
             "success": False,
-            "quality_score": 0.0,
+            "quality_score": self.processor_config['initial_quality_score'],
             "initial_image": str(image_path),
             "final_image": str(image_path),
             "refinement_passes": 0,
@@ -90,8 +103,7 @@ class QualityOrchestrator:
         # Step 1: Comprehensive artifact detection
         try:
             detection_result = self.artifact_detector.detect_artifacts_comprehensive(
-                image, boundaries, config.quality_preset
-            )
+                image, boundaries, config.quality_preset)
             results["detection_result"] = detection_result
             results["artifacts_detected"] = detection_result.has_artifacts
 
@@ -162,17 +174,15 @@ class QualityOrchestrator:
 
                     if refinement_result.success:
                         refinement_passes += 1
-                        current_image = Image.open(refinement_result.image_path)
+                        current_image = Image.open(
+                            refinement_result.image_path)
 
                         # Re-validate after refinement
                         detection_result = (
                             self.artifact_detector.detect_artifacts_comprehensive(
-                                current_image, boundaries, config.quality_preset
-                            )
-                        )
+                                current_image, boundaries, config.quality_preset))
                         boundary_analysis = self.boundary_analyzer.analyze_boundaries(
-                            boundary_tracker, current_image
-                        )
+                            boundary_tracker, current_image)
                         current_score = self._calculate_quality_score(
                             detection_result, boundary_analysis
                         )
@@ -230,8 +240,7 @@ class QualityOrchestrator:
 
         # Add recommendations
         results["recommendations"] = self._merge_recommendations(
-            detection_result.recommendations, boundary_analysis["recommendations"]
-        )
+            detection_result.recommendations, boundary_analysis["recommendations"])
 
         self.logger.info(
             f"Quality validation complete: score={quality_score:.3f}, "
@@ -240,7 +249,8 @@ class QualityOrchestrator:
 
         return results
 
-    def _convert_boundaries(self, boundary_infos: List[Any]) -> List[Dict[str, Any]]:
+    def _convert_boundaries(
+            self, boundary_infos: List[Any]) -> List[Dict[str, Any]]:
         """Convert BoundaryInfo objects or dicts to standardized format."""
         boundaries = []
         for info in boundary_infos:
@@ -253,8 +263,7 @@ class QualityOrchestrator:
                 # Position might be a tuple (x1,y1,x2,y2) or a single value
                 if isinstance(position, (list, tuple)) and len(position) >= 2:
                     boundary_value = (
-                        position[0] if info.direction == "vertical" else position[1]
-                    )
+                        position[0] if info.direction == "vertical" else position[1])
                 else:
                     boundary_value = position
 
@@ -262,8 +271,8 @@ class QualityOrchestrator:
                     {
                         "position": boundary_value,
                         "direction": info.direction,
-                        "step": getattr(info, "step", 0),
-                        "strength": getattr(info, "denoising_strength", 0.9),
+                        "step": getattr(info, "step", self.processor_config['default_step']),
+                        "strength": getattr(info, "denoising_strength", self.processor_config['default_denoising_strength']),
                     }
                 )
         return boundaries
@@ -273,24 +282,26 @@ class QualityOrchestrator:
     ) -> float:
         """Calculate overall quality score from all analyses."""
         # Start with boundary analysis score (already 0-1)
-        score = boundary_analysis.get("quality_score", 1.0)
+        score = boundary_analysis.get("quality_score", self.processor_config['default_quality_score'])
 
         # Apply artifact severity penalty
+        severity_penalties = self.processor_config['severity_penalties']
         severity_penalty = {
-            ArtifactSeverity.NONE: 0.0,
-            ArtifactSeverity.LOW: 0.05,
-            ArtifactSeverity.MEDIUM: 0.15,
-            ArtifactSeverity.HIGH: 0.30,
-            ArtifactSeverity.CRITICAL: 0.50,
+            ArtifactSeverity.NONE: severity_penalties['none'],
+            ArtifactSeverity.LOW: severity_penalties['low'],
+            ArtifactSeverity.MEDIUM: severity_penalties['medium'],
+            ArtifactSeverity.HIGH: severity_penalties['high'],
+            ArtifactSeverity.CRITICAL: severity_penalties['critical'],
         }
-        score -= severity_penalty.get(detection_result.severity, 0.2)
+        score -= severity_penalty.get(detection_result.severity, self.processor_config['default_severity_penalty'])
 
         # Apply detection score penalties (already normalized 0-1)
         for method, method_score in detection_result.detection_scores.items():
-            score -= method_score * 0.1  # Each method can deduct up to 10%
+            score -= method_score * self.processor_config['method_score_penalty_multiplier']  # Each method can deduct up to 10%
 
         # Ensure score is in valid range
-        return max(0.0, min(1.0, score))
+        return max(self.processor_config['quality_score_min'], 
+                  min(self.processor_config['quality_score_max'], score))
 
     def _select_refinement_pipeline(
         self, pipeline_registry: Dict[str, Any]

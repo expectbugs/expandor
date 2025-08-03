@@ -97,6 +97,7 @@ class GPUMemoryManager:
             gc.collect()
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
+                torch.cuda.synchronize()
 
     def estimate_tensor_memory(
         self, shape: Tuple[int, ...], dtype: torch.dtype = torch.float32
@@ -127,7 +128,14 @@ class GPUMemoryManager:
             torch.bool: 1,
         }
 
-        bytes_per_element = dtype_sizes.get(dtype, 4)
+        # FAIL LOUD if dtype not recognized
+        if dtype not in dtype_sizes:
+            raise ValueError(
+                f"Unknown dtype: {dtype}\n"
+                f"Supported dtypes: {list(dtype_sizes.keys())}\n"
+                f"Please add the dtype to the dtype_sizes mapping."
+            )
+        bytes_per_element = dtype_sizes[dtype]
         total_bytes = num_elements * bytes_per_element
 
         # Convert to MB
@@ -162,7 +170,8 @@ class GPUMemoryManager:
             clear_on_exit: Clear cache on exit
         """
         start_stats = self.get_memory_stats()
-        logger.debug(f"Entering {name} - GPU free: {start_stats.gpu_free_mb:.1f}MB")
+        logger.debug(
+            f"Entering {name} - GPU free: {start_stats.gpu_free_mb:.1f}MB")
 
         try:
             yield self
@@ -222,7 +231,8 @@ def offload_to_cpu(tensor: torch.Tensor, name: str) -> torch.Tensor:
     """
     if tensor.is_cuda:
         cpu_tensor = tensor.cpu()
-        gpu_memory_manager.offloaded_tensors[name] = (cpu_tensor, str(tensor.device))
+        gpu_memory_manager.offloaded_tensors[name] = (
+            cpu_tensor, str(tensor.device))
         logger.debug(
             f"Offloaded {name} to CPU ({
                 tensor.element_size() *
@@ -293,12 +303,18 @@ def estimate_model_memory(model: Any, include_gradients: bool = True) -> float:
         if include_gradients and param.requires_grad:
             # Load gradient multiplier from config
             try:
+                from pathlib import Path
+
                 from .config_loader import ConfigLoader
-                loader = ConfigLoader()
-                proc_config = loader.load_config("processing_params.yaml")
-                gradient_multiplier = proc_config.get('memory_params', {}).get('gradient_memory_multiplier', 2)
-            except:
-                raise ValueError("Failed to load memory parameters configuration")
+                config_dir = Path(__file__).parent.parent / "config"
+                loader = ConfigLoader(config_dir)
+                proc_config = loader.load_config_file("processing_params.yaml")
+                gradient_multiplier = proc_config.get(
+                    'memory_params', {}).get(
+                    'gradient_memory_multiplier', 2)
+            except (FileNotFoundError, ValueError, KeyError, TypeError) as e:
+                raise ValueError(
+                    f"Failed to load memory parameters configuration: {e}")
             param_bytes *= gradient_multiplier
 
         total_bytes += param_bytes
@@ -306,16 +322,22 @@ def estimate_model_memory(model: Any, include_gradients: bool = True) -> float:
     # Add buffer for activations (rough estimate)
     # Load activation multipliers from config
     try:
+        from pathlib import Path
+
         from .config_loader import ConfigLoader
-        loader = ConfigLoader()
-        proc_config = loader.load_config("processing_params.yaml")
+        config_dir = Path(__file__).parent.parent / "config"
+        loader = ConfigLoader(config_dir)
+        proc_config = loader.load_config_file("processing_params.yaml")
         mem_params = proc_config.get('memory_params', {})
         activation_multiplier = (
-            mem_params.get('activation_multiplier_with_grad', 4) if include_gradients 
-            else mem_params.get('activation_multiplier_no_grad', 2)
-        )
-    except:
-        raise ValueError("Failed to load memory parameters configuration")
+            mem_params.get(
+                'activation_multiplier_with_grad',
+                4) if include_gradients else mem_params.get(
+                'activation_multiplier_no_grad',
+                2))
+    except (FileNotFoundError, ValueError, KeyError, TypeError) as e:
+        raise ValueError(
+            f"Failed to load memory parameters configuration: {e}")
     total_bytes *= activation_multiplier
 
     total_mb = total_bytes / (1024**2)

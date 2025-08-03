@@ -6,7 +6,7 @@ Original: ai_wallpaper/processing/smart_detector.py
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, Optional
 
 import cv2
 import numpy as np
@@ -18,6 +18,19 @@ class ArtifactDetector:
 
     def __init__(self, logger: Optional[logging.Logger] = None):
         self.logger = logger or logging.getLogger(__name__)
+        
+        # Get configuration from ConfigurationManager
+        from ..core.configuration_manager import ConfigurationManager
+        self.config_manager = ConfigurationManager()
+        
+        # Get processor config
+        try:
+            self.processor_config = self.config_manager.get_processor_config('artifact_removal')
+        except ValueError as e:
+            # FAIL LOUD
+            raise ValueError(
+                f"Failed to load artifact_removal configuration!\n{str(e)}"
+            )
 
     def quick_analysis(self, image_path: Path, metadata: Dict) -> Dict:
         """
@@ -29,7 +42,7 @@ class ArtifactDetector:
         original_size = image.size
 
         # Work at higher resolution for better detection (up to 4K)
-        scale = min(1.0, 4096 / max(image.size))
+        scale = min(self.processor_config['scale_min'], self.processor_config['max_detection_resolution'] / max(image.size))
         if scale < 1.0:
             detect_size = (int(image.width * scale), int(image.height * scale))
             detect_image = image.resize(detect_size, Image.Resampling.LANCZOS)
@@ -121,24 +134,24 @@ class ArtifactDetector:
             img_array, boundaries_h, boundaries_v, scale
         )
         if color_mask is not None:
-            combined_mask = np.maximum(combined_mask, color_mask * 0.4)
+            combined_mask = np.maximum(combined_mask, color_mask * self.processor_config['color_detection_weight'])
 
         # Method 2: Gradient detection
         gradient_mask = self._detect_gradient_discontinuities(
             img_array, boundaries_h, boundaries_v, scale
         )
         if gradient_mask is not None:
-            combined_mask = np.maximum(combined_mask, gradient_mask * 0.3)
+            combined_mask = np.maximum(combined_mask, gradient_mask * self.processor_config['gradient_detection_weight'])
 
         # Method 3: Frequency domain detection
         frequency_mask = self._detect_frequency_artifacts(
             img_array, boundaries_h, boundaries_v, scale
         )
         if frequency_mask is not None:
-            combined_mask = np.maximum(combined_mask, frequency_mask * 0.3)
+            combined_mask = np.maximum(combined_mask, frequency_mask * self.processor_config['frequency_detection_weight'])
 
         # Return combined mask if any issues found
-        return combined_mask if np.max(combined_mask) > 0.1 else None
+        return combined_mask if np.max(combined_mask) > self.processor_config['combined_mask_threshold'] else None
 
     def _detect_color_discontinuities(
         self, img_array, boundaries_h, boundaries_v, scale
@@ -150,33 +163,35 @@ class ArtifactDetector:
         # Check horizontal boundaries
         for boundary in boundaries_h:
             x = int(boundary * scale)
-            if 10 < x < w - 10:
+            if self.processor_config['boundary_margin'] < x < w - self.processor_config['boundary_margin']:
                 # Compare color statistics on both sides
-                left_region = img_array[:, max(0, x - 20) : x]
-                right_region = img_array[:, x : min(w, x + 20)]
+                left_region = img_array[:, max(0, x - self.processor_config['color_sample_region_size']): x]
+                right_region = img_array[:, x: min(w, x + self.processor_config['color_sample_region_size'])]
 
                 # Calculate color difference
                 left_mean = np.mean(left_region, axis=(0, 1))
                 right_mean = np.mean(right_region, axis=(0, 1))
                 color_diff = np.linalg.norm(left_mean - right_mean)
 
-                if color_diff > 10:  # Threshold for significant difference
+                if color_diff > self.processor_config['color_difference_threshold']:  # Threshold for significant difference
                     # Mark seam area
-                    mask[:, max(0, x - 5) : min(w, x + 5)] = min(1.0, color_diff / 50)
+                    mask[:, max(0, x - self.processor_config['boundary_mask_width']): min(w, x + self.processor_config['boundary_mask_width'])
+                         ] = min(1.0, color_diff / self.processor_config['color_diff_norm_divisor'])
 
         # Similar for vertical boundaries
         for boundary in boundaries_v:
             y = int(boundary * scale)
-            if 10 < y < h - 10:
-                top_region = img_array[max(0, y - 20) : y, :]
-                bottom_region = img_array[y : min(h, y + 20), :]
+            if self.processor_config['boundary_margin'] < y < h - self.processor_config['boundary_margin']:
+                top_region = img_array[max(0, y - self.processor_config['color_sample_region_size']):y, :]
+                bottom_region = img_array[y:min(h, y + self.processor_config['color_sample_region_size']), :]
 
                 top_mean = np.mean(top_region, axis=(0, 1))
                 bottom_mean = np.mean(bottom_region, axis=(0, 1))
                 color_diff = np.linalg.norm(top_mean - bottom_mean)
 
-                if color_diff > 10:
-                    mask[max(0, y - 5) : min(h, y + 5), :] = min(1.0, color_diff / 50)
+                if color_diff > self.processor_config['color_difference_threshold']:
+                    mask[max(0, y - self.processor_config['boundary_mask_width']):min(h, y + self.processor_config['boundary_mask_width']),
+                         :] = min(1.0, color_diff / self.processor_config['color_diff_norm_divisor'])
 
         return mask if np.max(mask) > 0 else None
 
@@ -199,29 +214,34 @@ class ArtifactDetector:
         # Check for abnormal gradients at boundaries
         for boundary in boundaries_h:
             x = int(boundary * scale)
-            if 5 < x < w - 5:
+            if self.processor_config['gradient_mask_width'] < x < w - self.processor_config['gradient_mask_width']:
                 # Look for gradient spikes at boundary
-                boundary_grad = grad_mag[:, max(0, x - 2) : min(w, x + 2)]
-                if np.mean(boundary_grad) > np.mean(grad_mag) * 2:
-                    mask[:, max(0, x - 5) : min(w, x + 5)] = 0.8
+                boundary_grad = grad_mag[:, max(0, x - self.processor_config['gradient_boundary_check_width']): min(w, x + self.processor_config['gradient_boundary_check_width'])]
+                if np.mean(boundary_grad) > np.mean(grad_mag) * self.processor_config['gradient_spike_multiplier']:
+                    mask[:, max(0, x - self.processor_config['gradient_mask_width']): min(w, x + self.processor_config['gradient_mask_width'])] = self.processor_config['gradient_mask_value']
 
         for boundary in boundaries_v:
             y = int(boundary * scale)
-            if 5 < y < h - 5:
-                boundary_grad = grad_mag[max(0, y - 2) : min(h, y + 2), :]
-                if np.mean(boundary_grad) > np.mean(grad_mag) * 2:
-                    mask[max(0, y - 5) : min(h, y + 5), :] = 0.8
+            if self.processor_config['gradient_mask_width'] < y < h - self.processor_config['gradient_mask_width']:
+                boundary_grad = grad_mag[max(0, y - self.processor_config['gradient_boundary_check_width']):min(h, y + self.processor_config['gradient_boundary_check_width']), :]
+                if np.mean(boundary_grad) > np.mean(grad_mag) * self.processor_config['gradient_spike_multiplier']:
+                    mask[max(0, y - self.processor_config['gradient_mask_width']):min(h, y + self.processor_config['gradient_mask_width']), :] = self.processor_config['gradient_mask_value']
 
         return mask if np.max(mask) > 0 else None
 
-    def _detect_frequency_artifacts(self, img_array, boundaries_h, boundaries_v, scale):
+    def _detect_frequency_artifacts(
+            self,
+            img_array,
+            boundaries_h,
+            boundaries_v,
+            scale):
         """Detect artifacts in frequency domain"""
         gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
 
         # Apply FFT
         f_transform = np.fft.fft2(gray)
         f_shift = np.fft.fftshift(f_transform)
-        magnitude_spectrum = np.log(np.abs(f_shift) + 1)
+        magnitude_spectrum = np.log(np.abs(f_shift) + self.processor_config['fft_epsilon'])
 
         # Look for periodic patterns that indicate seams
         # This is a simplified version - real implementation would be more
@@ -236,13 +256,13 @@ class ArtifactDetector:
                 # Simple heuristic: check for vertical lines in frequency
                 # domain
                 freq_x = int(
-                    w / 2 + (x - w / 2) * 0.1
+                    w / 2 + (x - w / 2) * self.processor_config['frequency_location_scale']
                 )  # Approximate frequency location
                 if (
                     np.mean(magnitude_spectrum[:, freq_x])
-                    > np.mean(magnitude_spectrum) * 1.5
+                    > np.mean(magnitude_spectrum) * self.processor_config['magnitude_spectrum_multiplier']
                 ):
-                    mask[:, max(0, x - 10) : min(w, x + 10)] = 0.5
+                    mask[:, max(0, x - self.processor_config['frequency_mask_width']): min(w, x + self.processor_config['frequency_mask_width'])] = self.processor_config['frequency_mask_value']
 
         return mask if np.max(mask) > 0 else None
 
@@ -259,9 +279,9 @@ class ArtifactDetector:
 
             # Mark tile boundaries
             if 0 < tx_scaled < w:
-                mask[:, max(0, tx_scaled - 3) : min(w, tx_scaled + 3)] = 0.6
+                mask[:, max(0, tx_scaled - self.processor_config['tile_boundary_width']): min(w, tx_scaled + self.processor_config['tile_boundary_width'])] = self.processor_config['tile_mask_value']
             if 0 < ty_scaled < h:
-                mask[max(0, ty_scaled - 3) : min(h, ty_scaled + 3), :] = 0.6
+                mask[max(0, ty_scaled - self.processor_config['tile_boundary_width']):min(h, ty_scaled + self.processor_config['tile_boundary_width']), :] = self.processor_config['tile_mask_value']
 
         return mask if np.max(mask) > 0 else None
 
@@ -270,11 +290,12 @@ class ArtifactDetector:
         gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
 
         # Edge detection
-        edges = cv2.Canny(gray, 50, 150)
+        edges = cv2.Canny(gray, self.processor_config['canny_threshold_low'], self.processor_config['canny_threshold_high'])
 
         # Look for long straight lines (potential seams)
         lines = cv2.HoughLinesP(
-            edges, 1, np.pi / 180, 100, minLineLength=100, maxLineGap=10
+            edges, self.processor_config['hough_rho'], np.pi / self.processor_config['hough_theta_divisor'], self.processor_config['hough_threshold'], 
+            minLineLength=self.processor_config['hough_min_line_length'], maxLineGap=self.processor_config['hough_max_line_gap']
         )
 
         if lines is not None:
@@ -284,7 +305,7 @@ class ArtifactDetector:
             for line in lines:
                 x1, y1, x2, y2 = line[0]
                 # Draw line on mask
-                cv2.line(mask, (x1, y1), (x2, y2), 0.4, thickness=5)
+                cv2.line(mask, (x1, y1), (x2, y2), self.processor_config['hough_line_mask_value'], thickness=self.processor_config['hough_line_thickness'])
 
             return mask if np.max(mask) > 0 else None
 

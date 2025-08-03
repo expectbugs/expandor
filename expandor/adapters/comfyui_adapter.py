@@ -4,13 +4,12 @@ Future implementation for ComfyUI API integration
 """
 
 import logging
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from PIL import Image
 
-from ..utils.logging_utils import setup_logger
 from .base_adapter import BasePipelineAdapter
+from ..core.configuration_manager import ConfigurationManager
 
 
 class ComfyUIPipelineAdapter(BasePipelineAdapter):
@@ -53,8 +52,7 @@ class ComfyUIPipelineAdapter(BasePipelineAdapter):
         raise NotImplementedError(
             "ComfyUI pipeline loading not yet implemented.\n"
             "This feature will be added in a future release.\n"
-            "For now, please use DiffusersPipelineAdapter or MockPipelineAdapter."
-        )
+            "For now, please use DiffusersPipelineAdapter or MockPipelineAdapter.")
 
     def get_pipeline(self, pipeline_type: str) -> Optional[Any]:
         """Get loaded pipeline by type"""
@@ -64,19 +62,30 @@ class ComfyUIPipelineAdapter(BasePipelineAdapter):
         self,
         prompt: str,
         negative_prompt: Optional[str] = None,
-        width: int = 1024,
-        height: int = 1024,
-        num_inference_steps: int = 50,
-        guidance_scale: float = 7.5,
+        width: Optional[int] = None,
+        height: Optional[int] = None,
+        num_inference_steps: Optional[int] = None,
+        guidance_scale: Optional[float] = None,
         seed: Optional[int] = None,
         **kwargs
     ) -> Image.Image:
         """Generate image from text prompt"""
+        # Get defaults from configuration - FAIL LOUD if not found
+        config_manager = ConfigurationManager()
+        
+        if width is None:
+            width = config_manager.get_value("adapters.comfyui.default_width")
+        if height is None:
+            height = config_manager.get_value("adapters.comfyui.default_height")
+        if num_inference_steps is None:
+            num_inference_steps = config_manager.get_value("adapters.comfyui.default_steps")
+        if guidance_scale is None:
+            guidance_scale = config_manager.get_value("adapters.comfyui.default_cfg")
+        
         raise NotImplementedError(
             "ComfyUI generation not yet implemented.\n"
             "This adapter is a placeholder for future ComfyUI API integration.\n"
-            "Please use DiffusersPipelineAdapter for AI model support."
-        )
+            "Please use DiffusersPipelineAdapter for AI model support.")
 
     def inpaint(
         self,
@@ -84,13 +93,23 @@ class ComfyUIPipelineAdapter(BasePipelineAdapter):
         mask: Image.Image,
         prompt: str,
         negative_prompt: Optional[str] = None,
-        strength: float = 0.8,
-        num_inference_steps: int = 50,
-        guidance_scale: float = 7.5,
+        strength: Optional[float] = None,
+        num_inference_steps: Optional[int] = None,
+        guidance_scale: Optional[float] = None,
         seed: Optional[int] = None,
         **kwargs
     ) -> Image.Image:
         """Inpaint masked region of image"""
+        # Get defaults from configuration - FAIL LOUD if not found
+        config_manager = ConfigurationManager()
+        
+        if strength is None:
+            strength = config_manager.get_value("adapters.comfyui.default_denoise")
+        if num_inference_steps is None:
+            num_inference_steps = config_manager.get_value("adapters.comfyui.default_steps")
+        if guidance_scale is None:
+            guidance_scale = config_manager.get_value("adapters.comfyui.default_cfg")
+        
         raise NotImplementedError(
             "ComfyUI inpainting not yet implemented.\n"
             "This adapter is a placeholder for future ComfyUI API integration."
@@ -101,13 +120,23 @@ class ComfyUIPipelineAdapter(BasePipelineAdapter):
         image: Image.Image,
         prompt: str,
         negative_prompt: Optional[str] = None,
-        strength: float = 0.8,
-        num_inference_steps: int = 50,
-        guidance_scale: float = 7.5,
+        strength: Optional[float] = None,
+        num_inference_steps: Optional[int] = None,
+        guidance_scale: Optional[float] = None,
         seed: Optional[int] = None,
         **kwargs
     ) -> Image.Image:
         """Transform image with img2img"""
+        # Get defaults from configuration - FAIL LOUD if not found
+        config_manager = ConfigurationManager()
+        
+        if strength is None:
+            strength = config_manager.get_value("adapters.comfyui.default_denoise")
+        if num_inference_steps is None:
+            num_inference_steps = config_manager.get_value("adapters.comfyui.default_steps")
+        if guidance_scale is None:
+            guidance_scale = config_manager.get_value("adapters.comfyui.default_cfg")
+        
         raise NotImplementedError(
             "ComfyUI img2img not yet implemented.\n"
             "This adapter is a placeholder for future ComfyUI API integration."
@@ -124,10 +153,15 @@ class ComfyUIPipelineAdapter(BasePipelineAdapter):
         self,
         image: Image.Image,
         prompt: Optional[str] = None,
-        scale_factor: int = 2,
+        scale_factor: Optional[int] = None,
         **kwargs
     ) -> Image.Image:
         """Enhance/upscale image"""
+        # Get default scale_factor from configuration if not provided
+        if scale_factor is None:
+            config_manager = ConfigurationManager()
+            scale_factor = config_manager.get_value("adapters.common.default_scale_factor")
+        
         raise NotImplementedError(
             "ComfyUI enhancement not yet implemented.\n"
             "This adapter is a placeholder for future ComfyUI API integration."
@@ -137,16 +171,20 @@ class ComfyUIPipelineAdapter(BasePipelineAdapter):
         self, target_width: int, target_height: int
     ) -> Tuple[int, int]:
         """Get optimal dimensions for the model"""
-        # Default to multiples of 8 for compatibility
-        optimal_width = (target_width // 8) * 8
-        optimal_height = (target_height // 8) * 8
+        # Get dimension constraints from configuration
+        config_manager = ConfigurationManager()
+        dimension_multiple = config_manager.get_value("adapters.comfyui.dimension_multiple")
+        min_dimension = config_manager.get_value("adapters.comfyui.min_dimension")
+        
+        # Round to dimension multiple for compatibility
+        optimal_width = (target_width // dimension_multiple) * dimension_multiple
+        optimal_height = (target_height // dimension_multiple) * dimension_multiple
 
-        return (max(512, optimal_width), max(512, optimal_height))
+        return (max(min_dimension, optimal_width), max(min_dimension, optimal_height))
 
     def unload_pipeline(self, pipeline_type: str):
         """Unload pipeline to free memory"""
         # No pipelines loaded in placeholder
-        pass
 
     def get_available_pipelines(self) -> List[str]:
         """List available pipeline types"""
@@ -175,14 +213,26 @@ class ComfyUIPipelineAdapter(BasePipelineAdapter):
         control_image: Image.Image,
         prompt: str,
         negative_prompt: Optional[str] = None,
-        controlnet_conditioning_scale: float = 1.0,
-        strength: float = 0.8,
-        num_inference_steps: int = 50,
-        guidance_scale: float = 7.5,
+        controlnet_conditioning_scale: Optional[float] = None,
+        strength: Optional[float] = None,
+        num_inference_steps: Optional[int] = None,
+        guidance_scale: Optional[float] = None,
         seed: Optional[int] = None,
         **kwargs
     ) -> Image.Image:
         """Inpaint with ControlNet guidance"""
+        # Get defaults from configuration - FAIL LOUD if not found
+        config_manager = ConfigurationManager()
+        
+        if controlnet_conditioning_scale is None:
+            controlnet_conditioning_scale = config_manager.get_value("adapters.diffusers.controlnet_default_conditioning_scale")
+        if strength is None:
+            strength = config_manager.get_value("adapters.comfyui.default_denoise")
+        if num_inference_steps is None:
+            num_inference_steps = config_manager.get_value("adapters.comfyui.default_steps")
+        if guidance_scale is None:
+            guidance_scale = config_manager.get_value("adapters.comfyui.default_cfg")
+        
         raise NotImplementedError(
             "ComfyUI ControlNet inpainting not yet implemented.\n"
             "This adapter is a placeholder for future ComfyUI API integration."
@@ -194,14 +244,26 @@ class ComfyUIPipelineAdapter(BasePipelineAdapter):
         control_image: Image.Image,
         prompt: str,
         negative_prompt: Optional[str] = None,
-        controlnet_conditioning_scale: float = 1.0,
-        strength: float = 0.8,
-        num_inference_steps: int = 50,
-        guidance_scale: float = 7.5,
+        controlnet_conditioning_scale: Optional[float] = None,
+        strength: Optional[float] = None,
+        num_inference_steps: Optional[int] = None,
+        guidance_scale: Optional[float] = None,
         seed: Optional[int] = None,
         **kwargs
     ) -> Image.Image:
         """Image-to-image with ControlNet guidance"""
+        # Get defaults from configuration - FAIL LOUD if not found
+        config_manager = ConfigurationManager()
+        
+        if controlnet_conditioning_scale is None:
+            controlnet_conditioning_scale = config_manager.get_value("adapters.diffusers.controlnet_default_conditioning_scale")
+        if strength is None:
+            strength = config_manager.get_value("adapters.comfyui.default_denoise")
+        if num_inference_steps is None:
+            num_inference_steps = config_manager.get_value("adapters.comfyui.default_steps")
+        if guidance_scale is None:
+            guidance_scale = config_manager.get_value("adapters.comfyui.default_cfg")
+        
         raise NotImplementedError(
             "ComfyUI ControlNet img2img not yet implemented.\n"
             "This adapter is a placeholder for future ComfyUI API integration."
@@ -211,7 +273,10 @@ class ComfyUIPipelineAdapter(BasePipelineAdapter):
         """Get available ControlNet types"""
         return []
 
-    def load_controlnet(self, controlnet_type: str, model_id: Optional[str] = None):
+    def load_controlnet(
+            self,
+            controlnet_type: str,
+            model_id: Optional[str] = None):
         """Load a specific ControlNet model"""
         raise NotImplementedError(
             "ComfyUI ControlNet loading not yet implemented.\n"
@@ -220,18 +285,19 @@ class ComfyUIPipelineAdapter(BasePipelineAdapter):
 
     def estimate_vram(self, operation: str, **kwargs) -> float:
         """Estimate VRAM for an operation in MB"""
-        # Return conservative estimates
-        return 4000  # 4GB default
+        # Get default VRAM estimate from configuration
+        config_manager = ConfigurationManager()
+        return config_manager.get_value("adapters.comfyui.default_vram_estimate")
 
     def enable_memory_efficient_mode(self):
         """Enable memory optimizations"""
         # No-op for placeholder
-        self.logger.info("Memory efficient mode not applicable for ComfyUI placeholder")
+        self.logger.info(
+            "Memory efficient mode not applicable for ComfyUI placeholder")
 
     def clear_cache(self):
         """Clear any cached data/models"""
         # No cache in placeholder
-        pass
 
     def supports_operation(self, operation: str) -> bool:
         """Check if adapter supports a specific operation"""

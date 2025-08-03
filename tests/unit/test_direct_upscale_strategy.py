@@ -2,6 +2,7 @@
 Test Direct Upscale Strategy
 """
 
+import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
@@ -173,7 +174,8 @@ class TestDirectUpscaleStrategy:
     def test_execute_with_context(self, mock_run):
         """Test execution with context parameter"""
         # Setup mock to return a valid path
-        output_path = Path("/tmp/upscaled.png")
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+            output_path = Path(tmp.name)
         mock_run.return_value = output_path
 
         source_img = Image.new("RGB", (512, 512))

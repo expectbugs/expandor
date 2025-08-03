@@ -4,11 +4,11 @@ Simple wrapper around GPUMemoryManager for Phase 4 compatibility
 """
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import torch
 
-from .memory_utils import GPUMemoryManager, MemoryStats
+from .memory_utils import GPUMemoryManager
 
 logger = logging.getLogger(__name__)
 
@@ -62,69 +62,63 @@ class VRAMManager:
         Returns:
             Estimated VRAM usage in MB
         """
-        # Base model VRAM requirements
-        base_vram = {
-            "sd15": 4000,
-            "sd2": 6000,
-            "sdxl": 10000,
-            "sd3": 16000,
-            "flux": 24000,
-        }.get(model_type, 8000)
+        # Use ConfigurationManager for all values - NO HARDCODED VALUES
+        from ..core.configuration_manager import ConfigurationManager
+        config_manager = ConfigurationManager()
+        
+        # Get model VRAM requirements from config
+        model_requirements = config_manager.get_value('vram.model_requirements')
+        base_vram = model_requirements.get(model_type)
+        if base_vram is None:
+            # FAIL LOUD if model type not found
+            default_vram = config_manager.get_value('vram.model_requirements.default')
+            self.logger.warning(f"Unknown model type '{model_type}', using default: {default_vram}MB")
+            base_vram = default_vram
 
         # Calculate pixel-based overhead
         pixels = width * height
-        pixel_overhead = (pixels / (1024 * 1024)) * 4  # ~4MB per megapixel
+        pixel_overhead_per_megapixel = config_manager.get_value('vram.pixel_overhead_mb_per_megapixel')
+        pixel_overhead = (pixels / (1024 * 1024)) * pixel_overhead_per_megapixel
 
-        # Operation multipliers
-        operation_multipliers = {
-            "generate": 1.0,
-            "img2img": 1.2,
-            "inpaint": 1.5,
-            "upscale": 0.8,
-        }
-        multiplier = operation_multipliers.get(operation, 1.0)
+        # Get operation multipliers from config
+        operation_multipliers = config_manager.get_value('vram.operation_multipliers')
+        multiplier = operation_multipliers.get(operation)
+        if multiplier is None:
+            # FAIL LOUD if operation not found
+            default_multiplier = config_manager.get_value('vram.operation_multipliers.default')
+            self.logger.warning(f"Unknown operation '{operation}', using default multiplier: {default_multiplier}")
+            multiplier = default_multiplier
 
         # Calculate total
         total_vram = (base_vram + pixel_overhead) * multiplier
 
-        # Add safety margin
-        return total_vram * 1.2
+        # Add safety margin from config
+        safety_margin = config_manager.get_value('vram.estimation_safety_margin')
+        return total_vram * safety_margin
 
-    def get_memory_efficient_settings(self, target_vram: float) -> Dict[str, Any]:
+    def get_memory_efficient_settings(
+            self, target_vram: float) -> Dict[str, Any]:
         """Get settings for target VRAM limit"""
-        settings = {}
-
-        if target_vram < 4000:  # Less than 4GB
-            settings.update(
-                {
-                    "enable_attention_slicing": True,
-                    "enable_vae_slicing": True,
-                    "enable_cpu_offload": True,
-                    "sequential_cpu_offload": True,
-                    "batch_size": 1,
-                    "tile_size": 512,
-                }
-            )
-        elif target_vram < 8000:  # Less than 8GB
-            settings.update(
-                {
-                    "enable_attention_slicing": True,
-                    "enable_vae_slicing": True,
-                    "enable_cpu_offload": False,
-                    "batch_size": 1,
-                    "tile_size": 768,
-                }
-            )
-        else:  # 8GB or more
-            settings.update(
-                {
-                    "enable_attention_slicing": "auto",
-                    "enable_vae_slicing": False,
-                    "enable_cpu_offload": False,
-                    "batch_size": 2,
-                    "tile_size": 1024,
-                }
-            )
+        # Use ConfigurationManager for all values - NO HARDCODED VALUES
+        from ..core.configuration_manager import ConfigurationManager
+        config_manager = ConfigurationManager()
+        
+        # Get memory profiles from config
+        memory_profiles = config_manager.get_value('vram.memory_profiles')
+        
+        # Determine which profile to use based on target VRAM
+        low_threshold = memory_profiles['low']['threshold_mb']
+        medium_threshold = memory_profiles['medium']['threshold_mb']
+        
+        if target_vram < low_threshold:
+            # Use low memory profile
+            settings = memory_profiles['low']['settings'].copy()
+        elif target_vram < medium_threshold:
+            # Use medium memory profile
+            settings = memory_profiles['medium']['settings'].copy()
+        else:
+            # Use high memory profile
+            settings = memory_profiles['high']['settings'].copy()
 
         return settings
 

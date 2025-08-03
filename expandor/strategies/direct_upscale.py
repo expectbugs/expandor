@@ -3,10 +3,8 @@ Direct Upscale Strategy - Simple but effective
 Uses Real-ESRGAN for high-quality upscaling without aspect change
 """
 
-import shutil
 import subprocess
 import sys
-import tempfile
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -15,6 +13,7 @@ from PIL import Image
 
 from ..core.config import ExpandorConfig
 from ..core.exceptions import StrategyError, UpscalerError
+from ..utils.path_resolver import PathResolver
 from .base_strategy import BaseExpansionStrategy
 
 
@@ -30,17 +29,34 @@ class DirectUpscaleStrategy(BaseExpansionStrategy):
 
     def _initialize(self):
         """Initialize upscaler-specific settings"""
+        # Get configuration from ConfigurationManager
+        from ..core.configuration_manager import ConfigurationManager
+        self.config_manager = ConfigurationManager()
+        
+        # Get all strategy config at once
+        try:
+            self.strategy_config = self.config_manager.get_strategy_config('direct_upscale')
+        except ValueError as e:
+            # FAIL LOUD
+            raise ValueError(
+                f"Failed to load direct_upscale configuration!\n{str(e)}"
+            )
+        
+        # Assign all values from config - NO DEFAULTS!
+        self.vram_thresholds = self.strategy_config['vram_thresholds']
+        self.scale_thresholds = self.strategy_config['scale_thresholds']
+        
         # Default upscaler config
         self.upscale_config = {
-            "model": "RealESRGAN_x4plus",
-            "tile_size": 0,  # 0 means auto
-            "tile_pad": 10,
+            "model": self.strategy_config['default_model'],
+            "tile_size": self.strategy_config['default_tile_size'],  # 0 means auto
+            "tile_pad": self.strategy_config['default_tile_pad'],
         }
-        self.model_config = {
-            "RealESRGAN_x4plus": {"scale": 4},
-            "RealESRGAN_x2plus": {"scale": 2},
-        }
-        self.tile_config = {"high_vram": 2048, "medium_vram": 1024, "low_vram": 512}
+        self.model_config = {}
+        for model, scale in self.strategy_config['model_scales'].items():
+            self.model_config[model] = {"scale": scale}
+        
+        self.tile_config = self.strategy_config['tile_sizes']
 
         # Find Real-ESRGAN executable
         self.realesrgan_path = self._find_realesrgan()
@@ -54,16 +70,36 @@ class DirectUpscaleStrategy(BaseExpansionStrategy):
                 "1. Install Real-ESRGAN: pip install realesrgan-ncnn-py\n"
                 "2. Download binary from: https://github.com/xinntao/Real-ESRGAN/releases\n"
                 "3. Use a different strategy (e.g., progressive or tiled)\n"
-                "4. Set REALESRGAN_PATH environment variable to binary location"
-            )
+                "4. Set REALESRGAN_PATH environment variable to binary location")
 
     def _find_realesrgan(self) -> Optional[Path]:
         """Find Real-ESRGAN executable"""
+        # First check if specific path is configured
+        path_resolver = PathResolver(self.logger)
+        try:
+            configured_path = self.config_manager.get_value("paths.realesrgan_path")
+            if configured_path:
+                path = path_resolver.resolve_path(configured_path, create=False, path_type="file")
+                if path.exists() and path.is_file():
+                    return path
+        except ValueError:
+            # Path not configured, continue with auto-detection
+            pass
+        
+        # Try binary directory from config
+        try:
+            binary_dir = self.config_manager.get_path("paths.binary_dir", create=False)
+            binary_path = binary_dir / "realesrgan-ncnn-vulkan"
+            if binary_path.exists() and binary_path.is_file():
+                return binary_path
+        except ValueError:
+            # Binary dir not configured or doesn't exist
+            pass
+        
         # Check common locations
         possible_paths = [
             Path("realesrgan-ncnn-vulkan"),
             Path("/usr/local/bin/realesrgan-ncnn-vulkan"),
-            Path.home() / "bin" / "realesrgan-ncnn-vulkan",
         ]
 
         for path in possible_paths:
@@ -77,9 +113,9 @@ class DirectUpscaleStrategy(BaseExpansionStrategy):
             )
             if result.returncode == 0:
                 return Path(result.stdout.strip())
-        except Exception:
+        except (subprocess.SubprocessError, FileNotFoundError, OSError) as e:
             # which command might not be available on all systems
-            pass
+            self.logger.debug(f"Could not use 'which' command: {e}")
 
         return None
 
@@ -92,7 +128,7 @@ class DirectUpscaleStrategy(BaseExpansionStrategy):
         This is the simplest strategy - just upscale to target size
         """
         self._context = context or {}
-        start_time = time.time()
+        # start_time = time.time()  # Unused
 
         # Load source image
         if isinstance(config.source_image, Path):
@@ -117,18 +153,18 @@ class DirectUpscaleStrategy(BaseExpansionStrategy):
         scale = max(scale_w, scale_h)
 
         # Determine Real-ESRGAN scale factor (2, 3, or 4)
-        if scale <= 2.0:
-            esrgan_scale = 2
-            model_name = self.model_config.get("fast", "RealESRGAN_x2plus")
-        elif scale <= 3.0:
-            esrgan_scale = 3
-            model_name = self.model_config.get("default", "RealESRGAN_x4plus")
+        if scale <= self.scale_thresholds['low']:
+            esrgan_scale = self.strategy_config['esrgan_scales']['low']
+            model_name = self.strategy_config['model_selection']['fast']
+        elif scale <= self.scale_thresholds['medium']:
+            esrgan_scale = self.strategy_config['esrgan_scales']['medium']
+            model_name = self.strategy_config['model_selection']['default']
         else:
-            esrgan_scale = 4
-            model_name = self.model_config.get("default", "RealESRGAN_x4plus")
+            esrgan_scale = self.strategy_config['esrgan_scales']['high']
+            model_name = self.strategy_config['model_selection']['default']
 
         # Check if we need multiple passes
-        passes_needed = 1
+        passes_needed = self.strategy_config['initial_passes']
         current_scale = esrgan_scale
 
         while current_scale < scale:
@@ -161,7 +197,7 @@ class DirectUpscaleStrategy(BaseExpansionStrategy):
                 scale=esrgan_scale,
                 model_name=model_name,
                 tile_size=tile_size,
-                fp32=self.upscale_config.get("fp32", True),
+                fp32=self.strategy_config['use_fp32'],
             )
 
             # Load result
@@ -208,7 +244,9 @@ class DirectUpscaleStrategy(BaseExpansionStrategy):
                 name="final_resize",
                 method="lanczos" if current_image.width > target_w else "bicubic",
                 input_size=current_image.size,
-                output_size=(target_w, target_h),
+                output_size=(
+                    target_w,
+                    target_h),
                 start_time=stage_start,
             )
         else:
@@ -239,21 +277,25 @@ class DirectUpscaleStrategy(BaseExpansionStrategy):
 
         if not available_vram:
             # CPU mode - use small tiles
-            return self.tile_config.get("low_vram", 512)
+            return self.tile_config.get("low_vram")
 
         # Select tile size based on VRAM
-        if available_vram > 8000:  # 8GB+
-            return self.tile_config.get("unlimited", 2048)
-        elif available_vram > 6000:  # 6GB+
-            return self.tile_config.get("high_vram", 1024)
-        elif available_vram > 4000:  # 4GB+
-            return self.tile_config.get("medium_vram", 768)
+        if available_vram > self.vram_thresholds['high']:  # 8GB+
+            return self.tile_config.get("high_vram")
+        elif available_vram > self.vram_thresholds['medium']:  # 6GB+
+            return self.tile_config.get("medium_vram")
+        elif available_vram > self.vram_thresholds['low']:  # 4GB+
+            return self.tile_config.get("low_vram")
         else:
-            return self.tile_config.get("low_vram", 512)
+            return self.tile_config.get("low_vram")
 
     def _run_realesrgan(
-        self, input_path: Path, scale: int, model_name: str, tile_size: int, fp32: bool
-    ) -> Path:
+            self,
+            input_path: Path,
+            scale: int,
+            model_name: str,
+            tile_size: int,
+            fp32: bool) -> Path:
         """
         Run Real-ESRGAN upscaling
 
@@ -261,15 +303,23 @@ class DirectUpscaleStrategy(BaseExpansionStrategy):
             Path to upscaled image
         """
         # Prepare output path
-        timestamp = int(time.time() * 1000)
+        timestamp = int(time.time() * self.strategy_config['timestamp_multiplier'])
 
         # Get temp directory from context
         temp_base = Path("temp")
-        if hasattr(self, "_context") and self._context and "temp_dir" in self._context:
+        if hasattr(
+                self,
+                "_context") and self._context and "temp_dir" in self._context:
             temp_base = self._context["temp_dir"]
 
-        output_path = temp_base / "upscale" / f"upscaled_{scale}x_{timestamp}.png"
-        output_path.parent.mkdir(parents=True, exist_ok=True)
+        # Get default extension from config
+        from ..core.configuration_manager import ConfigurationManager
+        config_manager = ConfigurationManager()
+        default_ext = config_manager.get_value("output.default_extension")
+        output_path = temp_base / "upscale" / \
+            f"upscaled_{scale}x_{timestamp}{default_ext}"
+        path_resolver = PathResolver(self.logger)
+        path_resolver.resolve_path(output_path.parent, create=True, path_type="directory")
 
         # Check if Real-ESRGAN is available
         if not self.realesrgan_path:
@@ -327,7 +377,8 @@ class DirectUpscaleStrategy(BaseExpansionStrategy):
 
         # Execute upscaling
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            result = subprocess.run(
+                cmd, capture_output=True, text=True, check=True)
 
             if not output_path.exists():
                 raise UpscalerError(
@@ -351,7 +402,11 @@ class DirectUpscaleStrategy(BaseExpansionStrategy):
                 f"Failed to run Real-ESRGAN: {str(e)}", tool_name="realesrgan"
             )
 
-    def _run_pil_upscale(self, input_path: Path, output_path: Path, scale: int) -> Path:
+    def _run_pil_upscale(
+            self,
+            input_path: Path,
+            output_path: Path,
+            scale: int) -> Path:
         """
         Fallback upscaling using PIL when Real-ESRGAN is not available.
 
@@ -364,8 +419,7 @@ class DirectUpscaleStrategy(BaseExpansionStrategy):
             Path to output image
         """
         self.logger.info(
-            f"Using PIL fallback for {scale}x upscaling (Real-ESRGAN not available)"
-        )
+            f"Using PIL fallback for {scale}x upscaling (Real-ESRGAN not available)")
 
         # Load image
         image = Image.open(input_path)
@@ -375,10 +429,16 @@ class DirectUpscaleStrategy(BaseExpansionStrategy):
         new_height = int(image.height * scale)
 
         # Use high-quality resampling
-        upscaled = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+        upscaled = image.resize(
+            (new_width, new_height), Image.Resampling.LANCZOS)
 
-        # Save with PNG compression
-        upscaled.save(output_path, "PNG", compress_level=0, optimize=False)
+        # Save with PNG compression from config
+        from ..core.configuration_manager import ConfigurationManager
+        config_manager = ConfigurationManager()
+        png_config = config_manager.get_value("output.formats.png")
+        upscaled.save(output_path, "PNG", 
+                      compress_level=png_config["compression"], 
+                      optimize=png_config["optimize"])
 
         return output_path
 
@@ -395,20 +455,20 @@ class DirectUpscaleStrategy(BaseExpansionStrategy):
         scale = max(scale_w, scale_h)
 
         passes = []
-        current_scale = 1.0
-        pass_num = 0
+        current_scale = self.strategy_config['initial_scale']
+        pass_num = self.strategy_config['initial_pass_num']
 
         while current_scale < scale:
             pass_num += 1
             # Determine optimal scale for this pass
             remaining_scale = scale / current_scale
 
-            if remaining_scale <= 2.0:
-                pass_scale = 2
-            elif remaining_scale <= 3.0:
-                pass_scale = 3
+            if remaining_scale <= self.strategy_params['scale_thresholds']['low']:
+                pass_scale = self.strategy_params['esrgan_scales']['low']
+            elif remaining_scale <= self.strategy_params['scale_thresholds']['medium']:
+                pass_scale = self.strategy_params['esrgan_scales']['medium']
             else:
-                pass_scale = 4
+                pass_scale = self.strategy_params['esrgan_scales']['high']
 
             current_scale *= pass_scale
 
@@ -418,9 +478,7 @@ class DirectUpscaleStrategy(BaseExpansionStrategy):
                     "scale": pass_scale,
                     "cumulative_scale": current_scale,
                     "model": (
-                        "RealESRGAN_x4plus" if pass_scale >= 3 else "RealESRGAN_x2plus"
-                    ),
-                }
-            )
+                        "RealESRGAN_x4plus" if pass_scale >= 3 else "RealESRGAN_x2plus"),
+                })
 
         return passes

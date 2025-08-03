@@ -4,7 +4,7 @@ Command-line argument parsing for Expandor
 
 import argparse
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Optional, Tuple
 
 from .. import __version__
 
@@ -168,7 +168,13 @@ def create_parser() -> argparse.ArgumentParser:
 
     parser.add_argument(
         "--strategy",
-        choices=["direct", "progressive", "swpo", "tiled", "cpu_offload", "hybrid"],
+        choices=[
+            "direct",
+            "progressive",
+            "swpo",
+            "tiled",
+            "cpu_offload",
+            "hybrid"],
         help="Force specific expansion strategy",
     )
 
@@ -181,10 +187,14 @@ def create_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        "--negative-prompt", type=str, help="Negative prompt to avoid certain features"
-    )
+        "--negative-prompt",
+        type=str,
+        help="Negative prompt to avoid certain features")
 
-    parser.add_argument("--seed", type=int, help="Random seed for reproducibility")
+    parser.add_argument(
+        "--seed",
+        type=int,
+        help="Random seed for reproducibility")
 
     # Advanced options
     parser.add_argument(
@@ -206,13 +216,15 @@ def create_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        "--vram-limit", type=int, help="VRAM limit in MB (default: auto-detect)"
-    )
+        "--vram-limit",
+        type=int,
+        help="VRAM limit in MB (default: auto-detect)")
 
     # Debugging and output
     parser.add_argument(
-        "--save-stages", action="store_true", help="Save intermediate processing stages"
-    )
+        "--save-stages",
+        action="store_true",
+        help="Save intermediate processing stages")
 
     parser.add_argument(
         "--stage-dir",
@@ -234,18 +246,26 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--setup", action="store_true", help="Run interactive setup wizard"
     )
-    
-    parser.add_argument(
-        "--setup-controlnet", action="store_true", help="Set up ControlNet configuration files"
-    )
-    
-    parser.add_argument(
-        "--force", action="store_true", help="Force overwrite existing configuration files (used with --setup-controlnet)"
-    )
 
     parser.add_argument(
-        "--test", action="store_true", help="Test configuration and model availability"
-    )
+        "--setup-controlnet",
+        action="store_true",
+        help="Set up ControlNet configuration files")
+
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Force overwrite existing configuration files (used with --setup-controlnet)")
+
+    parser.add_argument(
+        "--init-config",
+        action="store_true",
+        help="Initialize user configuration file")
+
+    parser.add_argument(
+        "--test",
+        action="store_true",
+        help="Test configuration and model availability")
 
     parser.add_argument(
         "--config",
@@ -253,7 +273,10 @@ def create_parser() -> argparse.ArgumentParser:
         help="Use custom config file instead of ~/.config/expandor/config.yaml",
     )
 
-    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}")
 
     return parser
 
@@ -269,19 +292,26 @@ def validate_args(args: argparse.Namespace) -> None:
         ValueError: If arguments are invalid
     """
     # Special cases that don't need input/resolution
-    if args.setup or args.test or (hasattr(args, 'setup_controlnet') and args.setup_controlnet):
+    if args.setup or args.test or (
+        hasattr(
+            args,
+            'setup_controlnet') and args.setup_controlnet) or args.init_config:
         return
-    
+
     # For normal operation, input and resolution are required
     if not args.input:
-        raise ValueError("Input file is required (except for --setup, --test, or --setup-controlnet)")
-    
+        raise ValueError(
+            "Input file is required (except for --setup, --test, --setup-controlnet, or --init-config)")
+
     if not args.resolution:
         raise ValueError("Resolution is required (use -r or --resolution)")
-    
+
     # Check if input exists (unless it's a pattern)
     if "*" not in str(args.input) and not args.input.exists():
-        raise ValueError(f"Input file not found: {args.input}")
+        raise ValueError(
+            f"File not found: {args.input}\n"
+            f"Please check the file path and try again."
+        )
 
     # Validate output options
     if args.output and args.output_dir:

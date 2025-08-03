@@ -2,9 +2,8 @@
 Pipeline configuration that integrates user config with Expandor
 """
 
-import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 from ..config.user_config import ModelConfig, UserConfigManager
 from ..core.config import ExpandorConfig
@@ -63,6 +62,7 @@ class PipelineConfigurator:
 
         # Build config using new format
         config = ExpandorConfig(
+            source_image=source_image,
             target_width=target_resolution[0],
             target_height=target_resolution[1],
             prompt=prompt,
@@ -73,17 +73,20 @@ class PipelineConfigurator:
             save_stages=save_stages or user_config.save_intermediate_stages,
             stage_dir=stage_dir,
             verbose=verbose or user_config.verbose_logging,
-            vram_limit_mb=kwargs.get("vram_limit_mb", user_config.max_vram_usage_mb),
-            enable_artifacts_check=kwargs.get("artifact_detection_level", "aggressive")
-            != "disabled",
+            vram_limit_mb=kwargs.get(
+                "vram_limit_mb",
+                user_config.max_vram_usage_mb),
+            enable_artifacts_check=kwargs.get(
+                "artifact_detection_level",
+                "aggressive") != "disabled",
             artifact_detection_threshold=(
-                0.1 if user_config.auto_artifact_detection else 1.0
-            ),
+                0.1 if user_config.auto_artifact_detection else 1.0),
         )
 
         # Store source image path in metadata for reference
         if hasattr(config, "custom_pipeline_params"):
-            config.custom_pipeline_params["source_image_path"] = str(source_image)
+            config.custom_pipeline_params["source_image_path"] = str(
+                source_image)
 
         return config
 
@@ -116,7 +119,10 @@ class PipelineConfigurator:
 
         return kwargs
 
-    def create_adapter(self, model_name: str, adapter_type: str = "auto") -> Any:
+    def create_adapter(
+            self,
+            model_name: str,
+            adapter_type: str = "auto") -> Any:
         """
         Create a pipeline adapter for a model
 
@@ -130,7 +136,7 @@ class PipelineConfigurator:
         """
         # Load user config to get model details
         user_config = self.user_config_manager.load()
-        
+
         # Get model configuration
         if model_name not in user_config.models:
             available_models = list(user_config.models.keys())
@@ -139,14 +145,14 @@ class PipelineConfigurator:
                 f"Available models: {available_models}\n"
                 f"Run 'expandor --setup' to configure models."
             )
-        
+
         model_config = user_config.models[model_name]
         if not model_config.enabled:
             raise ValueError(
                 f"Model '{model_name}' is disabled in configuration.\n"
                 f"Enable it in your config file or run 'expandor --setup'."
             )
-        
+
         # Determine adapter type if auto
         if adapter_type == "auto":
             # For now, always use diffusers for HuggingFace models
@@ -157,16 +163,17 @@ class PipelineConfigurator:
                 adapter_type = "diffusers"  # Default to diffusers
             else:
                 adapter_type = "diffusers"
-        
+
         # Create adapter with model configuration
         kwargs = {
-            "model_id": model_config.model_id or model_config.path,
+            "model_id": model_config.model_id if model_config.model_id else None,
+            "model_path": model_config.path if model_config.path else None,
             "variant": model_config.variant,
             "torch_dtype": self._get_torch_dtype(model_config.dtype),
             "device": model_config.device,
             "cache_dir": model_config.cache_dir,
         }
-        
+
         if adapter_type == "diffusers":
             from ..adapters import DiffusersPipelineAdapter
             return DiffusersPipelineAdapter(**kwargs)
@@ -212,7 +219,8 @@ class PipelineConfigurator:
             result = {"valid": True, "errors": [], "warnings": []}
 
             # Check if model path/id exists
-            if config.model_id.startswith("/") or config.model_id.startswith("."):
+            if config.model_id.startswith(
+                    "/") or config.model_id.startswith("."):
                 # Local path
                 model_path = Path(config.model_id)
                 if not model_path.exists():

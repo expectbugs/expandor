@@ -3,10 +3,11 @@ Strategy selection logic for Expandor
 """
 
 import logging
-from typing import Dict, Optional, Tuple, Type
+from typing import Dict, Optional, Tuple
 
 from . import STRATEGY_REGISTRY, get_strategy_class
 from .base_strategy import BaseExpansionStrategy
+from ..core.configuration_manager import ConfigurationManager
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,27 @@ class StrategySelector:
     def __init__(self):
         self.logger = logger
         self._strategy_cache = {}
+        
+        # Load all strategy selection thresholds from config
+        self.config_manager = ConfigurationManager()
+        
+        # Load thresholds
+        self.aspect_ratio_extreme_threshold = self.config_manager.get_value(
+            'image_processing.strategy_selection.aspect_ratio_extreme_threshold')
+        self.expansion_extreme_threshold = self.config_manager.get_value(
+            'image_processing.strategy_selection.expansion_extreme_threshold')
+        self.vram_high_threshold = self.config_manager.get_value(
+            'image_processing.strategy_selection.vram_high_threshold')
+        self.vram_medium_threshold = self.config_manager.get_value(
+            'image_processing.strategy_selection.vram_medium_threshold')
+        self.vram_low_threshold = self.config_manager.get_value(
+            'image_processing.strategy_selection.vram_low_threshold')
+        self.vram_very_low_threshold = self.config_manager.get_value(
+            'image_processing.strategy_selection.vram_very_low_threshold')
+        self.expansion_small_threshold = self.config_manager.get_value(
+            'image_processing.strategy_selection.expansion_small_threshold')
+        self.expansion_moderate_threshold = self.config_manager.get_value(
+            'image_processing.strategy_selection.expansion_moderate_threshold')
 
     def select_strategy(
         self,
@@ -40,7 +62,8 @@ class StrategySelector:
             Tuple of (strategy_name, reason_string)
         """
         # Calculate expansion metrics
-        expansion_factor = self._calculate_expansion_factor(current_size, target_size)
+        expansion_factor = self._calculate_expansion_factor(
+            current_size, target_size)
         aspect_ratio_change = self._calculate_aspect_ratio_change(
             current_size, target_size
         )
@@ -60,8 +83,7 @@ class StrategySelector:
                 return user_preference, reason
             else:
                 self.logger.warning(
-                    f"Invalid user preference: {user_preference}, using auto selection"
-                )
+                    f"Invalid user preference: {user_preference}, using auto selection")
 
         # Auto selection based on requirements
         strategy_name, reason = self._auto_select_strategy(
@@ -88,8 +110,8 @@ class StrategySelector:
         """Auto-select the best strategy"""
 
         # Check for extreme aspect ratio changes
-        if aspect_ratio_change > 2.0 and expansion_factor > 3.0:
-            if available_vram > 16000:  # 16GB+
+        if aspect_ratio_change > self.aspect_ratio_extreme_threshold and expansion_factor > self.expansion_extreme_threshold:
+            if available_vram > self.vram_high_threshold:
                 return "swpo", "Extreme aspect ratio change with sufficient VRAM"
             else:
                 return (
@@ -98,15 +120,15 @@ class StrategySelector:
                 )
 
         # Check for low VRAM scenarios
-        if available_vram < 6000:  # Less than 6GB
-            if available_vram < 4000:  # Less than 4GB
+        if available_vram < self.vram_low_threshold:
+            if available_vram < self.vram_very_low_threshold:
                 return "cpu_offload", "Very low VRAM requires CPU offload"
             return "tiled_expansion", "Low VRAM requires tiled processing"
 
         # Check expansion factor
-        if expansion_factor <= 1.5:
+        if expansion_factor <= self.expansion_small_threshold:
             return "direct_upscale", "Small expansion factor allows direct upscaling"
-        elif expansion_factor <= 4.0:
+        elif expansion_factor <= self.expansion_moderate_threshold:
             if quality_priority:
                 return (
                     "progressive_outpaint",
@@ -116,7 +138,7 @@ class StrategySelector:
                 return "direct_upscale", "Moderate expansion with speed priority"
         else:
             # Large expansion
-            if available_vram > 12000:  # 12GB+
+            if available_vram > self.vram_medium_threshold:
                 return "progressive_outpaint", "Large expansion with sufficient VRAM"
             else:
                 return (
@@ -161,7 +183,8 @@ class StrategySelector:
             return strategy_instance
 
         except Exception as e:
-            self.logger.error(f"Failed to create strategy {strategy_name}: {e}")
+            self.logger.error(
+                f"Failed to create strategy {strategy_name}: {e}")
             # Fall back to direct upscale
             if strategy_name != "direct_upscale":
                 self.logger.warning("Falling back to direct_upscale strategy")
@@ -174,7 +197,11 @@ class StrategySelector:
         """Clear the strategy instance cache"""
         self._strategy_cache.clear()
 
-    def register_strategy(self, name: str, module_path: str, priority: int = 50):
+    def register_strategy(
+            self,
+            name: str,
+            module_path: str,
+            priority: int = 50):
         """Register a custom strategy"""
         STRATEGY_REGISTRY[name] = module_path
         self.logger.info(f"Registered custom strategy: {name}")

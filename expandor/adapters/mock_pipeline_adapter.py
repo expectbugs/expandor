@@ -10,11 +10,8 @@ from typing import Any, List, Optional, Tuple
 import numpy as np
 from PIL import Image
 
-from ..adapters.mock_pipeline import (
-    MockImg2ImgPipeline,
-    MockInpaintPipeline,
-    MockRefinerPipeline,
-)
+from ..adapters.mock_pipeline import (MockImg2ImgPipeline, MockInpaintPipeline,
+                                      MockRefinerPipeline)
 from ..utils.logging_utils import setup_logger
 from .base_adapter import BasePipelineAdapter
 
@@ -50,6 +47,9 @@ class MockPipelineAdapter(BasePipelineAdapter):
             "inpaint": MockInpaintPipeline(),
             "img2img": MockImg2ImgPipeline(),
             "refiner": MockRefinerPipeline(),
+            "sdxl": MockImg2ImgPipeline(),  # Use img2img as mock for SDXL
+            "sd3": MockImg2ImgPipeline(),   # Use img2img as mock for SD3
+            "flux": MockImg2ImgPipeline(),  # Use img2img as mock for Flux
         }
 
         # Track loaded LoRAs for testing
@@ -59,7 +59,8 @@ class MockPipelineAdapter(BasePipelineAdapter):
         self.simulated_vram_mb = 0
         self.max_vram_mb = 24576 if device == "cuda" else 0  # Simulate 24GB GPU
 
-        self.logger.info(f"Initialized MockPipelineAdapter on {device} with {dtype}")
+        self.logger.info(
+            f"Initialized MockPipelineAdapter on {device} with {dtype}")
 
     def load_pipeline(self, pipeline_type: str, **kwargs) -> Any:
         """Load a specific pipeline type"""
@@ -293,8 +294,7 @@ class MockPipelineAdapter(BasePipelineAdapter):
         """
         raise NotImplementedError(
             "MockPipelineAdapter does not support ControlNet. "
-            "Use DiffusersPipelineAdapter or ComfyUIPipelineAdapter for ControlNet support."
-        )
+            "Use DiffusersPipelineAdapter or ComfyUIPipelineAdapter for ControlNet support.")
 
     def controlnet_img2img(
         self,
@@ -316,19 +316,20 @@ class MockPipelineAdapter(BasePipelineAdapter):
         """
         raise NotImplementedError(
             "MockPipelineAdapter does not support ControlNet. "
-            "Use DiffusersPipelineAdapter or ComfyUIPipelineAdapter for ControlNet support."
-        )
+            "Use DiffusersPipelineAdapter or ComfyUIPipelineAdapter for ControlNet support.")
 
     def get_controlnet_types(self) -> List[str]:
         """Get available ControlNet types"""
         return []  # No ControlNet support in mock
 
-    def load_controlnet(self, controlnet_type: str, model_id: Optional[str] = None):
+    def load_controlnet(
+            self,
+            controlnet_type: str,
+            model_id: Optional[str] = None):
         """Load a specific ControlNet model"""
         raise NotImplementedError(
             "MockPipelineAdapter does not support ControlNet. "
-            "Use DiffusersPipelineAdapter or ComfyUIPipelineAdapter for ControlNet support."
-        )
+            "Use DiffusersPipelineAdapter or ComfyUIPipelineAdapter for ControlNet support.")
 
     def estimate_vram(self, operation: str, **kwargs) -> float:
         """Estimate VRAM for an operation in MB"""
@@ -372,7 +373,8 @@ class MockPipelineAdapter(BasePipelineAdapter):
                 f"Please check the path in your configuration."
             )
 
-        self.loaded_loras.append({"path": lora_path, "weight": weight, "name": name})
+        self.loaded_loras.append(
+            {"path": lora_path, "weight": weight, "name": name})
 
         self.logger.info(f"Loaded mock LoRA: {name} (weight: {weight})")
 
@@ -455,4 +457,5 @@ class MockPipelineAdapter(BasePipelineAdapter):
 
             # Add white text (simplified - in real implementation use PIL.ImageDraw)
             # This is just to make it visually distinct
-            img_array[10:30, 10:110] = np.clip(img_array[10:30, 10:110] + 100, 0, 255)
+            img_array[10:30, 10:110] = np.clip(
+                img_array[10:30, 10:110] + 100, 0, 255)

@@ -13,10 +13,10 @@ import torch
 from PIL import Image
 
 from ..core.config import ExpandorConfig
-from ..core.exceptions import ExpandorError, StrategyError, VRAMError
+from ..core.exceptions import ExpandorError, StrategyError
 from ..processors.tiled_processor import TiledProcessor
 from ..utils.dimension_calculator import DimensionCalculator
-from ..utils.memory_utils import gpu_memory_manager, load_to_gpu, offload_to_cpu
+from ..utils.memory_utils import gpu_memory_manager
 from .base_strategy import BaseExpansionStrategy
 
 
@@ -45,19 +45,41 @@ class CPUOffloadStrategy(BaseExpansionStrategy):
         self.dimension_calc = DimensionCalculator(self.logger)
         self.tiled_processor = TiledProcessor(logger=self.logger)
 
+        # Get configuration from ConfigurationManager
+        from ..core.configuration_manager import ConfigurationManager
+        self.config_manager = ConfigurationManager()
+        
+        # Get all strategy config at once
+        try:
+            self.strategy_config = self.config_manager.get_strategy_config('cpu_offload')
+        except ValueError as e:
+            # FAIL LOUD
+            raise ValueError(
+                f"Failed to load cpu_offload configuration!\n{str(e)}"
+            )
+        
+        # Assign all values from config - NO DEFAULTS!
+        self.safety_factor = self.strategy_config['safety_factor']
+        self.conservative_safety_factor = self.strategy_config['conservative_safety_factor']
+        self.pipeline_vram = self.strategy_config['pipeline_vram']
+        self.gpu_memory_fallback = self.strategy_config['gpu_memory_fallback']
+        self.aspect_change_threshold = self.strategy_config['aspect_change_threshold']
+        self.tile_generation_strength = self.strategy_config['tile_generation_strength']
+        self.tile_generation_guidance = self.strategy_config['tile_generation_guidance']
+        self.tile_refinement_strength = self.strategy_config['tile_refinement_strength']
+        self.tile_refinement_guidance = self.strategy_config['tile_refinement_guidance']
+        
         # CPU offload specific parameters
-        strategy_config = config or {}
-        self.min_tile_size = strategy_config.get("min_tile_size", 384)
-        self.default_tile_size = strategy_config.get("default_tile_size", 512)
-        self.max_tile_size = strategy_config.get("max_tile_size", 768)
-        self.min_overlap = strategy_config.get("min_overlap", 64)
-        self.default_overlap = strategy_config.get("default_overlap", 128)
+        self.min_tile_size = self.strategy_config['min_tile_size']
+        self.default_tile_size = self.strategy_config['default_tile_size']
+        self.max_tile_size = self.strategy_config['max_tile_size']
+        self.min_overlap = self.strategy_config['min_overlap']
+        self.default_overlap = self.strategy_config['default_overlap']
 
     def validate_requirements(self):
         """Validate CPU offload requirements."""
         # CPU offload can work with minimal resources
         # Requirements checked in execute
-        pass
 
     def estimate_vram(self, config: ExpandorConfig) -> Dict[str, float]:
         """
@@ -67,20 +89,22 @@ class CPUOffloadStrategy(BaseExpansionStrategy):
         """
         # Calculate tile size based on available memory
         tile_size = self.vram_manager.get_safe_tile_size(
-            model_type="sdxl", safety_factor=self.config.get('parameters', {}).get('safety_factor', 0.6)  # More conservative for CPU offload
+            # More conservative for CPU offload
+            model_type="sdxl", safety_factor=self.strategy_config['safety_factor']
         )
 
         # Estimate for single tile processing
         tile_pixels = tile_size * tile_size
-        tile_vram_mb = (tile_pixels * 4 * 3 * 2) / (1024**2)
+        tile_vram_mb = (tile_pixels * self.strategy_config['vram_bytes_per_pixel']) / self.strategy_config['vram_mb_divisor']
 
         # Minimal pipeline memory with offloading
-        pipeline_vram = self.config.get('parameters', {}).get('pipeline_vram', 1024)  # 1GB max with offloading
+        # 1GB max with offloading
+        pipeline_vram = self.strategy_config['pipeline_vram']
 
         return {
             "base_vram_mb": tile_vram_mb,
             "peak_vram_mb": tile_vram_mb + pipeline_vram,
-            "strategy_overhead_mb": 512,  # Offloading overhead
+            "strategy_overhead_mb": self.strategy_config['strategy_overhead_mb'],  # Offloading overhead
         }
 
     def execute(
@@ -114,7 +138,8 @@ class CPUOffloadStrategy(BaseExpansionStrategy):
                 details={"allow_cpu_offload": False},
             )
 
-        # Check pipeline availability - pipelines should be injected by orchestrator
+        # Check pipeline availability - pipelines should be injected by
+        # orchestrator
         available_pipelines = []
         if self.inpaint_pipeline:
             available_pipelines.append("inpaint")
@@ -143,9 +168,10 @@ class CPUOffloadStrategy(BaseExpansionStrategy):
 
             # Calculate optimal tile size for minimal memory
             available_vram = (
-                self.vram_manager.get_available_vram() or 512
+                self.vram_manager.get_available_vram() or self.strategy_config['fallback_vram_mb']
             )  # Assume 512MB if no GPU
-            optimal_tile_size = self._calculate_optimal_tile_size(available_vram)
+            optimal_tile_size = self._calculate_optimal_tile_size(
+                available_vram)
 
             self.logger.info(
                 f"Using tile size: {optimal_tile_size}x{optimal_tile_size}"
@@ -208,8 +234,13 @@ class CPUOffloadStrategy(BaseExpansionStrategy):
 
                 # Save intermediate if requested
                 if config.save_stages and config.stage_dir:
-                    stage_path = config.stage_dir / f"cpu_offload_stage_{i:02d}.png"
-                    current_image.save(stage_path, "PNG", compress_level=0)
+                    stage_path = config.stage_dir / \
+                        f"cpu_offload_stage_{i:02d}.png"
+                    # Get compression from config
+                    from ..core.configuration_manager import ConfigurationManager
+                    config_manager = ConfigurationManager()
+                    png_compression = config_manager.get_value("output.formats.png.compression")
+                    current_image.save(stage_path, "PNG", compress_level=png_compression)
 
                 # Aggressive cleanup
                 gpu_memory_manager.clear_cache(aggressive=True)
@@ -217,15 +248,13 @@ class CPUOffloadStrategy(BaseExpansionStrategy):
             # Final validation
             if current_image.size != (target_w, target_h):
                 raise ExpandorError(
-                    f"CPU offload size mismatch: expected {target_w}x{target_h}, "
-                    f"got {
+                    f"CPU offload size mismatch: expected {target_w}x{target_h}, " f"got {
                         current_image.size[0]}x{
-                        current_image.size[1]}",
-                    stage="validation",
-                )
+                        current_image.size[1]}", stage="validation", )
 
             # Save final result
-            output_path = self.save_temp_image(current_image, "cpu_offload_final")
+            output_path = self.save_temp_image(
+                current_image, "cpu_offload_final")
 
             return {
                 "image_path": output_path,
@@ -268,14 +297,15 @@ class CPUOffloadStrategy(BaseExpansionStrategy):
         tile_size = self.vram_manager.get_safe_tile_size(
             available_mb=available_vram_mb,
             model_type="sdxl",
-            safety_factor=self.config.get('parameters', {}).get('conservative_safety_factor', 0.5),  # Very conservative for CPU offload
+            # Very conservative for CPU offload
+            safety_factor=self.strategy_config['conservative_safety_factor'],
         )
 
         # Clamp to our limits
         tile_size = max(self.min_tile_size, min(tile_size, self.max_tile_size))
 
-        # Ensure multiple of 64
-        tile_size = (tile_size // 64) * 64
+        # Ensure multiple of configured rounding
+        tile_size = (tile_size // self.strategy_config['tile_size_rounding']) * self.strategy_config['tile_size_rounding']
 
         return tile_size
 
@@ -293,21 +323,25 @@ class CPUOffloadStrategy(BaseExpansionStrategy):
         aspect_change = abs(target_aspect - source_aspect) / source_aspect
 
         # Stage 1: Initial resize if needed
-        if aspect_change > 0.1:
+        if aspect_change > self.strategy_config['aspect_change_threshold']:
             # Need progressive outpainting
             intermediate_w = source_w
             intermediate_h = source_h
 
             # Gradual aspect adjustment
-            steps = self.config.get('parameters', {}).get('processing_steps', 3)  # Multiple small steps
+            steps = self.config.get(
+                'parameters',
+                {}).get(
+                'processing_steps',
+                self.strategy_config['aspect_adjust_steps'])  # Multiple small steps
             for i in range(steps):
                 progress = (i + 1) / steps
                 new_w = int(source_w + (target_w - source_w) * progress)
                 new_h = int(source_h + (target_h - source_h) * progress)
 
-                # Round to multiple of 8
-                new_w = self.dimension_calc.round_to_multiple(new_w, 8)
-                new_h = self.dimension_calc.round_to_multiple(new_h, 8)
+                # Round to multiple of configured dimension
+                new_w = self.dimension_calc.round_to_multiple(new_w, self.strategy_config['dimension_rounding'])
+                new_h = self.dimension_calc.round_to_multiple(new_h, self.strategy_config['dimension_rounding'])
 
                 # Create boundaries list
                 boundaries = []
@@ -374,39 +408,46 @@ class CPUOffloadStrategy(BaseExpansionStrategy):
                 tile_img: Image.Image, tile_info: Dict[str, Any]
             ) -> Image.Image:
                 # Determine which edges need expansion
-                needs_right = tile_info["x"] + tile_info["width"] >= image.width
-                needs_bottom = tile_info["y"] + tile_info["height"] >= image.height
+                needs_right = tile_info["x"] + \
+                    tile_info["width"] >= image.width
+                needs_bottom = tile_info["y"] + \
+                    tile_info["height"] >= image.height
 
                 # Create mask for tile
-                mask = Image.new("L", tile_img.size, 0)
+                mask = Image.new("L", tile_img.size, self.strategy_config['mask_background_value'])
 
                 # Mark expansion areas based on tile position
                 if needs_right:
                     # Expand right edge
                     expansion_start = max(0, image.width - tile_info["x"])
                     mask_np = np.array(mask)
-                    mask_np[:, expansion_start:] = 255
+                    mask_np[:, expansion_start:] = self.strategy_config['mask_foreground_value']
                     mask = Image.fromarray(mask_np)
 
                 if needs_bottom:
                     # Expand bottom edge
                     expansion_start = max(0, image.height - tile_info["y"])
                     mask_np = np.array(mask)
-                    mask_np[expansion_start:, :] = 255
+                    mask_np[expansion_start:, :] = self.strategy_config['mask_foreground_value']
                     mask = Image.fromarray(mask_np)
 
                 # Process with inpaint pipeline if mask has content
-                if np.any(np.array(mask) > 0) and hasattr(self, "inpaint_pipeline"):
+                if np.any(
+                        np.array(mask) > self.strategy_config['mask_background_value']) and hasattr(
+                        self,
+                        "inpaint_pipeline"):
                     try:
                         result = self.inpaint_pipeline(
                             prompt=config.prompt,
                             image=tile_img,
                             mask_image=mask,
-                            strength=self.config.get('parameters', {}).get('tile_generation_strength', 0.9),
-                            num_inference_steps=self.config.get('parameters', {}).get('tile_generation_steps', 25),  # Fewer steps for speed
-                            guidance_scale=self.config.get('parameters', {}).get('tile_generation_guidance', 7.0),
+                            strength=self.strategy_config['tile_generation_strength'],
+                            num_inference_steps=self.config.get('parameters', {}).get(
+                                'tile_generation_steps', self.strategy_config['tile_generation_steps']),  # Fewer steps for speed
+                            guidance_scale=self.strategy_config['tile_generation_guidance'],
                             generator=torch.Generator().manual_seed(
-                                (config.seed or 0) + stage_index
+                                # FAIL LOUD - seed must be set
+                                config.seed + stage_index if config.seed is not None else stage_index
                             ),
                         )
 
@@ -429,7 +470,8 @@ class CPUOffloadStrategy(BaseExpansionStrategy):
 
             # Ensure correct size
             if result.size != tuple(stage["output_size"]):
-                result = result.resize(stage["output_size"], Image.Resampling.LANCZOS)
+                result = result.resize(
+                    stage["output_size"], Image.Resampling.LANCZOS)
 
             return result
 
@@ -452,19 +494,24 @@ class CPUOffloadStrategy(BaseExpansionStrategy):
                 ):
                     # First upscale
                     upscaled = tile_img.resize(
-                        (tile_target_w, tile_target_h), Image.Resampling.LANCZOS
-                    )
+                        (tile_target_w, tile_target_h), Image.Resampling.LANCZOS)
 
                     # Then refine with img2img
                     try:
                         result = self.img2img_pipeline(
-                            prompt=config.prompt + ", high quality, sharp details",
+                            prompt=config.prompt +
+                            ", high quality, sharp details",
                             image=upscaled,
-                            strength=self.config.get('parameters', {}).get('tile_refinement_strength', 0.3),
-                            num_inference_steps=self.config.get('parameters', {}).get('tile_refinement_steps', 20),
-                            guidance_scale=self.config.get('parameters', {}).get('tile_refinement_guidance', 7.0),
+                            strength=self.strategy_config['tile_refinement_strength'],
+                            num_inference_steps=self.config.get(
+                                'parameters',
+                                {}).get(
+                                'tile_refinement_steps',
+                                self.strategy_config['tile_refinement_steps']),
+                            guidance_scale=self.strategy_config['tile_refinement_guidance'],
                             generator=torch.Generator().manual_seed(
-                                (config.seed or 0) + stage_index
+                                # FAIL LOUD - seed must be set
+                                config.seed + stage_index if config.seed is not None else stage_index
                             ),
                         )
 

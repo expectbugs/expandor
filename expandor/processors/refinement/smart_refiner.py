@@ -12,8 +12,8 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 
-from ...core.exceptions import QualityError
 from ..edge_analysis import EdgeAnalyzer, EdgeInfo
+from ...core.configuration_manager import ConfigurationManager
 
 logger = logging.getLogger(__name__)
 
@@ -54,8 +54,8 @@ class SmartRefiner:
 
     def __init__(
         self,
-        max_iterations: int = 3,
-        quality_threshold: float = 0.85,
+        max_iterations: Optional[int] = None,
+        quality_threshold: Optional[float] = None,
         logger: Optional[logging.Logger] = None,
         config: Optional[Dict[str, Any]] = None,
     ):
@@ -68,38 +68,45 @@ class SmartRefiner:
             logger: Logger instance
             config: Configuration dictionary
         """
-        self.max_iterations = max_iterations
-        self.quality_threshold = quality_threshold
         self.logger = logger or logging.getLogger(__name__)
         self.edge_analyzer = EdgeAnalyzer(logger=self.logger)
         
-        if config is None:
-            # Load from processing_params.yaml
-            try:
-                from ...utils.config_loader import ConfigLoader
-                loader = ConfigLoader()
-                proc_config = loader.load_config("processing_params.yaml")
-                if proc_config and 'smart_refiner' in proc_config:
-                    config = proc_config['smart_refiner']
-                else:
-                    raise ValueError("Missing smart_refiner config in processing_params.yaml")
-            except Exception as e:
-                # Fail loud - config required
-                raise ValueError(f"Failed to load smart refiner configuration: {e}")
+        # Get configuration from ConfigurationManager
+        self.config_manager = ConfigurationManager()
+        
+        # Get processor config
+        try:
+            self.processor_config = self.config_manager.get_processor_config('smart_refiner')
+        except ValueError as e:
+            # FAIL LOUD
+            raise ValueError(
+                f"Failed to load smart_refiner configuration!\n{str(e)}"
+            )
+        
+        # Use provided values or fall back to config
+        self.max_iterations = max_iterations if max_iterations is not None else self.processor_config['default_max_iterations']
+        self.quality_threshold = quality_threshold if quality_threshold is not None else self.processor_config['default_quality_threshold']
+        
+        # For backward compatibility, merge with provided config if any
+        if config:
+            # Merge provided config with processor config
+            merged_config = {**self.processor_config, **config}
+        else:
+            merged_config = self.processor_config
 
-        # Refinement parameters from config
-        self.base_strength = config.get('base_strength', 0.4)
-        self.strength_multiplier = 1.5  # Increase per severity level
-        self.min_region_size = config.get('min_region_size', 32)  # Minimum size for refinement region
-        
+        # Refinement parameters from config - NO DEFAULTS!
+        self.base_strength = merged_config['base_strength']
+        self.strength_multiplier = merged_config['strength_multiplier']
+        self.min_region_size = merged_config['min_region_size']
+
         # Blur radii from config
-        self.large_boundary_blur = config.get('large_boundary_blur', 32)
-        self.medium_boundary_blur = config.get('medium_boundary_blur', 16)
-        self.small_boundary_blur = config.get('small_boundary_blur', 24)
-        
+        self.large_boundary_blur = merged_config['large_boundary_blur']
+        self.medium_boundary_blur = merged_config['medium_boundary_blur']
+        self.small_boundary_blur = merged_config['small_boundary_blur']
+
         # Other parameters from config
-        self.refinement_steps = config.get('refinement_steps', 30)
-        self.refinement_guidance = config.get('refinement_guidance', 7.5)
+        self.refinement_steps = merged_config['refinement_steps']
+        self.refinement_guidance = merged_config['refinement_guidance']
 
     def refine_image(
         self,
@@ -128,7 +135,11 @@ class SmartRefiner:
         """
         if not artifacts:
             # No refinement needed
-            result_path = Path("temp") / f"refined_{int(time.time())}.png"
+            # Get temp directory from global paths config
+            temp_dir = self.config_manager.get_path("paths.temp_dir")
+            result_path = temp_dir / "refinement" / f"refined_{int(time.time())}.png"
+            # Ensure directory exists
+            result_path.parent.mkdir(parents=True, exist_ok=True)
             image.save(result_path)
 
             return RefinementResult(
@@ -188,7 +199,8 @@ class SmartRefiner:
                 break
 
             # Check quality after this iteration
-            quality_check = self.edge_analyzer.analyze_image(current_image, boundaries)
+            quality_check = self.edge_analyzer.analyze_image(
+                current_image, boundaries)
             current_quality = quality_check["quality_score"]
 
             self.logger.info(
@@ -209,8 +221,8 @@ class SmartRefiner:
             # Update regions for next iteration based on remaining issues
             if quality_check["has_issues"]:
                 new_artifacts = (
-                    quality_check["seam_artifacts"] + quality_check["general_artifacts"]
-                )
+                    quality_check["seam_artifacts"] +
+                    quality_check["general_artifacts"])
                 if new_artifacts:
                     regions = self._create_refinement_regions(
                         new_artifacts, current_image.size
@@ -224,14 +236,15 @@ class SmartRefiner:
         original_quality = self.edge_analyzer.analyze_image(image, boundaries)[
             "quality_score"
         ]
-        final_quality = self.edge_analyzer.analyze_image(current_image, boundaries)[
-            "quality_score"
-        ]
+        final_quality = self.edge_analyzer.analyze_image(
+            current_image, boundaries)["quality_score"]
         total_improvement = final_quality - original_quality
 
         # Save final result
-        result_path = Path("temp") / f"refined_final_{int(time.time())}.png"
-        result_path.parent.mkdir(exist_ok=True)
+        # Get temp directory from global paths config
+        temp_dir = self.config_manager.get_path("paths.temp_dir")
+        result_path = temp_dir / "refinement" / f"refined_final_{int(time.time())}.png"
+        result_path.parent.mkdir(parents=True, exist_ok=True)
         current_image.save(result_path)
 
         # Create refinement map
@@ -278,12 +291,12 @@ class SmartRefiner:
             height = y2 - y1
 
             if width < self.min_region_size:
-                expand = (self.min_region_size - width) // 2
+                expand = (self.min_region_size - width) // self.processor_config['region_expansion_divisor']
                 x1 = max(0, x1 - expand)
                 x2 = min(image_size[0], x2 + expand)
 
             if height < self.min_region_size:
-                expand = (self.min_region_size - height) // 2
+                expand = (self.min_region_size - height) // self.processor_config['region_expansion_divisor']
                 y1 = max(0, y1 - expand)
                 y2 = min(image_size[1], y2 + expand)
 
@@ -307,15 +320,17 @@ class SmartRefiner:
             # Calculate refinement parameters
             if artifact_type == "seam":
                 strength = min(
-                    0.9, self.base_strength * self.strength_multiplier * severity
-                )
-                blur = getattr(self, 'large_boundary_blur', 32)
+                    self.processor_config['max_strength_seam'],
+                    self.base_strength *
+                    self.strength_multiplier *
+                    severity)
+                blur = self.large_boundary_blur
             elif artifact_type == "pattern":
-                strength = min(0.7, self.base_strength * severity)
-                blur = getattr(self, 'medium_boundary_blur', 16)
+                strength = min(self.processor_config['max_strength_pattern'], self.base_strength * severity)
+                blur = self.medium_boundary_blur
             else:
-                strength = min(0.6, self.base_strength * severity)
-                blur = getattr(self, 'small_boundary_blur', 24)
+                strength = min(self.processor_config['max_strength_other'], self.base_strength * severity)
+                blur = self.small_boundary_blur
 
             region = RefinementRegion(
                 bounds=(x1, y1, x2, y2),
@@ -329,9 +344,11 @@ class SmartRefiner:
 
         return regions
 
-    def _refine_region(
-        self, image: Image.Image, region: RefinementRegion, pipeline: Any, prompt: str
-    ) -> Optional[Image.Image]:
+    def _refine_region(self,
+                       image: Image.Image,
+                       region: RefinementRegion,
+                       pipeline: Any,
+                       prompt: str) -> Optional[Image.Image]:
         """
         Refine a specific region of the image.
 
@@ -345,17 +362,17 @@ class SmartRefiner:
             Refined image or None if failed
         """
         x1, y1, x2, y2 = region.bounds
-        width = x2 - x1
-        height = y2 - y1
+        _width = x2 - x1
+        _height = y2 - y1
 
         # Create mask for region
-        mask = Image.new("L", image.size, 0)
+        mask = Image.new("L", image.size, self.processor_config['mask_initial_value'])
         draw = ImageDraw.Draw(mask)
 
         # Draw region with feathered edges
         if region.mask_blur > 0:
             # Create feathered mask
-            inner_margin = region.mask_blur // 2
+            inner_margin = region.mask_blur // self.processor_config['inner_margin_divisor']
             draw.rectangle(
                 [
                     x1 + inner_margin,
@@ -363,17 +380,18 @@ class SmartRefiner:
                     x2 - inner_margin,
                     y2 - inner_margin,
                 ],
-                fill=255,
+                fill=self.processor_config['mask_fill_value'],
             )
-            mask = mask.filter(ImageFilter.GaussianBlur(radius=region.mask_blur))
+            mask = mask.filter(
+                ImageFilter.GaussianBlur(
+                    radius=region.mask_blur))
         else:
-            draw.rectangle([x1, y1, x2, y2], fill=255)
+            draw.rectangle([x1, y1, x2, y2], fill=self.processor_config['mask_fill_value'])
 
         # Add context to prompt based on artifact type
         if region.artifact_type == "seam":
             context_prompt = (
-                f"{prompt}, seamless blending, smooth transition, no visible seams"
-            )
+                f"{prompt}, seamless blending, smooth transition, no visible seams")
         elif region.artifact_type == "pattern":
             context_prompt = (
                 f"{prompt}, natural texture, varied patterns, no repetition"
@@ -415,7 +433,8 @@ class SmartRefiner:
         Returns:
             Refinement intensity map
         """
-        refinement_map = np.zeros((image_size[1], image_size[0]), dtype=np.float32)
+        refinement_map = np.zeros(
+            (image_size[1], image_size[0]), dtype=np.float32)
 
         for region in regions:
             x1, y1, x2, y2 = region.bounds
@@ -441,13 +460,15 @@ class SmartRefiner:
             Quality report dictionary
         """
         # Analyze both images
-        original_analysis = self.edge_analyzer.analyze_image(original, boundaries)
-        refined_analysis = self.edge_analyzer.analyze_image(refined, boundaries)
+        original_analysis = self.edge_analyzer.analyze_image(
+            original, boundaries)
+        refined_analysis = self.edge_analyzer.analyze_image(
+            refined, boundaries)
 
         # Calculate improvements
         quality_improvement = (
-            refined_analysis["quality_score"] - original_analysis["quality_score"]
-        )
+            refined_analysis["quality_score"] -
+            original_analysis["quality_score"])
         artifacts_removed = len(original_analysis["seam_artifacts"]) - len(
             refined_analysis["seam_artifacts"]
         )
@@ -459,7 +480,7 @@ class SmartRefiner:
             "improvement_percentage": (
                 quality_improvement / original_analysis["quality_score"]
             )
-            * 100,
+            * self.processor_config['percentage_multiplier'],
             "original_artifacts": {
                 "seams": len(original_analysis["seam_artifacts"]),
                 "general": len(original_analysis["general_artifacts"]),

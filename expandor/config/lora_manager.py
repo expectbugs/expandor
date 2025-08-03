@@ -5,8 +5,7 @@ Following FAIL LOUD philosophy - no silent conflicts
 
 import logging
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import List, Optional, Set, Tuple
 
 from ..config.user_config import LoRAConfig
 from ..utils.logging_utils import setup_logger
@@ -23,8 +22,6 @@ class LoRAType:
 
 class LoRAConflictError(Exception):
     """Raised when LoRAs have unresolvable conflicts"""
-
-    pass
 
 
 class LoRAManager:
@@ -90,7 +87,11 @@ class LoRAManager:
         keywords_str = " ".join(lora.auto_apply_keywords).lower()
 
         # Detection rules based on common naming patterns
-        if any(word in name_lower for word in ["style", "artstyle", "aesthetic"]):
+        if any(
+            word in name_lower for word in [
+                "style",
+                "artstyle",
+                "aesthetic"]):
             return "style"
         elif any(
             word in name_lower for word in ["detail", "enhance", "sharp", "hires"]
@@ -146,7 +147,8 @@ class LoRAManager:
                     )
 
             # Check for same-type conflicts (e.g., two character LoRAs)
-            if loaded_type == new_type and loaded_type in ["character", "subject"]:
+            if loaded_type == new_type and loaded_type in [
+                    "character", "subject"]:
                 raise LoRAConflictError(
                     f"Multiple {loaded_type} LoRAs detected!\n"
                     f"  Already loaded: '{loaded_lora.name}'\n"
@@ -206,16 +208,12 @@ class LoRAManager:
         self.loaded_loras.clear()
         resolved = []
 
-        # Sort by priority (could be added to LoRAConfig)
-        # For now, sort by type preference for quality
-        type_priority = {
-            "artifact_removal": 1,  # Apply first for cleanup
-            "quality": 2,
-            "detail": 3,
-            "style": 4,
-            "subject": 5,
-            "character": 6,
-        }
+        # Use ConfigurationManager for type priority - NO HARDCODED VALUES
+        from ..core.configuration_manager import ConfigurationManager
+        config_manager = ConfigurationManager()
+        
+        # Get type priority from configuration
+        type_priority = config_manager.get_value('lora.type_priority')
 
         # Detect types and sort
         loras_with_types = []
@@ -228,8 +226,18 @@ class LoRAManager:
                 self.logger.error(f"LoRA type detection failed: {e}")
                 raise
 
-        # Sort by type priority
-        loras_with_types.sort(key=lambda x: type_priority.get(x[1], 999))
+        # Sort by type priority - FAIL LOUD if type not in priority list
+        def get_priority(lora_type_pair):
+            lora, lora_type = lora_type_pair
+            if lora_type not in type_priority:
+                raise ValueError(
+                    f"Unknown LoRA type '{lora_type}' for '{lora.name}'\n"
+                    f"Known types: {list(type_priority.keys())}\n"
+                    f"Please add '{lora_type}' to lora.type_priority in configuration."
+                )
+            return type_priority[lora_type]
+        
+        loras_with_types.sort(key=get_priority)
 
         # Check compatibility and build stack
         for lora, lora_type in loras_with_types:
@@ -262,17 +270,15 @@ class LoRAManager:
 
         QUALITY OVER ALL: More LoRAs = more steps for quality
         """
-        base_steps = 50
-
-        # Add steps based on LoRA types for quality
-        type_steps = {
-            "detail": 10,
-            "quality": 10,
-            "style": 5,
-            "character": 5,
-            "subject": 5,
-            "artifact_removal": 15,  # Needs more steps to work properly
-        }
+        # Use ConfigurationManager for all values - NO HARDCODED VALUES
+        from ..core.configuration_manager import ConfigurationManager
+        config_manager = ConfigurationManager()
+        
+        # Get LoRA configuration
+        lora_config = config_manager.get_value('lora')
+        base_steps = lora_config['base_inference_steps']
+        max_steps = lora_config['max_inference_steps']
+        type_steps = lora_config['type_steps']
 
         additional_steps = 0
         types_in_stack = set()
@@ -280,14 +286,20 @@ class LoRAManager:
         for lora, _ in lora_stack:
             lora_type = self.detect_lora_type(lora)
             if lora_type not in types_in_stack:
-                additional_steps += type_steps.get(lora_type, 0)
+                # FAIL LOUD if type not found
+                if lora_type in type_steps:
+                    additional_steps += type_steps[lora_type]
+                else:
+                    self.logger.warning(f"Unknown LoRA type '{lora_type}', using default")
+                    additional_steps += type_steps['default']
                 types_in_stack.add(lora_type)
 
         recommended = base_steps + additional_steps
 
-        # Cap at reasonable maximum
-        if recommended > 100:
-            recommended = 100
+        # Cap at configured maximum
+        if recommended > max_steps:
+            recommended = max_steps
 
-        self.logger.info(f"Recommended inference steps for LoRA stack: {recommended}")
+        self.logger.info(
+            f"Recommended inference steps for LoRA stack: {recommended}")
         return recommended
