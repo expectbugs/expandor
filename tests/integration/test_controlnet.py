@@ -28,7 +28,7 @@ class TestControlNetExtractor:
     """Test ControlNet extractor functionality"""
     
     @pytest.fixture
-    def test_image(self):
+    def test_image_square(self):
         """Create a test image with clear structure"""
         img = Image.new("RGB", (512, 512), "white")
         draw = ImageDraw.Draw(img)

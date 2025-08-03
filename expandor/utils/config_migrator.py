@@ -52,6 +52,35 @@ class ConfigMigrator:
         if 'version' in config:
             return str(config['version'])
         
+        # For user configs without version, check if it's a minimal override file
+        # that doesn't need migration (just contains overrides compatible with 2.0)
+        config_keys = set(config.keys())
+        
+        # Keys that indicate old structure needing migration
+        old_structure_keys = {
+            'enable_artifact_detection', 'artifact_threshold', 
+            'max_repair_attempts', 'enable_cpu_offload',
+            'save_intermediate', 'compression', 'quality'
+        }
+        
+        # Keys that are valid in v2.0 structure
+        v2_structure_keys = {
+            'quality_presets', 'strategies', 'quality_global',
+            'paths', 'vram', 'output', 'processing', 'core'
+        }
+        
+        # If config has any old structure keys, it needs migration
+        if config_keys & old_structure_keys:
+            return "1.0"
+        
+        # If config only has v2.0 structure keys, treat as 2.0
+        if config_keys & v2_structure_keys:
+            return "2.0"
+        
+        # Empty or minimal configs are compatible with 2.0
+        if len(config) == 0 or all(k in ['version'] for k in config_keys):
+            return "2.0"
+        
         # Try to detect based on structure
         if 'quality_presets' in config and 'strategies' in config:
             # Newer structure
@@ -60,7 +89,7 @@ class ConfigMigrator:
             else:
                 return "1.1"
         else:
-            # Old structure
+            # If we can't determine, assume it's an old structure
             return "1.0"
     
     def backup_configs(self) -> Path:

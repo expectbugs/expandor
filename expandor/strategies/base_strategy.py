@@ -73,7 +73,12 @@ class BaseExpansionStrategy(ABC):
         # Get required params from config if available
         if hasattr(self, 'config') and 'required_params' in self.config:
             required = self.config['required_params']
-            params = self.config.get('parameters', self.config)
+            # FAIL LOUD if parameters section expected but missing
+            if 'parameters' in self.config:
+                params = self.config['parameters']
+            else:
+                # Use config itself as params if no parameters section
+                params = self.config
 
             missing = []
             for param in required:

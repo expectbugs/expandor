@@ -154,20 +154,23 @@ class DiffusersPipelineAdapter(BasePipelineAdapter):
         # Initialize pipelines
         self._initialize_pipelines()
 
-    def _get_config_value(self, section: str, key: str, default: Any) -> Any:
-        """Get configuration value from processing_params.yaml"""
+    def _get_config_value(self, section: str, key: str) -> Any:
+        """Get configuration value - FAIL LOUD, no defaults"""
         try:
-            from pathlib import Path
-
-            from ..utils.config_loader import ConfigLoader
-            config_dir = Path(__file__).parent.parent / "config"
-            loader = ConfigLoader(config_dir)
-            proc_config = loader.load_config_file("processing_params.yaml")
-            return proc_config.get(section, {}).get(key, default)
-        except (FileNotFoundError, ValueError, KeyError, TypeError) as e:
+            # Use ConfigurationManager instead of loading file directly
+            from ..core.configuration_manager import ConfigurationManager
+            config_manager = ConfigurationManager()
+            
+            # Build the config path
+            config_path = f"processors.{section}.{key}"
+            return config_manager.get_value(config_path)
+            
+        except (ValueError, KeyError) as e:
             # Fail loud - config required
             raise ValueError(
-                f"Failed to load {section}.{key} from configuration: {e}")
+                f"Failed to load {section}.{key} from configuration: {e}\n"
+                f"This value must be defined in master_defaults.yaml"
+            )
 
     def _ensure_vram_config(self) -> Dict[str, Any]:
         """Ensure VRAM config is loaded - FAIL LOUD if missing"""
@@ -230,7 +233,7 @@ class DiffusersPipelineAdapter(BasePipelineAdapter):
                 "strength",
                 "num_inference_steps",
                 "guidance_scale"]
-            defaults = config.get("defaults", {})
+            defaults = config["defaults"]
             missing_defaults = [
                 d for d in required_defaults if d not in defaults]
             if missing_defaults:

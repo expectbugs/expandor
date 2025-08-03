@@ -212,7 +212,8 @@ class StrategySelector:
 
         # Get model type from metadata
         model_type = "unknown"
-        if hasattr(config, "source_metadata"):
+        if hasattr(config, "source_metadata") and config.source_metadata:
+            # source_metadata is runtime data, so .get() with default is appropriate here
             model_type = config.source_metadata.get("model", "unknown")
 
         return SelectionMetrics(
@@ -310,8 +311,20 @@ class StrategySelector:
         # Check for extreme aspect ratio change requiring SWPO
         if metrics.is_extreme_ratio and metrics.has_inpaint:
             # Check if SWPO is enabled
-            swpo_config = self.strategy_config.get("swpo", {})
-            if swpo_config.get("enabled", True):
+            if "swpo" not in self.strategy_config:
+                raise ValueError(
+                    "FATAL: swpo configuration not found in strategies!\n"
+                    "This is required for extreme aspect ratio handling."
+                )
+            swpo_config = self.strategy_config["swpo"]
+            
+            # Check if enabled - default to True if not specified
+            if "enabled" not in swpo_config:
+                swpo_enabled = True
+            else:
+                swpo_enabled = swpo_config["enabled"]
+            
+            if swpo_enabled:
                 self.last_selection_reason = f"Extreme aspect ratio change ({
                     metrics.aspect_change:.1f}x)"
                 return "swpo"
@@ -334,9 +347,20 @@ class StrategySelector:
 
         # Check for significant aspect change needing progressive outpainting
         if metrics.aspect_change > aspect_threshold and metrics.has_inpaint:
-            prog_config = self.strategy_config.get(
-                "progressive_outpainting", {})
-            if prog_config.get("enabled", True):
+            if "progressive_outpainting" not in self.strategy_config:
+                raise ValueError(
+                    "FATAL: progressive_outpainting configuration not found in strategies!\n"
+                    "This is required for aspect ratio change handling."
+                )
+            prog_config = self.strategy_config["progressive_outpainting"]
+            
+            # Check if enabled - default to True if not specified
+            if "enabled" not in prog_config:
+                prog_enabled = True
+            else:
+                prog_enabled = prog_config["enabled"]
+            
+            if prog_enabled:
                 self.last_selection_reason = f"Significant aspect ratio change ({
                     metrics.aspect_change:.1f}x)"
                 return "progressive_outpaint"
@@ -387,11 +411,17 @@ class StrategySelector:
             strategy_class = self._load_strategy_class(strategy_name)
 
             # Get strategy-specific config from strategies.yaml
-            strategy_config = self.strategy_config.get(strategy_name, {})
+            if strategy_name not in self.strategy_config:
+                raise ValueError(
+                    f"FATAL: Strategy '{strategy_name}' not found in strategies configuration!\n"
+                    f"Available strategies: {list(self.strategy_config.keys())}\n"
+                    f"Please add configuration for {strategy_name} in master_defaults.yaml"
+                )
+            strategy_config = self.strategy_config[strategy_name]
             
-            # Merge with parameters from strategy_parameters.yaml
-            strategy_params = self.strategy_parameters.get(strategy_name, {})
-            if strategy_params:
+            # Merge with parameters from strategy_parameters.yaml if available
+            if hasattr(self, 'strategy_parameters') and strategy_name in self.strategy_parameters:
+                strategy_params = self.strategy_parameters[strategy_name]
                 # Merge parameters into the config's parameters section
                 if 'parameters' not in strategy_config:
                     strategy_config['parameters'] = {}

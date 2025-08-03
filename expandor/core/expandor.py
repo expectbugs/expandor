@@ -265,9 +265,17 @@ class Expandor:
         strategy = self.strategy_selector.select(config, dry_run=True)
         strategy_estimate = strategy.estimate_vram(config)
 
+        # FAIL LOUD if strategy doesn't provide peak_vram_mb
+        if "peak_vram_mb" not in strategy_estimate:
+            raise ValueError(
+                f"Strategy {strategy.__class__.__name__} failed to provide peak_vram_mb in estimate!\n"
+                f"Got: {strategy_estimate}\n"
+                f"All strategies must return peak_vram_mb in their estimate_vram() method."
+            )
+        
         return {
             "total_required_mb": max(
-                base_vram, strategy_estimate.get("peak_vram_mb", 0)
+                base_vram, strategy_estimate["peak_vram_mb"]
             ),
             "available_mb": self.vram_manager.get_available_vram() or 0,
             "base_estimate_mb": base_vram,
@@ -335,9 +343,13 @@ class Expandor:
                         config.source_image)}")
 
         # Quality preset validation
-        available_presets = list(self.config.get("quality_presets", {}).keys())
-        if not available_presets:
-            available_presets = ["ultra", "high", "balanced", "fast"]
+        if "quality_presets" not in self.config:
+            raise ValueError(
+                "FATAL: quality_presets not found in configuration!\n"
+                "This is a critical configuration error.\n"
+                "The configuration must include quality preset definitions."
+            )
+        available_presets = list(self.config["quality_presets"].keys())
 
         if config.quality_preset not in available_presets:
             raise ValueError(
@@ -476,10 +488,17 @@ class Expandor:
                         free_after = torch.cuda.mem_get_info()[0] / (1024**2)
                         self.logger.info(f"VRAM after optimization: {free_after:.0f}MB free / {total_vram:.0f}MB total")
                     
+                    if 'processing_params' not in self.config:
+                        raise ValueError(
+                            "FATAL: processing_params not found in configuration!\n"
+                            "This is required for seam repair processing.\n"
+                            "Please ensure master_defaults.yaml includes processing_params section."
+                        )
+                    
                     repair_processor = SeamRepairProcessor(
                         pipelines=self.pipeline_registry, 
                         logger=self.logger,
-                        config=self.config.get('processing_params', {})
+                        config=self.config['processing_params']
                     )
 
                     # Create artifact mask from issues
@@ -525,8 +544,26 @@ class Expandor:
                             seam_config = self.config_manager.get_processor_config('seam_repair')
                             
                             # Use approximately half of normal values for low memory
-                            normal_steps = seam_config.get('artifact_repair_steps', seam_config['seam_repair_steps'])
-                            normal_strength = seam_config.get('artifact_repair_strength', seam_config['seam_repair_strength'])
+                            # First try artifact_repair_steps, then fall back to seam_repair_steps
+                            if 'artifact_repair_steps' in seam_config:
+                                normal_steps = seam_config['artifact_repair_steps']
+                            elif 'seam_repair_steps' in seam_config:
+                                normal_steps = seam_config['seam_repair_steps']
+                            else:
+                                raise ValueError(
+                                    "FATAL: Neither artifact_repair_steps nor seam_repair_steps found in seam_config!\n"
+                                    "Configuration is missing required repair step parameters."
+                                )
+                            
+                            if 'artifact_repair_strength' in seam_config:
+                                normal_strength = seam_config['artifact_repair_strength']
+                            elif 'seam_repair_strength' in seam_config:
+                                normal_strength = seam_config['seam_repair_strength']
+                            else:
+                                raise ValueError(
+                                    "FATAL: Neither artifact_repair_strength nor seam_repair_strength found in seam_config!\n"
+                                    "Configuration is missing required repair strength parameters."
+                                )
                             
                             reduced_metadata['artifact_repair_steps'] = max(10, normal_steps // 2)  # Half steps, min 10
                             reduced_metadata['artifact_repair_strength'] = max(0.2, normal_strength * 0.6)  # 60% strength, min 0.2
@@ -616,7 +653,7 @@ class Expandor:
         # Clean up files in temp subdirectories
         if hasattr(self, "_temp_base") and self._temp_base.exists():
             # Get cleanup patterns from config
-            cleanup_patterns = self._config_manager.get_value("processing.temp_cleanup_patterns")
+            cleanup_patterns = self.config_manager.get_value("processing.temp_cleanup_patterns")
             temp_patterns = [
                 self._temp_base / pattern for pattern in cleanup_patterns
             ]
@@ -843,8 +880,23 @@ class Expandor:
             # Get quality preset specific threshold if available
             if config.quality_preset and config.quality_preset != "custom":
                 preset_config = self.config_manager.get_value(f'quality_presets.{config.quality_preset}')
-                quality_threshold = preset_config.get('validation', {}).get('quality_threshold', orchestrator_config['quality_threshold'])
+                # Check if validation section exists
+                if 'validation' in preset_config and 'quality_threshold' in preset_config['validation']:
+                    quality_threshold = preset_config['validation']['quality_threshold']
+                else:
+                    # Fall back to orchestrator config
+                    if 'quality_threshold' not in orchestrator_config:
+                        raise ValueError(
+                            "FATAL: quality_threshold not found in orchestrator_config!\n"
+                            "This is required for quality validation."
+                        )
+                    quality_threshold = orchestrator_config['quality_threshold']
             else:
+                if 'quality_threshold' not in orchestrator_config:
+                    raise ValueError(
+                        "FATAL: quality_threshold not found in orchestrator_config!\n"
+                        "This is required for quality validation."
+                    )
                 quality_threshold = orchestrator_config['quality_threshold']
             
             quality_config = {

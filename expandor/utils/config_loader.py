@@ -65,64 +65,36 @@ class ConfigLoader:
         Returns:
             Merged configuration dictionary
         """
-        config = {}
+        # Since v0.7.0, all config is in master_defaults.yaml
+        master_config_path = self.config_dir / "master_defaults.yaml"
+        if not master_config_path.exists():
+            raise FileNotFoundError(
+                f"Master configuration file not found: {master_config_path}\n"
+                "This file is required for Expandor to function properly.\n"
+                "Run 'expandor --setup' to create valid configuration."
+            )
 
-        # List of config files to load in order
-        config_files = [
-            "base_defaults.yaml",
-            "strategies.yaml",
-            "quality_presets.yaml",
-            "quality_thresholds.yaml",
-            "resolution_presets.yaml",
-            "vram_strategies.yaml",
-            "model_constraints.yaml",
-            "processing_params.yaml",
-            "output_quality.yaml",
-            "strategy_parameters.yaml",
-            "vram_thresholds.yaml",
-            "controlnet_config.yaml",
-        ]
+        try:
+            with open(master_config_path, "r") as f:
+                config = yaml.safe_load(f) or {}
+            self.logger.debug(f"Loaded master config from {master_config_path}")
+        except Exception as e:
+            raise ValueError(
+                f"Failed to load master configuration from {master_config_path}: {e}\n"
+                "This is a critical error - the master_defaults.yaml file must be valid YAML."
+            )
 
-        for config_file in config_files:
-            file_path = self.config_dir / config_file
-            if file_path.exists():
-                try:
-                    with open(file_path, "r") as f:
-                        file_config = yaml.safe_load(f)
-                        if file_config:
-                            # Extract top-level key from filename
-                            key = (
-                                config_file.replace(".yaml", "")
-                                .replace("_", " ")
-                                .title()
-                                .replace(" ", "_")
-                                .lower()
-                            )
-
-                            # Special handling for certain files
-                            if config_file == "quality_presets.yaml":
-                                config["quality_presets"] = file_config.get(
-                                    "quality_presets", file_config
-                                )
-                            elif config_file == "vram_strategies.yaml":
-                                config["vram_strategies"] = file_config
-                            elif config_file == "model_constraints.yaml":
-                                config["model_constraints"] = file_config
-                            elif config_file == "processing_params.yaml":
-                                config["processing_params"] = file_config
-                            elif config_file == "output_quality.yaml":
-                                config["output_quality"] = file_config
-                            elif config_file == "strategy_parameters.yaml":
-                                config["strategy_parameters"] = file_config
-                            else:
-                                config.update(file_config)
-
-                    self.logger.debug(f"Loaded config from {config_file}")
-                except Exception as e:
-                    self.logger.error(f"Failed to load {config_file}: {e}")
-                    raise
-            else:
-                self.logger.warning(f"Config file not found: {file_path}")
+        # Also load controlnet_config.yaml if it exists (it's separate)
+        controlnet_path = self.config_dir / "controlnet_config.yaml"
+        if controlnet_path.exists():
+            try:
+                with open(controlnet_path, "r") as f:
+                    controlnet_config = yaml.safe_load(f)
+                    if controlnet_config:
+                        config["controlnet_config"] = controlnet_config
+                        self.logger.debug(f"Loaded controlnet config from {controlnet_path}")
+            except Exception as e:
+                self.logger.warning(f"Failed to load controlnet_config.yaml: {e}")
 
         return config
 

@@ -238,8 +238,8 @@ def create_noise_pattern(
     # Simple noise implementation
     noise = np.zeros((height, width))
 
-    octave_freq_base = _config_manager.get_value('image_processing.noise.octave_frequency_base') if _config_manager.has_key('image_processing.noise.octave_frequency_base') else 2
-    octave_amp_base = _config_manager.get_value('image_processing.noise.octave_amplitude_base') if _config_manager.has_key('image_processing.noise.octave_amplitude_base') else 0.5
+    octave_freq_base = _config_manager.get_value('image_processing.noise.octave_frequency_base')
+    octave_amp_base = _config_manager.get_value('image_processing.noise.octave_amplitude_base')
     
     for octave in range(octaves):
         freq = octave_freq_base**octave

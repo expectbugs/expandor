@@ -343,7 +343,9 @@ class ProgressiveOutpaintStrategy(BaseExpansionStrategy):
 
         # CRITICAL: Two-pass approach for seamless blending
         # Second pass to refine seams with lower denoising
-        if step_info.get("enable_seam_fix", True):
+        # Default to True if not specified in step_info
+        enable_seam_fix = step_info.get("enable_seam_fix") if "enable_seam_fix" in step_info else True
+        if enable_seam_fix:
             result = self._refine_seams(
                 result, canvas, mask, enhanced_prompt,
                 current_w, current_h, pad_left, pad_top

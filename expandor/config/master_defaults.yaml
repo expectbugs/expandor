@@ -904,6 +904,8 @@ vram:
         batch_size: 2
         tile_size: 1024
 models:
+  default_type: "sdxl"
+  default_dtype: "float16"
   sdxl:
     min_resolution: 1024
     max_resolution: 4096

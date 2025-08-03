@@ -75,10 +75,10 @@ class HybridAdaptiveStrategy(BaseExpansionStrategy):
 
         # Load strategy-specific config using ConfigurationManager
         from ...core.configuration_manager import ConfigurationManager
-        config_manager = ConfigurationManager()
+        self.config_manager = ConfigurationManager()
         
         # Get hybrid_adaptive strategy config
-        self.strategy_params = config_manager.get_value('strategies.hybrid_adaptive', {})
+        self.strategy_params = self.config_manager.get_value('strategies.hybrid_adaptive', {})
 
         # FAIL LOUD if required params missing
         required = [

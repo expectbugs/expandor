@@ -68,9 +68,11 @@ class VRAMManager:
         if batch_size is None:
             batch_size = self.config_manager.get_value('vram.default_batch_size')
         if model_type is None:
-            model_type = self.config_manager.get_value('models.default_type') if self.config_manager.has_key('models.default_type') else "sdxl"
+            # FAIL LOUD - no defaults
+            model_type = self.config_manager.get_value('models.default_type')
         if dtype is None:
-            dtype = self.config_manager.get_value('models.default_dtype') if self.config_manager.has_key('models.default_dtype') else "float16"
+            # FAIL LOUD - no defaults
+            dtype = self.config_manager.get_value('models.default_dtype')
         
         # pixels = width * height  # Unused calculation
 
@@ -87,7 +89,7 @@ class VRAMManager:
 
         # Image tensor memory (BCHW format)
         # 1 batch × 4 channels (latent) × H × W
-        vae_downscale_factor = self.config_manager.get_value('vram.vae_downscale_factor') if self.config_manager.has_key('vram.vae_downscale_factor') else 8
+        vae_downscale_factor = self.config_manager.get_value('vram.vae_downscale_factor')
         latent_h = height // vae_downscale_factor  # VAE downscales
         latent_w = width // vae_downscale_factor
         latent_pixels = latent_h * latent_w
@@ -104,7 +106,7 @@ class VRAMManager:
         ) / bytes_to_mb
 
         # Activations and gradients
-        activation_multiplier = self.config_manager.get_value('vram.activation_multiplier') if self.config_manager.has_key('vram.activation_multiplier') else 2
+        activation_multiplier = self.config_manager.get_value('vram.activation_multiplier')
         activation_memory_mb = latent_memory_mb * activation_multiplier  # Conservative estimate
 
         # Total image-related memory
@@ -302,7 +304,7 @@ class VRAMManager:
         """
         # Load defaults from config if not provided
         if model_type is None:
-            model_type = self.config_manager.get_value('models.default_type') if self.config_manager.has_key('models.default_type') else "sdxl"
+            model_type = self.config_manager.get_value('models.default_type')
         if safety_factor is None:
             safety_factor = self.config_manager.get_value('vram.safety_factor')
         
