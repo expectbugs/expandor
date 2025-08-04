@@ -1,6 +1,11 @@
 version: '2.0'
 core:
   default_strategy: auto
+  quality_preset: balanced
+  strategy: auto
+  denoising_strength: 0.7
+  guidance_scale: 7.5
+  num_inference_steps: 30
 quality_presets:
   custom:
     name: Custom Settings

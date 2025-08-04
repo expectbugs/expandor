@@ -143,13 +143,19 @@ All production readiness tasks completed:
 - ✅ Full ControlNet implementation with generation support
 - ✅ Version bumped to 0.6.0
 
-## Current Version: 0.6.0
+## Current Version: 0.7.3
 
-All previously known issues have been resolved. The codebase now features:
-- Unified ExpandorConfig API throughout
-- Full ControlNet support with FAIL LOUD philosophy
-- Comprehensive test coverage
-- Reduced code style warnings (77% reduction)
+Recent improvements:
+- Fixed all critical runtime crashes that prevented the system from running
+- Fixed configuration schema validation with proper FAIL LOUD enforcement
+- Fixed configuration hierarchy (master → user → environment overrides)
+- Fixed CLI commands (--test, --dry-run now work correctly)
+- Improved error messages to distinguish user errors from bugs
+- Reduced .get() with defaults violations (from 31 to 29)
+- Implemented singleton pattern for configuration to prevent duplicate loading
+- All core functionality now follows FAIL LOUD philosophy correctly
+
+Note: 829 hardcoded values remain and require a separate comprehensive refactoring effort.
 
 ## Testing Requirements
 

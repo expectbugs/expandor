@@ -180,6 +180,24 @@ def main():
 
         logger.info(f"Processing {len(input_files)} image(s)")
 
+        # Check for dry-run mode
+        if args.dry_run:
+            logger.info("DRY RUN MODE - Simulating processing without loading models")
+            
+            # Show what would be done
+            for input_path in input_files:
+                logger.info(f"Would process: {input_path}")
+                logger.info(f"Target resolution: {args.resolution}")
+                logger.info(f"Quality preset: {getattr(args, 'quality', None) or 'default'}")
+                logger.info(f"Output format: {getattr(args, 'format', None) or 'png'}")
+                if hasattr(args, 'lora') and args.lora:
+                    logger.info(f"LoRAs: {args.lora}")
+                if hasattr(args, 'negative_prompt') and args.negative_prompt:
+                    logger.info(f"Negative prompt: {args.negative_prompt}")
+            
+            logger.info("DRY RUN COMPLETE - No actual processing performed")
+            return 0
+
         # Initialize Expandor with pipeline adapter
         logger.info("Initializing Expandor...")
 
@@ -405,6 +423,16 @@ def main():
         logger.info("  pip install expandor[diffusers]  # For AI models")
         logger.info("  pip install expandor[all]       # For all features")
         return 6
+    except ValueError as e:
+        # This is likely a user input error, not a bug
+        error_msg = str(e).lower()
+        if any(term in error_msg for term in ['resolution', 'invalid', 'format', 'multiplier', 'model']):
+            logger.error(f"Invalid input: {e}")
+            logger.error("Please check your command line arguments and try again.")
+            return 1
+        else:
+            # Other ValueErrors might be bugs
+            raise
     except Exception as e:
         # This is our "fail loud" - don't hide unexpected errors
         logger.error(f"UNEXPECTED ERROR - THIS IS A BUG!")

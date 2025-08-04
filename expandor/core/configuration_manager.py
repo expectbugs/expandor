@@ -1,5 +1,6 @@
 """Singleton configuration manager - the ONLY way to access config"""
 
+import copy
 import logging
 import os
 import json
@@ -193,14 +194,8 @@ class ConfigurationManager:
                         f"Available schemas: {list(self._schemas.keys())}\n"
                         f"The master configuration must have a schema for validation."
                     )
-                # Temporarily disable schema validation if it causes issues
-                try:
-                    self._validate_config(self._master_config, 'master_defaults')
-                except Exception as e:
-                    self.logger.warning(
-                        f"Schema validation failed: {e}\n"
-                        f"Continuing without schema validation for now."
-                    )
+                # FAIL LOUD - schema validation is mandatory
+                self._validate_config(self._master_config, 'master_defaults')
         except FileNotFoundError as e:
             # FAIL LOUD - master config is required
             raise ValueError(
@@ -280,9 +275,29 @@ class ConfigurationManager:
         """Load environment variable overrides (EXPANDOR_*)"""
         for key, value in os.environ.items():
             if key.startswith("EXPANDOR_"):
-                # Convert EXPANDOR_STRATEGIES_PROGRESSIVE_OUTPAINT_BASE_STRENGTH
-                # to strategies.progressive_outpaint.base_strength
-                config_path = key[9:].lower().replace("_", ".")
+                # Convert EXPANDOR_PROCESSING_BATCH_SIZE to processing.batch_size
+                # We need to be smarter about underscores - only convert section separators
+                parts = key[9:].lower().split("_")
+                
+                # Try different combinations to find a valid key
+                # Start with assuming first part is section, rest is key
+                for i in range(1, len(parts)):
+                    section = ".".join(parts[:i])
+                    key_part = "_".join(parts[i:])
+                    config_path = f"{section}.{key_part}"
+                    
+                    # Check if this path exists in master config
+                    try:
+                        self._get_nested_value(self._master_config, config_path)
+                        # Found valid path!
+                        break
+                    except KeyError:
+                        # Try next combination
+                        continue
+                else:
+                    # Fallback: convert all underscores to dots
+                    config_path = key[9:].lower().replace("_", ".")
+                
                 try:
                     # Try to parse as number/bool
                     if value.lower() in ("true", "false"):
@@ -376,7 +391,7 @@ class ConfigurationManager:
     def _build_config_cache(self):
         """Build final config cache from all sources"""
         # Start with master config
-        self._config_cache = self._master_config.copy()
+        self._config_cache = copy.deepcopy(self._master_config)
         
         # Apply user overrides
         self._merge_config(self._config_cache, self._user_overrides)
@@ -386,7 +401,7 @@ class ConfigurationManager:
         
         # Update compatibility attributes
         self._config = self._config_cache
-        self.configs = self._config_cache
+        self.configs = {'master': self._config_cache}
     
     def get_strategy_config(self, strategy_name: str) -> Dict[str, Any]:
         """Get complete config for a strategy"""

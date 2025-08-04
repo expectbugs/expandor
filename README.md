@@ -1,6 +1,6 @@
 # Expandor: Universal Image Resolution Adaptation System
 
-[![Version](https://img.shields.io/badge/version-0.6.0-blue.svg)](https://github.com/yourusername/expandor)
+[![Version](https://img.shields.io/badge/version-0.7.3-blue.svg)](https://github.com/yourusername/expandor)
 [![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 

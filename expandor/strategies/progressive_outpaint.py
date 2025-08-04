@@ -470,7 +470,12 @@ class ProgressiveOutpaintStrategy(BaseExpansionStrategy):
         else:
             base_steps = self.base_steps
 
-        step_type = step_info.get("step_type", "progressive")
+        # Validate step_info for FAIL LOUD
+        if "step_type" not in step_info:
+            self.logger.warning("step_type not found in step_info, using 'progressive'")
+            step_type = "progressive"
+        else:
+            step_type = step_info["step_type"]
         if step_type == "initial":
             return int(base_steps * self.strategy_config['first_step_multiplier'])  # More steps for first expansion
         elif step_type == "final":
@@ -500,7 +505,12 @@ class ProgressiveOutpaintStrategy(BaseExpansionStrategy):
         Too high = disconnected content
         Too low = no new content
         """
-        step_type = step_info.get("step_type", "progressive")
+        # Validate step_info for FAIL LOUD
+        if "step_type" not in step_info:
+            self.logger.warning("step_type not found in step_info, using 'progressive'")
+            step_type = "progressive"
+        else:
+            step_type = step_info["step_type"]
         # Expansion ratio must be provided in step_info
         if "expansion_ratio" not in step_info:
             raise ValueError(

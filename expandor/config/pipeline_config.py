@@ -218,6 +218,13 @@ class PipelineConfigurator:
         for name, config in models.items():
             result = {"valid": True, "errors": [], "warnings": []}
 
+            # Check model configuration validity
+            if config is None or config.model_id is None:
+                result["valid"] = False
+                result["available"] = False
+                result["errors"].append("Model configuration is missing or invalid")
+                return result
+            
             # Check if model path/id exists
             if config.model_id.startswith(
                     "/") or config.model_id.startswith("."):

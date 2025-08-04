@@ -352,17 +352,34 @@ class PipelineOrchestrator:
 
                     # Create instance with extra config
                     # Implement precedence: Runtime → User → Strategy → Global
-                    # Get configuration sections - allow missing for flexibility
-                    # Global defaults are optional
-                    global_defaults = self.config.get("global_defaults", {})
+                    # Get configuration sections - validate presence for FAIL LOUD
+                    # Global defaults check
+                    if "global_defaults" not in self.config:
+                        self.logger.warning("No global_defaults in config - using empty dict")
+                        global_defaults = {}
+                    else:
+                        global_defaults = self.config["global_defaults"]
                     
-                    # Strategy defaults are optional
-                    strategies_config = self.config.get("strategies", {})
-                    strategy_defaults = strategies_config.get(strategy_name, {})
+                    # Strategy defaults check
+                    if "strategies" not in self.config:
+                        self.logger.warning("No strategies config found - using empty dict")
+                        strategies_config = {}
+                        strategy_defaults = {}
+                    else:
+                        strategies_config = self.config["strategies"]
+                        if strategy_name not in strategies_config:
+                            self.logger.warning(f"No config for strategy {strategy_name} - using empty dict")
+                            strategy_defaults = {}
+                        else:
+                            strategy_defaults = strategies_config[strategy_name]
                     
-                    # User overrides are optional
-                    user_overrides = self.config.get("user_overrides", {})
-                    user_config = user_overrides.get(strategy_name, {})
+                    # User overrides check
+                    if "user_overrides" not in self.config:
+                        user_overrides = {}
+                        user_config = {}
+                    else:
+                        user_overrides = self.config["user_overrides"]
+                        user_config = user_overrides.get(strategy_name, {})
                     
                     runtime_config = extra_config
 

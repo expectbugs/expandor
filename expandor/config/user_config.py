@@ -257,6 +257,15 @@ def get_default_config_path() -> Path:
 
 class UserConfigManager:
     """Manages user configuration file"""
+    
+    _instance = None
+    _loaded_config = None
+    _last_config_path = None
+
+    def __new__(cls, config_path: Optional[Path] = None):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
 
     def __init__(self, config_path: Optional[Path] = None):
         """
@@ -265,9 +274,12 @@ class UserConfigManager:
         Args:
             config_path: Custom config path (defaults to platform-specific location)
         """
-        self.config_path = (
-            Path(config_path) if config_path else get_default_config_path()
-        )
+        # Only reinitialize if config path changed
+        new_path = Path(config_path) if config_path else get_default_config_path()
+        if hasattr(self, 'config_path') and self.config_path == new_path:
+            return  # Already initialized with same path
+            
+        self.config_path = new_path
         self.logger = setup_logger(__name__)
         self._ensure_config_dir()
 
@@ -282,11 +294,19 @@ class UserConfigManager:
         Returns:
             UserConfig object
         """
+        # Check if we already loaded this config
+        if (UserConfigManager._loaded_config is not None and 
+            UserConfigManager._last_config_path == self.config_path):
+            return UserConfigManager._loaded_config
+            
         if not self.config_path.exists():
             self.logger.info(
                 f"No user config found at {self.config_path}, using defaults"
             )
-            return self._get_default_config()
+            result = self._get_default_config()
+            UserConfigManager._loaded_config = result
+            UserConfigManager._last_config_path = self.config_path
+            return result
 
         try:
             with open(self.config_path, "r") as f:
@@ -294,12 +314,19 @@ class UserConfigManager:
 
             config = UserConfig.from_dict(data)
             self.logger.info(f"Loaded user config from {self.config_path}")
+            # Cache the loaded config
+            UserConfigManager._loaded_config = config
+            UserConfigManager._last_config_path = self.config_path
             return config
 
         except Exception as e:
             self.logger.error(f"Failed to load user config: {e}")
             self.logger.warning("Using default configuration")
-            return self._get_default_config()
+            result = self._get_default_config()
+            # Cache even the default config
+            UserConfigManager._loaded_config = result
+            UserConfigManager._last_config_path = self.config_path
+            return result
 
     def save(self, config: UserConfig):
         """
