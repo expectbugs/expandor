@@ -77,6 +77,8 @@ class ConfigLoader:
         try:
             with open(master_config_path, "r") as f:
                 config = yaml.safe_load(f) or {}
+                # Convert numeric strings to proper types
+                config = self._convert_numeric_strings(config, path="")
             self.logger.debug(f"Loaded master config from {master_config_path}")
         except Exception as e:
             raise ValueError(
@@ -91,6 +93,8 @@ class ConfigLoader:
                 with open(controlnet_path, "r") as f:
                     controlnet_config = yaml.safe_load(f)
                     if controlnet_config:
+                        # Convert numeric strings to proper types
+                        controlnet_config = self._convert_numeric_strings(controlnet_config, path="")
                         config["controlnet_config"] = controlnet_config
                         self.logger.debug(f"Loaded controlnet config from {controlnet_path}")
             except Exception as e:
@@ -118,7 +122,9 @@ class ConfigLoader:
 
         try:
             with open(file_path, "r") as f:
-                return yaml.safe_load(f) or {}
+                data = yaml.safe_load(f) or {}
+                # Convert numeric strings to proper types
+                return self._convert_numeric_strings(data, path="")
         except Exception as e:
             self.logger.error(f"Failed to load {filename}: {e}")
             raise
@@ -262,7 +268,8 @@ class ConfigLoader:
         if file_path.exists():
             try:
                 with open(file_path, "r") as f:
-                    return yaml.safe_load(f) or {}
+                    data = yaml.safe_load(f) or {}
+                    return self._convert_numeric_strings(data, path="")
             except Exception as e:
                 self.logger.error(f"Failed to load {filename}: {e}")
                 raise
@@ -272,7 +279,8 @@ class ConfigLoader:
             file_path = self.get_config_path(filename)
             if file_path.exists():
                 with open(file_path, "r") as f:
-                    return yaml.safe_load(f) or {}
+                    data = yaml.safe_load(f) or {}
+                    return self._convert_numeric_strings(data, path="")
         except Exception as e:
             self.logger.warning(f"Could not load {filename}: {e}")
         
@@ -381,3 +389,28 @@ class ConfigLoader:
             )
 
         return True
+    
+    def _convert_numeric_strings(self, obj: Any, path: str) -> Any:
+        """Recursively convert numeric strings to int/float"""
+        if isinstance(obj, dict):
+            return {k: self._convert_numeric_strings(v, f"{path}.{k}" if path else k) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [self._convert_numeric_strings(item, f"{path}[{i}]") for i, item in enumerate(obj)]
+        elif isinstance(obj, str):
+            # Don't convert version strings
+            if path.endswith('version') or path == 'version':
+                return obj
+            # Try to convert scientific notation and numeric strings
+            if obj.lower() in ('true', 'false'):
+                return obj.lower() == 'true'
+            try:
+                # First try integer
+                if '.' not in obj and 'e' not in obj.lower():
+                    return int(obj)
+                # Then try float (handles scientific notation)
+                return float(obj)
+            except ValueError:
+                # Not a number, return as string
+                return obj
+        else:
+            return obj

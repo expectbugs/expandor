@@ -43,7 +43,8 @@ config = ExpandorConfig(
     target_height=2160,
     prompt="A beautiful landscape",
     quality_preset="ultra",
-    save_stages=True
+    save_stages=True,
+    source_metadata={"model": "mock"}  # Required for metadata tracking
 )
 
 # Expand to 4K
@@ -51,11 +52,10 @@ print("\nExpanding to 4K...")
 result = expandor.expand(config)
 
 print(f"\nExpansion complete!")
-print(f"Output size: {result.final_image.size}")
+print(f"Output size: {result.size}")
 print(f"Strategy used: {result.strategy_used}")
-print(f"Processing time: {result.metadata.get('total_time', 'N/A')}s")
-print(f"Stages saved: {len(result.intermediate_stages)}")
+print(f"Processing time: {result.total_duration_seconds:.2f}s")
+print(f"Stages: {len(result.stages)}")
 
 # Save output
-result.final_image.save(output_path, compress_level=0)
-print(f"\nSaved to: {output_path}")
+print(f"\nSaved to: {result.image_path}")

@@ -174,8 +174,9 @@ def create_parser() -> argparse.ArgumentParser:
             "swpo",
             "tiled",
             "cpu_offload",
-            "hybrid"],
-        help="Force specific expansion strategy",
+            "hybrid",
+            "auto"],  # Add auto option
+        help="Force specific expansion strategy (auto = let system choose)",
     )
 
     # Enhancement

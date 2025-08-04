@@ -59,9 +59,10 @@ class ArtifactDetector:
         seam_count = 0
 
         # 1. Progressive Boundary Detection (lines 49-71)
-        boundaries = metadata.get("progressive_boundaries", [])
-        boundaries_v = metadata.get("progressive_boundaries_vertical", [])
-        seam_details = metadata.get("seam_details", [])
+        # These metadata fields are OPTIONAL - empty lists are valid when no boundaries exist
+        boundaries = metadata.get("progressive_boundaries", [])  # OPTIONAL: may be empty
+        boundaries_v = metadata.get("progressive_boundaries_vertical", [])  # OPTIONAL: may be empty
+        seam_details = metadata.get("seam_details", [])  # OPTIONAL: may be empty
 
         if boundaries or boundaries_v:
             self.logger.info(

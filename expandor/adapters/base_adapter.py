@@ -115,10 +115,10 @@ class BasePipelineAdapter(ABC):
         control_image: Image.Image,
         prompt: str,
         negative_prompt: Optional[str] = None,
-        controlnet_conditioning_scale: float = 1.0,
-        strength: float = 0.8,
-        num_inference_steps: int = 50,
-        guidance_scale: float = 7.5,
+        controlnet_conditioning_scale: Optional[float] = None,
+        strength: Optional[float] = None,
+        num_inference_steps: Optional[int] = None,
+        guidance_scale: Optional[float] = None,
         seed: Optional[int] = None,
         **kwargs
     ) -> Image.Image:
@@ -134,10 +134,10 @@ class BasePipelineAdapter(ABC):
             control_image: Control image (canny, depth, etc.)
             prompt: Text prompt
             negative_prompt: Negative prompt
-            controlnet_conditioning_scale: ControlNet strength
-            strength: Denoising strength
-            num_inference_steps: Number of steps
-            guidance_scale: Guidance scale
+            controlnet_conditioning_scale: ControlNet strength (None = use config default from 'adapters.common.default_controlnet_conditioning_scale')
+            strength: Denoising strength (None = use config default from 'adapters.common.default_inpaint_strength')
+            num_inference_steps: Number of steps (None = use config default from 'adapters.common.default_num_inference_steps')
+            guidance_scale: Guidance scale (None = use config default from 'adapters.common.default_guidance_scale')
             seed: Random seed
             **kwargs: Additional pipeline arguments
 
@@ -152,10 +152,10 @@ class BasePipelineAdapter(ABC):
         control_image: Image.Image,
         prompt: str,
         negative_prompt: Optional[str] = None,
-        controlnet_conditioning_scale: float = 1.0,
-        strength: float = 0.8,
-        num_inference_steps: int = 50,
-        guidance_scale: float = 7.5,
+        controlnet_conditioning_scale: Optional[float] = None,
+        strength: Optional[float] = None,
+        num_inference_steps: Optional[int] = None,
+        guidance_scale: Optional[float] = None,
         seed: Optional[int] = None,
         **kwargs
     ) -> Image.Image:
@@ -170,10 +170,10 @@ class BasePipelineAdapter(ABC):
             control_image: Control image (canny, depth, etc.)
             prompt: Text prompt
             negative_prompt: Negative prompt
-            controlnet_conditioning_scale: ControlNet strength
-            strength: Denoising strength
-            num_inference_steps: Number of steps
-            guidance_scale: Guidance scale
+            controlnet_conditioning_scale: ControlNet strength (None = use config default from 'adapters.common.default_controlnet_conditioning_scale')
+            strength: Denoising strength (None = use config default from 'adapters.common.default_strength')
+            num_inference_steps: Number of steps (None = use config default from 'adapters.common.default_num_inference_steps')
+            guidance_scale: Guidance scale (None = use config default from 'adapters.common.default_guidance_scale')
             seed: Random seed
             **kwargs: Additional pipeline arguments
 

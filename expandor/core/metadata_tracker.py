@@ -70,7 +70,7 @@ class MetadataTracker:
             "denoising_strength": config.denoising_strength,
             "guidance_scale": config.guidance_scale,
             "num_inference_steps": config.num_inference_steps,
-            "model_type": config.source_metadata.get("model", "unknown"),
+            "model_type": self._get_model_type(config),
         }
 
         # Record start event
@@ -80,6 +80,24 @@ class MetadataTracker:
 
         self.logger.debug(f"Started tracking operation: {self.operation_id}")
         return self.operation_id
+
+    def _get_model_type(self, config):
+        """Get model type from config metadata - FAIL LOUD if missing"""
+        if not hasattr(config, 'source_metadata') or config.source_metadata is None:
+            raise ValueError(
+                "FATAL: source_metadata is missing from config!\n"
+                "This is required for tracking model operations.\n"
+                "Please ensure the config includes source_metadata with 'model' field."
+            )
+        
+        if 'model' not in config.source_metadata:
+            raise ValueError(
+                f"FATAL: 'model' field not found in source_metadata!\n"
+                f"Available fields: {list(config.source_metadata.keys())}\n"
+                "The 'model' field is required to identify the model type."
+            )
+        
+        return config.source_metadata['model']
 
     def track_operation(self, operation_name: str, metadata: Dict[str, Any]):
         """
@@ -130,7 +148,7 @@ class MetadataTracker:
             {
                 "stage": self.current_stage,
                 "success": success,
-                "duration": self.stage_timings.get(self.current_stage, 0),
+                "duration": self.stage_timings.get(self.current_stage, 0),  # 0 is valid for no timing data
                 "error": error,
             },
         )

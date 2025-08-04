@@ -150,6 +150,14 @@ class SWPOStrategy(BaseExpansionStrategy):
             "strategy_overhead_mb": window_vram_mb,
         }
 
+    def _get_vram_for_error_reporting(self) -> int:
+        """Get VRAM for error reporting, return 0 if detection fails"""
+        try:
+            vram = self.vram_manager.get_available_vram()
+            return vram if vram is not None and vram >= 0 else 0
+        except Exception:
+            return 0
+
     def execute(
         self, config: ExpandorConfig, context: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
@@ -255,7 +263,7 @@ class SWPOStrategy(BaseExpansionStrategy):
                         raise VRAMError(
                             operation=f"swpo_window_{i}",
                             required_mb=required_vram,
-                            available_mb=self.vram_manager.get_available_vram() or 0,
+                            available_mb=self._get_vram_for_error_reporting(),
                         )
 
                     self.logger.info(

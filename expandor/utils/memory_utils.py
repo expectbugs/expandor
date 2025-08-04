@@ -13,6 +13,8 @@ from typing import Any, Dict, List, Optional, Tuple
 import psutil
 import torch
 
+from ..core.configuration_manager import ConfigurationManager
+
 logger = logging.getLogger(__name__)
 
 
@@ -45,22 +47,25 @@ class GPUMemoryManager:
         self.offloaded_tensors: Dict[str, Tuple[torch.Tensor, str]] = {}
         self.peak_gpu_usage = 0.0
         self.enable_profiling = False
+        self.config_manager = ConfigurationManager()
 
     def get_memory_stats(self) -> MemoryStats:
         """Get current memory statistics."""
         if torch.cuda.is_available():
             gpu_stats = torch.cuda.mem_get_info()
-            gpu_free = gpu_stats[0] / (1024**2)  # Convert to MB
-            gpu_total = gpu_stats[1] / (1024**2)
+            bytes_to_mb = self.config_manager.get_value('constants.memory.bytes_per_mb')
+            gpu_free = gpu_stats[0] / bytes_to_mb  # Convert to MB
+            gpu_total = gpu_stats[1] / bytes_to_mb
             gpu_used = gpu_total - gpu_free
         else:
             gpu_free = gpu_total = gpu_used = 0.0
 
         # CPU memory
         cpu_info = psutil.virtual_memory()
-        cpu_total = cpu_info.total / (1024**2)
-        cpu_free = cpu_info.available / (1024**2)
-        cpu_used = cpu_info.used / (1024**2)
+        bytes_to_mb = self.config_manager.get_value('constants.memory.bytes_per_mb')
+        cpu_total = cpu_info.total / bytes_to_mb
+        cpu_free = cpu_info.available / bytes_to_mb
+        cpu_used = cpu_info.used / bytes_to_mb
 
         stats = MemoryStats(
             gpu_used_mb=gpu_used,
@@ -82,13 +87,15 @@ class GPUMemoryManager:
 
         return stats
 
-    def clear_cache(self, aggressive: bool = False):
+    def clear_cache(self, aggressive: Optional[bool] = None):
         """
         Clear GPU cache to free memory.
 
         Args:
-            aggressive: If True, also runs garbage collection
+            aggressive: If True, also runs garbage collection (None = use config default from 'constants.memory.default_aggressive_clear')
         """
+        if aggressive is None:
+            aggressive = self.config_manager.get_value('constants.memory.default_aggressive_clear')
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
             torch.cuda.synchronize()
@@ -100,18 +107,35 @@ class GPUMemoryManager:
                 torch.cuda.synchronize()
 
     def estimate_tensor_memory(
-        self, shape: Tuple[int, ...], dtype: torch.dtype = torch.float32
+        self, shape: Tuple[int, ...], dtype: Optional[torch.dtype] = None
     ) -> float:
         """
         Estimate memory required for a tensor.
 
         Args:
             shape: Tensor shape
-            dtype: Data type
+            dtype: Data type (None = use config default torch.float32)
 
         Returns:
             Memory in MB
         """
+        if dtype is None:
+            dtype_str = self.config_manager.get_value('constants.memory.default_dtype')
+            dtype_map = {
+                'float32': torch.float32,
+                'float16': torch.float16,
+                'bfloat16': torch.bfloat16,
+                'int32': torch.int32,
+                'int64': torch.int64,
+                'uint8': torch.uint8,
+                'bool': torch.bool
+            }
+            if dtype_str not in dtype_map:
+                raise ValueError(
+                    f"Unknown dtype string: {dtype_str}\n"
+                    f"Valid options: {list(dtype_map.keys())}"
+                )
+            dtype = dtype_map[dtype_str]
         # Calculate number of elements
         num_elements = 1
         for dim in shape:
@@ -139,36 +163,43 @@ class GPUMemoryManager:
         total_bytes = num_elements * bytes_per_element
 
         # Convert to MB
-        return total_bytes / (1024**2)
+        bytes_to_mb = self.config_manager.get_value('constants.memory.bytes_per_mb')
+        return total_bytes / bytes_to_mb
 
     def has_sufficient_memory(
-        self, required_mb: float, safety_factor: float = 1.2
+        self, required_mb: float, safety_factor: Optional[float] = None
     ) -> bool:
         """
         Check if sufficient GPU memory is available.
 
         Args:
             required_mb: Required memory in MB
-            safety_factor: Safety multiplier
+            safety_factor: Safety multiplier (None = use config default from 'constants.memory.default_safety_factor')
 
         Returns:
             True if sufficient memory available
         """
+        if safety_factor is None:
+            safety_factor = self.config_manager.get_value('constants.memory.default_safety_factor')
         stats = self.get_memory_stats()
         required_with_safety = required_mb * safety_factor
         return stats.gpu_free_mb >= required_with_safety
 
     @contextmanager
     def memory_efficient_scope(
-        self, name: str = "operation", clear_on_exit: bool = True
+        self, name: Optional[str] = None, clear_on_exit: Optional[bool] = None
     ):
         """
         Context manager for memory-efficient operations.
 
         Args:
-            name: Scope name for logging
-            clear_on_exit: Clear cache on exit
+            name: Scope name for logging (None = use config default from 'constants.memory.default_scope_name')
+            clear_on_exit: Clear cache on exit (None = use config default from 'constants.memory.default_clear_on_exit')
         """
+        if name is None:
+            name = self.config_manager.get_value('constants.memory.default_scope_name')
+        if clear_on_exit is None:
+            clear_on_exit = self.config_manager.get_value('constants.memory.default_clear_on_exit')
         start_stats = self.get_memory_stats()
         logger.debug(
             f"Entering {name} - GPU free: {start_stats.gpu_free_mb:.1f}MB")
@@ -187,8 +218,8 @@ class GPUMemoryManager:
         self,
         base_memory_mb: float,
         batch_memory_mb: float,
-        max_batch_size: int = 16,
-        safety_factor: float = 0.8,
+        max_batch_size: Optional[int] = None,
+        safety_factor: Optional[float] = None,
     ) -> int:
         """
         Calculate optimal batch size based on available memory.
@@ -196,12 +227,16 @@ class GPUMemoryManager:
         Args:
             base_memory_mb: Base memory requirement
             batch_memory_mb: Memory per batch item
-            max_batch_size: Maximum allowed batch size
-            safety_factor: Safety factor (0-1)
+            max_batch_size: Maximum allowed batch size (None = use config default from 'constants.memory.default_max_batch_size')
+            safety_factor: Safety factor (0-1) (None = use config default from 'constants.memory.default_batch_safety_factor')
 
         Returns:
             Optimal batch size
         """
+        if max_batch_size is None:
+            max_batch_size = self.config_manager.get_value('constants.memory.default_max_batch_size')
+        if safety_factor is None:
+            safety_factor = self.config_manager.get_value('constants.memory.default_batch_safety_factor')
         stats = self.get_memory_stats()
         available = stats.gpu_free_mb * safety_factor
 
@@ -237,7 +272,7 @@ def offload_to_cpu(tensor: torch.Tensor, name: str) -> torch.Tensor:
             f"Offloaded {name} to CPU ({
                 tensor.element_size() *
                 tensor.nelement() /
-                1024**2:.1f}MB)"
+                gpu_memory_manager.config_manager.get_value('constants.memory.bytes_per_mb'):.1f}MB)"
         )
         return cpu_tensor
     return tensor
@@ -269,7 +304,7 @@ def load_to_gpu(
             f"Loaded {name} to GPU ({
                 tensor.element_size() *
                 tensor.nelement() /
-                1024**2:.1f}MB)"
+                gpu_memory_manager.config_manager.get_value('constants.memory.bytes_per_mb'):.1f}MB)"
         )
 
         # Remove from offloaded list
@@ -280,17 +315,21 @@ def load_to_gpu(
     return tensor
 
 
-def estimate_model_memory(model: Any, include_gradients: bool = True) -> float:
+def estimate_model_memory(model: Any, include_gradients: Optional[bool] = None) -> float:
     """
     Estimate memory required for a model.
 
     Args:
         model: PyTorch model
-        include_gradients: Include gradient storage
+        include_gradients: Include gradient storage (None = use config default from 'constants.memory.default_include_gradients')
 
     Returns:
         Estimated memory in MB
     """
+    # Get config manager
+    config_manager = ConfigurationManager()
+    if include_gradients is None:
+        include_gradients = config_manager.get_value('constants.memory.default_include_gradients')
     total_params = 0
     total_bytes = 0
 
@@ -331,16 +370,21 @@ def estimate_model_memory(model: Any, include_gradients: bool = True) -> float:
         mem_params = proc_config.get('memory_params', {})
         activation_multiplier = (
             mem_params.get(
-                'activation_multiplier_with_grad',
-                4) if include_gradients else mem_params.get(
-                'activation_multiplier_no_grad',
-                2))
+                'activation_multiplier_with_grad' if include_gradients else 'activation_multiplier_no_grad',
+                None))
+        if activation_multiplier is None:
+            key = 'activation_multiplier_with_grad' if include_gradients else 'activation_multiplier_no_grad'
+            raise ValueError(
+                f"{key} not found in memory_params configuration!\n"
+                "This value must be explicitly set in processing_params.yaml"
+            )
     except (FileNotFoundError, ValueError, KeyError, TypeError) as e:
         raise ValueError(
             f"Failed to load memory parameters configuration: {e}")
     total_bytes *= activation_multiplier
 
-    total_mb = total_bytes / (1024**2)
+    bytes_to_mb = config_manager.get_value('constants.memory.bytes_per_mb')
+    total_mb = total_bytes / bytes_to_mb
     logger.debug(
         f"Model memory estimate: {
             total_mb:.1f}MB ({
@@ -357,10 +401,10 @@ class MemoryEfficientTiling:
     def calculate_optimal_tile_size(
         image_size: Tuple[int, int],
         available_memory_mb: float,
-        bytes_per_pixel: float = 12,
-        overlap: int = 64,
-        min_tile: int = 256,
-        max_tile: int = 2048,
+        bytes_per_pixel: Optional[float] = None,
+        overlap: Optional[int] = None,
+        min_tile: Optional[int] = None,
+        max_tile: Optional[int] = None,
     ) -> int:
         """
         Calculate optimal tile size for available memory.
@@ -368,14 +412,24 @@ class MemoryEfficientTiling:
         Args:
             image_size: (width, height) of image
             available_memory_mb: Available GPU memory
-            bytes_per_pixel: Memory per pixel (channels * dtype_size * overhead)
-            overlap: Tile overlap in pixels
-            min_tile: Minimum tile size
-            max_tile: Maximum tile size
+            bytes_per_pixel: Memory per pixel (None = use config default from 'constants.memory.default_bytes_per_pixel')
+            overlap: Tile overlap in pixels (None = use config default from 'constants.memory.default_tile_overlap')
+            min_tile: Minimum tile size (None = use config default from 'constants.memory.default_min_tile_size')
+            max_tile: Maximum tile size (None = use config default from 'constants.memory.default_max_tile_size')
 
         Returns:
             Optimal tile size
         """
+        # Get config manager
+        config_manager = ConfigurationManager()
+        if bytes_per_pixel is None:
+            bytes_per_pixel = config_manager.get_value('constants.memory.default_bytes_per_pixel')
+        if overlap is None:
+            overlap = config_manager.get_value('constants.memory.default_tile_overlap')
+        if min_tile is None:
+            min_tile = config_manager.get_value('constants.memory.default_min_tile_size')
+        if max_tile is None:
+            max_tile = config_manager.get_value('constants.memory.default_max_tile_size')
         # Binary search for optimal tile size
         left, right = min_tile, max_tile
         optimal = min_tile
@@ -385,10 +439,12 @@ class MemoryEfficientTiling:
 
             # Calculate memory for this tile size
             tile_pixels = (mid + overlap * 2) ** 2
-            tile_memory_mb = (tile_pixels * bytes_per_pixel) / (1024**2)
+            bytes_to_mb = config_manager.get_value('constants.memory.bytes_per_mb')
+            tile_memory_mb = (tile_pixels * bytes_per_pixel) / bytes_to_mb
 
             # Add overhead for processing (2x for input/output)
-            total_memory_mb = tile_memory_mb * 2
+            overhead_multiplier = config_manager.get_value('constants.memory.processing_overhead_multiplier')
+            total_memory_mb = tile_memory_mb * overhead_multiplier
 
             if total_memory_mb <= available_memory_mb:
                 optimal = mid
@@ -396,8 +452,9 @@ class MemoryEfficientTiling:
             else:
                 right = mid - 1
 
-        # Ensure tile size is multiple of 8 (for model compatibility)
-        optimal = (optimal // 8) * 8
+        # Ensure tile size is multiple of alignment (for model compatibility)
+        alignment = config_manager.get_value('constants.dimensions.alignment_multiple')
+        optimal = (optimal // alignment) * alignment
 
         return max(min_tile, min(optimal, max_tile))
 

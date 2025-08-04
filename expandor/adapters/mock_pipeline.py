@@ -28,9 +28,9 @@ class MockInpaintPipeline:
         prompt: str,
         image: Image.Image,
         mask_image: Image.Image,
-        strength: float = 0.8,
-        num_inference_steps: int = 50,
-        guidance_scale: float = 7.5,
+        strength: Optional[float] = None,
+        num_inference_steps: Optional[int] = None,
+        guidance_scale: Optional[float] = None,
         width: Optional[int] = None,
         height: Optional[int] = None,
         **kwargs
@@ -38,6 +38,17 @@ class MockInpaintPipeline:
         """
         Simulate inpainting by blending original with noise in masked areas
         """
+        # Get defaults from configuration if not provided
+        from ..core.configuration_manager import ConfigurationManager
+        config_manager = ConfigurationManager()
+        
+        if strength is None:
+            strength = config_manager.get_value('adapters.common.default_strength')
+        if num_inference_steps is None:
+            num_inference_steps = config_manager.get_value('adapters.common.default_num_inference_steps')
+        if guidance_scale is None:
+            guidance_scale = config_manager.get_value('adapters.common.default_guidance_scale')
+            
         self.call_count += 1
         self.last_call_args = {
             "prompt": prompt,
@@ -88,11 +99,16 @@ class MockRefinerPipeline:
     """Mock refinement pipeline"""
 
     def __call__(
-        self, prompt: str, image: Image.Image, strength: float = 0.3, **kwargs
+        self, prompt: str, image: Image.Image, strength: Optional[float] = None, **kwargs
     ) -> MockPipelineOutput:
         """
         Simulate refinement by slight sharpening
         """
+        # Get default from configuration if not provided
+        if strength is None:
+            from ..core.configuration_manager import ConfigurationManager
+            config_manager = ConfigurationManager()
+            strength = config_manager.get_value('adapters.common.default_refiner_strength')
         # Simple sharpening filter
         from PIL import ImageFilter
 
@@ -105,16 +121,24 @@ class MockImg2ImgPipeline:
     """Mock img2img pipeline"""
 
     def __call__(
-        self, prompt: str, image: Image.Image, strength: float = 0.5, **kwargs
+        self, prompt: str, image: Image.Image, strength: Optional[float] = None, **kwargs
     ) -> MockPipelineOutput:
         """
         Simulate img2img by slight modification
         """
+        # Get default from configuration if not provided
+        if strength is None:
+            from ..core.configuration_manager import ConfigurationManager
+            config_manager = ConfigurationManager()
+            strength = config_manager.get_value('adapters.common.default_strength')
         # Add slight noise based on strength
         img_array = np.array(image)
-        noise = np.random.normal(0, strength * 10, img_array.shape)
+        config_manager = ConfigurationManager()
+        noise_scale = config_manager.get_value('constants.processing.noise_scale_factor')
+        noise = np.random.normal(0, strength * noise_scale, img_array.shape)
 
-        result_array = np.clip(img_array + noise, 0, 255).astype(np.uint8)
+        max_rgb = config_manager.get_value('constants.image.max_rgb_value')
+        result_array = np.clip(img_array + noise, 0, max_rgb).astype(np.uint8)
         result = Image.fromarray(result_array)
 
         return MockPipelineOutput(images=[result])

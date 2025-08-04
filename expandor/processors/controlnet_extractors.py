@@ -134,11 +134,19 @@ class ControlNetExtractor:
 
         # Use config defaults if parameters not provided
         if low_threshold is None:
-            low_threshold = canny_config.get("default_low_threshold", 
-                                           self.processor_config['canny']['default_low_threshold'])
+            if "default_low_threshold" not in canny_config:
+                raise ValueError(
+                    "default_low_threshold not found in canny config!\n"
+                    "This value must be explicitly set in controlnet_config.yaml"
+                )
+            low_threshold = canny_config["default_low_threshold"]
         if high_threshold is None:
-            high_threshold = canny_config.get("default_high_threshold", 
-                                            self.processor_config['canny']['default_high_threshold'])
+            if "default_high_threshold" not in canny_config:
+                raise ValueError(
+                    "default_high_threshold not found in canny config!\n"
+                    "This value must be explicitly set in controlnet_config.yaml"
+                )
+            high_threshold = canny_config["default_high_threshold"]
 
         if "low_threshold_min" not in canny_config:
             raise ValueError(

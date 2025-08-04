@@ -9,6 +9,7 @@ from typing import Any, Dict, Optional
 
 from ..config.user_config import (LoRAConfig, ModelConfig, UserConfig,
                                   UserConfigManager)
+from ..core.configuration_manager import ConfigurationManager
 from ..utils.logging_utils import setup_logger
 from ..utils.path_resolver import PathResolver
 
@@ -20,6 +21,7 @@ class SetupWizard:
         self.logger = setup_logger(__name__)
         self.user_config_manager = UserConfigManager()
         self.config = UserConfig()
+        self.config_manager = ConfigurationManager()
 
     def run(self):
         """Run the interactive setup wizard"""
@@ -337,8 +339,11 @@ class SetupWizard:
 
     # Utility methods
 
-    def _confirm(self, prompt: str, default: bool = False) -> bool:
+    def _confirm(self, prompt: str, default: Optional[bool] = None) -> bool:
         """Get yes/no confirmation"""
+        if default is None:
+            default = self.config_manager.get_value('constants.cli.default_confirm')
+        
         default_str = "Y/n" if default else "y/N"
         response = input(f"{prompt} [{default_str}] ").strip().lower()
 
@@ -361,17 +366,23 @@ class SetupWizard:
             self.logger.info("Invalid choice. Please try again.")
 
     def _get_path(
-        self, prompt: str, must_exist: bool = False, create: bool = False,
-        path_type: str = "auto"
+        self, prompt: str, must_exist: Optional[bool] = None, create: Optional[bool] = None,
+        path_type: Optional[str] = None
     ) -> Path:
         """Get a file/directory path with validation
         
         Args:
             prompt: Prompt to show user
-            must_exist: Path must already exist
-            create: Create path if it doesn't exist
-            path_type: 'file', 'directory', or 'auto' (default)
+            must_exist: Path must already exist (None = use config default from 'constants.cli.default_must_exist')
+            create: Create path if it doesn't exist (None = use config default from 'constants.cli.default_create')
+            path_type: 'file', 'directory', or 'auto' (None = use config default from 'constants.cli.default_path_type')
         """
+        if must_exist is None:
+            must_exist = self.config_manager.get_value('constants.cli.default_must_exist')
+        if create is None:
+            create = self.config_manager.get_value('constants.cli.default_create')
+        if path_type is None:
+            path_type = self.config_manager.get_value('constants.cli.default_path_type')
         while True:
             path_str = input(prompt).strip()
 

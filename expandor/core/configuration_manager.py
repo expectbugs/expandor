@@ -128,7 +128,13 @@ class ConfigurationManager:
             else:
                 # Fall back to deprecated RefResolver
                 base_uri = "file://" + str(schema_dir) + "/"
-                self._schema_resolver = RefResolver(base_uri, self._schemas.get('base_schema', {}))
+                # FAIL LOUD if base_schema is missing
+                if 'base_schema' not in self._schemas:
+                    raise ValueError(
+                        "FATAL: base_schema not found in schemas!"
+                        "This is a critical configuration error."
+                    )
+                self._schema_resolver = RefResolver(base_uri, self._schemas['base_schema'])
     
     def _validate_config(self, config_data: dict, schema_name: str):
         """Validate config against schema - FAIL LOUD on invalid"""
@@ -238,6 +244,10 @@ class ConfigurationManager:
                     with open(path, 'r') as f:
                         user_config = yaml.safe_load(f)
                         if user_config:
+                            # Convert numeric strings to proper types
+                            from ..utils.config_loader import ConfigLoader
+                            loader = ConfigLoader(Path(), self.logger)
+                            user_config = loader._convert_numeric_strings(user_config, path="")
                             # Check version and migrate if needed
                             self._check_and_migrate_config(user_config, "user", path)
                             self._user_overrides = user_config
@@ -411,7 +421,7 @@ class ConfigurationManager:
         except KeyError:
             raise ValueError(
                 f"No configuration found for strategy '{strategy_name}'\n"
-                f"Available strategies: {list(self._config_cache.get('strategies', {}).keys())}"
+                f"Available strategies: {list(self._config_cache['strategies'].keys() if 'strategies' in self._config_cache else [])}"
             )
     
     def get_processor_config(self, processor_name: str) -> Dict[str, Any]:
@@ -422,7 +432,7 @@ class ConfigurationManager:
         except KeyError:
             raise ValueError(
                 f"No configuration found for processor '{processor_name}'\n"
-                f"Available processors: {list(self._config_cache.get('processors', {}).keys())}"
+                f"Available processors: {list(self._config_cache['processors'].keys() if 'processors' in self._config_cache else [])}"
             )
     
     def get_path(self, path_key: str, create: bool = True, 
@@ -438,6 +448,12 @@ class ConfigurationManager:
         Returns:
             Resolved Path object
         """
+        # Get defaults if not provided
+        if create is None:
+            create = self.get_value('constants.cli.default_create')
+        if path_type is None:
+            path_type = self.get_value('constants.cli.default_path_type')
+            
         path_config = self.get_value(path_key)
         return self._path_resolver.resolve_path(path_config, create, path_type)
     

@@ -119,9 +119,10 @@ def blend_images(
         return Image.composite(img1, img2, mask)
     else:
         # For other modes, use numpy operations
-        arr1 = np.array(img1, dtype=np.float32) / 255.0
-        arr2 = np.array(img2, dtype=np.float32) / 255.0
-        mask_arr = np.array(mask, dtype=np.float32) / 255.0
+        max_rgb = _config_manager.get_value('constants.image.rgb_float_max')
+        arr1 = np.array(img1, dtype=np.float32) / max_rgb
+        arr2 = np.array(img2, dtype=np.float32) / max_rgb
+        mask_arr = np.array(mask, dtype=np.float32) / max_rgb
         mask_arr = mask_arr[:, :, np.newaxis]  # Add channel dimension
 
         if mode == "overlay":
@@ -137,7 +138,8 @@ def blend_images(
 
         # Apply mask
         final = mask_arr * result + (1 - mask_arr) * arr2
-        final = np.clip(final * 255, 0, 255).astype(np.uint8)
+        max_rgb = _config_manager.get_value('constants.image.max_rgb_value')
+        final = np.clip(final * max_rgb, 0, max_rgb).astype(np.uint8)
 
         return Image.fromarray(final, mode="RGB")
 
@@ -270,7 +272,8 @@ def create_noise_pattern(
         noise += octave_noise
 
     # Normalize to [0, 1]
-    noise = (noise - noise.min()) / (noise.max() - noise.min() + 1e-8)
+    epsilon = _config_manager.get_value('constants.processing.epsilon')
+    noise = (noise - noise.min()) / (noise.max() - noise.min() + epsilon)
     return noise
 
 
@@ -295,7 +298,8 @@ def create_circular_mask(
     if feather > 0:
         # Draw multiple circles with decreasing opacity
         for i in range(feather):
-            alpha = int(255 * (i / feather))
+            max_rgb = _config_manager.get_value('constants.image.max_rgb_value')
+            alpha = int(max_rgb * (i / feather))
             r = radius + feather - i
             draw.ellipse([center[0] - r, center[1] - r,
                           center[0] + r, center[1] + r], fill=alpha)
@@ -308,7 +312,7 @@ def create_circular_mask(
             center[0] + radius,
             center[1] + radius,
         ],
-        fill=255,
+        fill=_config_manager.get_value('constants.image.max_rgb_value'),
     )
 
     return mask
@@ -326,7 +330,8 @@ def gaussian_weights(size: int, sigma: Optional[float] = None) -> np.ndarray:
         Normalized weights array
     """
     if sigma is None:
-        sigma = size / 4.0
+        sigma_divisor = _config_manager.get_value('constants.processing.gaussian_sigma_divisor')
+        sigma = size / sigma_divisor
 
     x = np.arange(size)
     center = size / 2.0

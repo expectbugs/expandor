@@ -156,7 +156,10 @@ class HybridAdaptiveStrategy(BaseExpansionStrategy):
 
             # Check VRAM availability
             if plan.estimated_vram > 0:
-                available_vram = self.vram_manager.get_available_vram() or 0
+                available_vram = self.vram_manager.get_available_vram()
+                if available_vram is None:
+                    self.logger.warning("Could not detect VRAM, falling back to CPU strategy")
+                    available_vram = 0
                 if plan.estimated_vram > available_vram * self.vram_safety_factor:
                     # Switch to CPU offload
                     self.logger.warning(
@@ -457,11 +460,14 @@ class HybridAdaptiveStrategy(BaseExpansionStrategy):
                 {
                     "name": "memory_efficient_expansion",
                     "strategy": "cpu_offload",
-                    "config_overrides": {"tile_size": 384, "overlap": 64},
+                    "config_overrides": {
+                        "tile_size": self.config_manager.get_value('constants.common_dimensions.tile_sizes')[0] * 3 // 4,  # 384 = 512 * 0.75
+                        "overlap": self.config_manager.get_value('constants.memory.default_tile_overlap')
+                    },
                 }
             ],
-            estimated_vram=512,
-            estimated_quality=0.7,
+            estimated_vram=self.config_manager.get_value('constants.common_dimensions.sd_base'),
+            estimated_quality=self.config_manager.get_value('constants.processing_strengths.medium_high'),
             rationale="Memory-efficient expansion using CPU offload",
         )
 

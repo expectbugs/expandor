@@ -9,6 +9,8 @@ import math
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
+from ..core.configuration_manager import ConfigurationManager
+
 
 @dataclass
 class ResolutionConfig:
@@ -39,42 +41,73 @@ class DimensionCalculator:
     """Manages dimension calculations and strategies"""
 
     # Copy from lines 36-47 of resolution_manager.py
-    PRESETS = {
-        "1080p": (1920, 1080),
-        "1440p": (2560, 1440),
-        "4K": (3840, 2160),
-        "5K": (5120, 2880),
-        "8K": (7680, 4320),
-        "ultrawide_1440p": (3440, 1440),
-        "ultrawide_4K": (5120, 2160),
-        "super_ultrawide": (5760, 1080),
-        "portrait_4K": (2160, 3840),
-        "square_4K": (2880, 2880),
-    }
+    def _get_presets(self) -> Dict[str, Tuple[int, int]]:
+        """Get resolution presets from config"""
+        return {
+            "1080p": (self.config_manager.get_value('constants.common_dimensions.fhd'),
+                      self.config_manager.get_value('constants.common_dimensions.standard_heights')[3]),  # 1920x1080
+            "1440p": (self.config_manager.get_value('constants.common_dimensions.qhd'),
+                      self.config_manager.get_value('constants.common_dimensions.standard_heights')[4]),  # 2560x1440
+            "4K": (self.config_manager.get_value('constants.common_dimensions.4k'),
+                   self.config_manager.get_value('constants.common_dimensions.standard_heights')[5]),  # 3840x2160
+            "5K": (self.config_manager.get_value('constants.common_dimensions.standard_widths')[6],
+                   self.config_manager.get_value('constants.common_dimensions.standard_heights')[6] // 2),  # 5120x2880
+            "8K": (self.config_manager.get_value('constants.common_dimensions.8k'),
+                   self.config_manager.get_value('constants.common_dimensions.standard_heights')[6]),  # 7680x4320
+            "ultrawide_1440p": (3440, self.config_manager.get_value('constants.common_dimensions.standard_heights')[4]),  # 3440x1440
+            "ultrawide_4K": (self.config_manager.get_value('constants.common_dimensions.standard_widths')[6],
+                              self.config_manager.get_value('constants.common_dimensions.standard_heights')[5]),  # 5120x2160
+            "super_ultrawide": (5760, self.config_manager.get_value('constants.common_dimensions.standard_heights')[3]),  # 5760x1080
+            "portrait_4K": (self.config_manager.get_value('constants.common_dimensions.standard_heights')[5],
+                            self.config_manager.get_value('constants.common_dimensions.4k')),  # 2160x3840
+            "square_4K": (2880, 2880),
+        }
+    
+    @property
+    def PRESETS(self) -> Dict[str, Tuple[int, int]]:
+        return self._get_presets()
 
     # Copy from lines 50-59 of resolution_manager.py
-    SDXL_OPTIMAL_DIMENSIONS = [
-        (1024, 1024),  # 1:1
-        (1152, 896),  # 4:3.11
-        (1216, 832),  # 3:2.05
-        (1344, 768),  # 16:9.14
-        (1536, 640),  # 2.4:1
-        (768, 1344),  # 9:16 (portrait)
-        (896, 1152),  # 3:4 (portrait)
-        (640, 1536),  # 1:2.4 (tall portrait)
-    ]
+    def _get_sdxl_optimal_dimensions(self) -> List[Tuple[int, int]]:
+        """Get SDXL optimal dimensions from config"""
+        sdxl_base = self.config_manager.get_value('constants.common_dimensions.sdxl_base')
+        sd_medium = self.config_manager.get_value('constants.common_dimensions.sd_medium')
+        sdxl_high = self.config_manager.get_value('constants.common_dimensions.sdxl_high')
+        return [
+            (sdxl_base, sdxl_base),  # 1:1 (1024x1024)
+            (1152, 896),  # 4:3.11
+            (1216, 832),  # 3:2.05
+            (1344, sd_medium),  # 16:9.14 (1344x768)
+            (sdxl_high, 640),  # 2.4:1 (1536x640)
+            (sd_medium, 1344),  # 9:16 (portrait) (768x1344)
+            (896, 1152),  # 3:4 (portrait)
+            (640, sdxl_high),  # 1:2.4 (tall portrait) (640x1536)
+        ]
+    
+    @property
+    def SDXL_OPTIMAL_DIMENSIONS(self) -> List[Tuple[int, int]]:
+        return self._get_sdxl_optimal_dimensions()
 
     # Copy from lines 61-66
-    FLUX_CONSTRAINTS = {
-        "divisible_by": 16,
-        "max_dimension": 2048,
-        "optimal_pixels": 1024 * 1024,  # 1MP for best quality
-    }
+    def _get_flux_constraints(self) -> Dict[str, int]:
+        """Get FLUX constraints from config"""
+        alignment = self.config_manager.get_value('constants.dimensions.alignment_multiple')
+        sdxl_base = self.config_manager.get_value('constants.common_dimensions.sdxl_base')
+        return {
+            "divisible_by": alignment * 2,  # 16 = 8 * 2
+            "max_dimension": self.config_manager.get_value('constants.common_dimensions.tile_sizes')[4],  # 2048
+            "optimal_pixels": sdxl_base * sdxl_base,  # 1024 * 1024
+        }
+    
+    @property
+    def FLUX_CONSTRAINTS(self) -> Dict[str, int]:
+        return self._get_flux_constraints()
 
     def __init__(self, logger: Optional[logging.Logger] = None):
         # In ai-wallpaper: self.logger = get_logger(self.__class__.__name__)
         # For standalone, we adapt to use standard logging
         self.logger = logger or logging.getLogger(__name__)
+        self.config_manager = ConfigurationManager()
 
     def round_to_multiple(
             self,
@@ -153,9 +186,10 @@ class DimensionCalculator:
         width = int(target.width * scale)
         height = int(target.height * scale)
 
-        # Ensure divisible by 16
-        width = (width // 16) * 16
-        height = (height // 16) * 16
+        # Ensure divisible by alignment multiple
+        divisible_by = self.FLUX_CONSTRAINTS["divisible_by"]
+        width = (width // divisible_by) * divisible_by
+        height = (height // divisible_by) * divisible_by
 
         # Ensure within max dimension
         max_dim = self.FLUX_CONSTRAINTS["max_dimension"]
@@ -163,8 +197,9 @@ class DimensionCalculator:
             scale = max_dim / max(width, height)
             width = int(width * scale)
             height = int(height * scale)
-            width = (width // 16) * 16
-            height = (height // 16) * 16
+            divisible_by = self.FLUX_CONSTRAINTS["divisible_by"]
+            width = (width // divisible_by) * divisible_by
+            height = (height // divisible_by) * divisible_by
 
         return (width, height)
 
@@ -172,12 +207,15 @@ class DimensionCalculator:
         self,
         current_size: Tuple[int, int],
         target_aspect: float,
-        max_expansion_per_step: float = 2.0,
+        max_expansion_per_step: Optional[float] = None,
     ) -> List[Dict]:
         """
         Calculate progressive outpainting steps.
         Copy core logic from lines 223-405 of resolution_manager.py
         """
+        if max_expansion_per_step is None:
+            max_expansion_per_step = self.config_manager.get_value('constants.expansion.max_expansion_per_step')
+        
         # Input validation
         if not current_size or len(current_size) != 2:
             raise ValueError(f"Invalid current_size: {current_size}")
@@ -193,17 +231,19 @@ class DimensionCalculator:
         current_aspect = current_w / current_h
 
         # If aspect change is minimal, return empty strategy
-        if abs(current_aspect - target_aspect) < 0.05:
+        aspect_threshold = self.config_manager.get_value('constants.expansion.aspect_change_threshold')
+        if abs(current_aspect - target_aspect) < aspect_threshold:
             return []
 
         # Check if expansion is too extreme
         aspect_change_ratio = max(
             target_aspect / current_aspect, current_aspect / target_aspect
         )
-        if aspect_change_ratio > 8.0:
+        max_ratio = self.config_manager.get_value('constants.expansion.max_aspect_ratio_change')
+        if aspect_change_ratio > max_ratio:
             raise ValueError(
                 f"Aspect ratio change {
-                    aspect_change_ratio:.1f}x exceeds maximum supported ratio of 8.0x")
+                    aspect_change_ratio:.1f}x exceeds maximum supported ratio of {max_ratio}x")
 
         steps = []
 
@@ -221,9 +261,10 @@ class DimensionCalculator:
             temp_w = current_w
             temp_h = current_h
 
-            # First step: Can be larger (2.0x)
-            if total_expansion >= 2.0:
-                next_w = min(int(temp_w * 2.0), target_w)
+            # First step: Can be larger
+            initial_factor = self.config_manager.get_value('constants.expansion.initial_expansion_factor')
+            if total_expansion >= initial_factor:
+                next_w = min(int(temp_w * initial_factor), target_w)
                 steps.append(
                     {
                         "method": "outpaint",
@@ -237,15 +278,17 @@ class DimensionCalculator:
                         temp_w,
                         "direction": direction,
                         "step_type": "initial",
-                        "description": f"Initial 2x expansion: {temp_w}x{temp_h} → {next_w}x{temp_h}",
+                        "description": f"Initial {initial_factor}x expansion: {temp_w}x{temp_h} → {next_w}x{temp_h}",
                     })
                 temp_w = next_w
 
-            # Middle steps: 1.5x
+            # Middle steps
             step_num = 2
-            while temp_w < target_w * 0.95:
-                if temp_w * 1.5 <= target_w:
-                    next_w = int(temp_w * 1.5)
+            middle_factor = self.config_manager.get_value('constants.expansion.middle_expansion_factor')
+            completion = self.config_manager.get_value('constants.expansion.completion_threshold')
+            while temp_w < target_w * completion:
+                if temp_w * middle_factor <= target_w:
+                    next_w = int(temp_w * middle_factor)
                 else:
                     next_w = target_w
 
@@ -322,11 +365,11 @@ class DimensionCalculator:
                     })
                 temp_h = next_h
 
-            # Middle steps: 1.5x
+            # Middle steps
             step_num = 2
-            while temp_h < target_h * 0.95:
-                if temp_h * 1.5 <= target_h:
-                    next_h = int(temp_h * 1.5)
+            while temp_h < target_h * completion:
+                if temp_h * middle_factor <= target_h:
+                    next_h = int(temp_h * middle_factor)
                 else:
                     next_h = target_h
 

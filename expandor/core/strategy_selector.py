@@ -141,17 +141,19 @@ class StrategySelector:
 
         return strategy_name, self.last_selection_reason, metrics
 
-    def select(self, config, dry_run: bool = False) -> BaseExpansionStrategy:
+    def select(self, config, dry_run: Optional[bool] = None) -> BaseExpansionStrategy:
         """
         Select and instantiate optimal strategy
 
         Args:
             config: ExpandorConfig instance
-            dry_run: If True, only calculate without caching
+            dry_run: If True, only calculate without caching (None = use config default from 'constants.cli.default_dry_run')
 
         Returns:
             Selected strategy instance
         """
+        if dry_run is None:
+            dry_run = self.config_manager.get_value('constants.cli.default_dry_run')
         strategy_name, reason, metrics = self.select_strategy(config)
 
         # Get or create strategy instance
@@ -206,7 +208,18 @@ class StrategySelector:
         is_extreme = aspect_change > extreme_threshold
 
         # Calculate VRAM requirements
-        vram_available = self.vram_manager.get_available_vram() or 0
+        vram_available = self.vram_manager.get_available_vram()
+        if vram_available is None:
+            raise RuntimeError(
+                "FATAL: Failed to detect available VRAM!\n"
+                "Cannot select appropriate strategy without VRAM information.\n"
+                "Solutions:\n"
+                "1. Specify --vram-limit explicitly\n"
+                "2. Force a specific strategy with --strategy\n"
+                "3. Check GPU drivers and CUDA availability"
+            )
+        if vram_available <= 0:
+            self.logger.warning(f"No VRAM available ({vram_available}MB), will use CPU strategies")
         vram_required = self.vram_manager.calculate_generation_vram(
             target_w, target_h)
 

@@ -94,6 +94,19 @@ class BaseExpansionStrategy(ABC):
     def _initialize(self):
         """Override to perform strategy-specific initialization"""
 
+    def _get_current_vram_usage(self) -> float:
+        """Get current VRAM usage, return 0.0 if detection fails"""
+        try:
+            vram = self.vram_manager.get_available_vram()
+            if vram is None or vram < 0:
+                # Log warning but don't fail - VRAM tracking is optional for stage results
+                self.logger.warning("Could not detect VRAM for stage tracking")
+                return 0.0
+            return float(vram)
+        except Exception as e:
+            self.logger.warning(f"VRAM detection failed for stage tracking: {e}")
+            return 0.0
+
     @abstractmethod
     def execute(
         self, config: ExpandorConfig, context: Optional[Dict[str, Any]] = None
@@ -191,7 +204,7 @@ class BaseExpansionStrategy(ABC):
             input_size=input_size,
             output_size=output_size,
             duration_seconds=time.time() - start_time,
-            vram_used_mb=self.vram_manager.get_available_vram() or 0.0,
+            vram_used_mb=self._get_current_vram_usage(),
             **kwargs,
         )
 
@@ -262,8 +275,10 @@ class BaseExpansionStrategy(ABC):
             torch.cuda.empty_cache()
             torch.cuda.synchronize()
 
-    def _cleanup_temp_files(self, keep_last: int = 5):
+    def _cleanup_temp_files(self, keep_last: Optional[int] = None):
         """Clean up old temp files to prevent memory growth"""
+        if keep_last is None:
+            keep_last = self.config_manager.get_value('constants.strategies.default_keep_last_temp_files')
         if len(self.temp_files) > keep_last:
             # Clean oldest files
             for file_path in self.temp_files[:-keep_last]:
@@ -301,5 +316,5 @@ class BaseExpansionStrategy(ABC):
         if not config.prompt:
             raise ValueError("Prompt cannot be empty")
 
-        if config.seed < 0:
+        if config.seed is not None and config.seed < 0:
             raise ValueError(f"Invalid seed: {config.seed}")

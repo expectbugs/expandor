@@ -580,13 +580,9 @@ class DiffusersPipelineAdapter(BasePipelineAdapter):
             try:
                 from pathlib import Path
 
-                from ..utils.config_loader import ConfigLoader
-                config_dir = Path(__file__).parent.parent / "config"
-                loader = ConfigLoader(config_dir)
-                proc_config = loader.load_config_file("processing_params.yaml")
-                multiple = proc_config.get(
-                    'diffusers_adapter', {}).get(
-                    'sdxl_dimension_multiple', 8)
+                # FAIL LOUD - get required configuration value
+                config_manager = ConfigurationManager()
+                multiple = config_manager.get_value('processing_params.diffusers_adapter.sdxl_dimension_multiple')
             except (FileNotFoundError, ValueError, KeyError, TypeError) as e:
                 raise ValueError(
                     f"Failed to load diffusers adapter configuration: {e}")
@@ -1582,14 +1578,32 @@ class DiffusersPipelineAdapter(BasePipelineAdapter):
         """
         # Get defaults from config
         defaults = self._get_controlnet_defaults()
-        negative_prompt = negative_prompt if negative_prompt is not None else defaults.get(
-            "negative_prompt", "")
-        controlnet_strength = controlnet_strength if controlnet_strength is not None else defaults.get(
-            "controlnet_strength", 1.0)
-        num_inference_steps = num_inference_steps if num_inference_steps is not None else defaults.get(
-            "num_inference_steps", 50)
-        guidance_scale = guidance_scale if guidance_scale is not None else defaults.get(
-            "guidance_scale", 7.5)
+        if negative_prompt is None:
+            if "negative_prompt" not in defaults:
+                negative_prompt = ""  # Empty string is valid for no negative prompt
+            else:
+                negative_prompt = defaults["negative_prompt"]
+        if controlnet_strength is None:
+            if "controlnet_strength" not in defaults:
+                raise ValueError(
+                    "controlnet_strength not found in defaults!\n"
+                    "Please ensure ControlNet defaults are properly configured."
+                )
+            controlnet_strength = defaults["controlnet_strength"]
+        if num_inference_steps is None:
+            if "num_inference_steps" not in defaults:
+                raise ValueError(
+                    "num_inference_steps not found in defaults!\n"
+                    "Please ensure ControlNet defaults are properly configured."
+                )
+            num_inference_steps = defaults["num_inference_steps"]
+        if guidance_scale is None:
+            if "guidance_scale" not in defaults:
+                raise ValueError(
+                    "guidance_scale not found in defaults!\n"
+                    "Please ensure ControlNet defaults are properly configured."
+                )
+            guidance_scale = defaults["guidance_scale"]
 
         # Default dimensions to control image size if not specified
         if width is None or height is None:

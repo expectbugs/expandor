@@ -23,13 +23,37 @@ class VRAMManager:
         self._gpu_manager = GPUMemoryManager()
         self.logger = logger
 
-    def get_available_vram(self) -> float:
-        """Get available VRAM in MB"""
+    def get_available_vram(self) -> int:
+        """Get available VRAM in MB with proper calculation"""
         if not torch.cuda.is_available():
-            return float("inf")  # No VRAM limit for CPU
-
-        stats = self._gpu_manager.get_memory_stats()
-        return stats.gpu_free_mb
+            return 0
+        
+        try:
+            # Get actual free memory
+            free_memory = torch.cuda.mem_get_info()[0]
+            # Get total memory  
+            total_memory = torch.cuda.mem_get_info()[1]
+            
+            # Convert to MB properly
+            # FAIL LOUD - get required configuration value
+            from ..core.configuration_manager import ConfigurationManager
+            config_manager = ConfigurationManager()
+            bytes_to_mb = config_manager.get_value('constants.dimensions.byte_conversion_factor')
+            free_mb = free_memory / bytes_to_mb
+            total_mb = total_memory / bytes_to_mb
+            
+            # Log actual values
+            self.logger.info(f"GPU Memory: {free_mb:.0f}MB free / {total_mb:.0f}MB total")
+            
+            # Return actual free memory (safety margin applied elsewhere)
+            return int(free_mb)
+            
+        except Exception as e:
+            self.logger.error(f"Failed to get VRAM info: {e}")
+            raise RuntimeError(
+                f"Cannot detect VRAM: {e}. "
+                "Please specify --vram-limit explicitly"
+            )
 
     def get_total_vram(self) -> float:
         """Get total VRAM in MB"""

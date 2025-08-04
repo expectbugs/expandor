@@ -14,6 +14,8 @@ import yaml
 from collections import defaultdict
 import argparse
 
+from ..core.configuration_manager import ConfigurationManager
+
 
 class ConfigMigrator:
     """Handle configuration migration between versions"""
@@ -24,6 +26,7 @@ class ConfigMigrator:
         self.migrations = []
         self.current_version = None
         self.target_version = "2.0"
+        self.config_manager = ConfigurationManager()
         
         # Define migration steps
         self.migration_map = {
@@ -312,8 +315,10 @@ class ConfigMigrator:
             f.write(header)
             yaml.dump(config, f, default_flow_style=False, sort_keys=False, width=120)
     
-    def migrate(self, dry_run: bool = False) -> bool:
+    def migrate(self, dry_run: Optional[bool] = None) -> bool:
         """Execute migration"""
+        if dry_run is None:
+            dry_run = self.config_manager.get_value('constants.cli.default_dry_run')
         print(f"Starting configuration migration in: {self.config_dir}")
         print("=" * 80)
         

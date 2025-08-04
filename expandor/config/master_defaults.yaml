@@ -235,12 +235,129 @@ quality_global:
     preserve_metadata: true
     optimize_filesize: false
     max_dimension: 16384
+constants:
+  image:
+    max_rgb_value: 255
+    rgb_float_max: 255.0
+    default_jpeg_quality: 95
+    default_png_compression: 9
+  cli:
+    default_confirm: false
+    default_must_exist: false
+    default_create: false
+    default_path_type: auto
+    default_verbose: true
+    default_dry_run: false
+  watermark:
+    height: 40
+    width: 120
+    opacity: 0.5
+    text_top: 10
+    text_bottom: 30
+    text_left: 10
+    text_right: 110
+    text_brightness: 100
+  dimensions:
+    byte_conversion_factor: 1048576  # 1024 * 1024
+    vae_downscale_factor: 8
+    default_tile_size: 512
+    min_dimension: 64
+    max_dimension: 8192
+    alignment_multiple: 8
+    max_aspect_ratio: 10.0  # Maximum allowed aspect ratio
+  processing:
+    default_blur_radius: 50
+    default_noise_strength: 0.02
+    epsilon: 1e-8
+    default_guidance_scale: 7.5
+    default_num_steps: 50
+    default_strength: 0.8
+    noise_scale_factor: 10
+    gaussian_sigma_divisor: 4.0
+  memory:
+    default_aggressive_clear: false
+    default_clear_on_exit: true
+    default_safety_factor: 1.2
+    default_batch_safety_factor: 0.8
+    default_max_batch_size: 16
+    default_include_gradients: true
+    default_bytes_per_pixel: 12.0
+    default_tile_overlap: 64
+    default_min_tile_size: 256
+    default_max_tile_size: 2048
+    default_scope_name: operation
+    default_dtype: float32
+    processing_overhead_multiplier: 2
+  strategies:
+    default_keep_last_temp_files: 5
+  # Common dimensions and sizes
+  common_dimensions:
+    tile_sizes: [512, 768, 1024, 1344, 1536]
+    standard_widths: [512, 768, 1024, 1280, 1920, 2560, 3840, 7680]
+    standard_heights: [512, 768, 1024, 1080, 1440, 2160, 4320]
+    sd_base: 512
+    sd_medium: 768
+    sdxl_base: 1024
+    hd_720: 1280
+    sdxl_high: 1536
+    fhd: 1920
+    qhd: 2560
+    4k: 3840
+    8k: 7680
+  # Strength and weight values
+  processing_strengths:
+    very_low: 0.1
+    low: 0.2
+    medium_low: 0.3
+    medium: 0.5
+    medium_high: 0.7
+    high: 0.8
+    very_high: 0.9
+  # Guidance scales
+  guidance_scales:
+    low: 6.0
+    medium_low: 6.5
+    medium: 7.0
+    medium_high: 7.5
+    high: 8.0
+  # Inference steps
+  inference_steps:
+    fast: 25
+    quick: 30
+    balanced: 40
+    quality: 50
+    high_quality: 60
+    ultra_quality: 80
+  # Quality and percentage values
+  quality:
+    high_threshold: 90
+  # Processing limits and counts
+  processing:
+    max_retries: 3
+  # Expansion parameters
+  expansion:
+    max_expansion_per_step: 2.0
+    aspect_change_threshold: 0.05
+    max_aspect_ratio_change: 8.0
+    initial_expansion_factor: 2.0
+    middle_expansion_factor: 1.5
+    completion_threshold: 0.95
+  # Memory and performance
+  memory:
+    bytes_per_mb: 1048576  # 1024 * 1024
+    bytes_per_gb: 1073741824  # 1024 * 1024 * 1024
+    cache_sizes: [8, 16, 32, 64, 128, 256, 512]
+    batch_sizes: [1, 2, 4, 8, 16]
 quality_thresholds:
   seam_detection_threshold: 0.1
   texture_corruption_threshold: 0.15
   artifact_threshold: 0.1
   min_quality_score: 0.7
   max_quality_issues: 10
+  edge_coefficient: 0.3  # ADD THIS - weight for edge quality
+  resolution_coefficient: 0.5  # ADD THIS - weight for resolution quality
+  artifact_weight: 0.4  # ADD THIS - weight for artifact detection
+  sharpness_threshold: 0.7  # ADD THIS - minimum sharpness score
 strategies:
   progressive_outpaint:
     first_step_ratio: 1.4
@@ -250,6 +367,7 @@ strategies:
     base_steps: 60
     max_supported_ratio: 8.0
     base_strength: 0.75
+    decay_factor: 0.95  # ADD THIS - strength decay between steps
     min_strength: 0.35
     max_strength: 0.85
     seam_repair_multiplier: 0.4
@@ -514,6 +632,21 @@ strategies:
     aspect_tolerance: 1.1
     massive_expansion_multiplier: 4
     default_priority: 50
+processing_params:
+  seam_repair:
+    base_strength: 0.3
+    num_inference_steps: 30
+    guidance_scale: 5.0
+    max_strength: 0.3
+    mask_blur_multiplier: 2
+  quality_repair:
+    strength: 0.5
+    num_inference_steps: 40
+    guidance_scale: 7.0
+  artifact_removal:
+    strength: 0.4
+    num_inference_steps: 35
+    guidance_scale: 6.0
 processors:
   artifact_detector:
     seam_threshold: 0.25
@@ -1041,9 +1174,15 @@ adapters:
     default_num_inference_steps: 50
     default_guidance_scale: 7.5
     default_strength: 0.8
+    default_inpaint_strength: 0.8
+    default_refiner_strength: 0.3
     default_negative_prompt: null
     default_seed: null
     default_scale_factor: 2
+    default_controlnet_conditioning_scale: 1.0
+  mock:
+    default_device: cpu
+    default_dtype: fp32
   diffusers:
     default_device: cuda
     default_torch_dtype: float16

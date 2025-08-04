@@ -277,7 +277,7 @@ class Expandor:
             "total_required_mb": max(
                 base_vram, strategy_estimate["peak_vram_mb"]
             ),
-            "available_mb": self.vram_manager.get_available_vram() or 0,
+            "available_mb": self._get_available_vram_safe(),
             "base_estimate_mb": base_vram,
             "strategy_estimate": strategy_estimate,
             "recommended_strategy": strategy.__class__.__name__,
@@ -462,8 +462,9 @@ class Expandor:
                         torch.cuda.synchronize()
                         
                         # Log VRAM status before
-                        free_before = torch.cuda.mem_get_info()[0] / (1024**2)
-                        total_vram = torch.cuda.mem_get_info()[1] / (1024**2)
+                        bytes_to_mb = self.config_manager.get_value('constants.memory.bytes_per_mb')
+                        free_before = torch.cuda.mem_get_info()[0] / bytes_to_mb
+                        total_vram = torch.cuda.mem_get_info()[1] / bytes_to_mb
                         self.logger.info(f"VRAM before clearing: {free_before:.0f}MB free / {total_vram:.0f}MB total")
                         
                         # If VRAM is critically low, enable CPU offload
@@ -485,7 +486,7 @@ class Expandor:
                             torch.cuda.synchronize()
                         
                         # Final VRAM status
-                        free_after = torch.cuda.mem_get_info()[0] / (1024**2)
+                        free_after = torch.cuda.mem_get_info()[0] / bytes_to_mb
                         self.logger.info(f"VRAM after optimization: {free_after:.0f}MB free / {total_vram:.0f}MB total")
                     
                     if 'processing_params' not in self.config:
@@ -617,7 +618,8 @@ class Expandor:
             for issue in issues:
                 if "location" in issue:
                     x, y, w, h = issue["location"]
-                    mask[y:y + h, x: x + w] = 255
+                    max_rgb = self.config_manager.get_value('constants.image.max_rgb_value')
+                    mask[y:y + h, x: x + w] = max_rgb
 
             return mask
 
@@ -680,6 +682,29 @@ class Expandor:
                 self.logger.warning(
                     f"Failed to clean up temp directory {self._temp_base}: {e}"
                 )
+
+    def _get_available_vram_safe(self) -> int:
+        """Get available VRAM with FAIL LOUD on error"""
+        available_vram = self.vram_manager.get_available_vram()
+        
+        if available_vram is None:
+            raise RuntimeError(
+                "FATAL: Failed to detect available VRAM!\n"
+                "Solutions:\n"
+                "1. Check if CUDA is available: torch.cuda.is_available()\n"
+                "2. Specify --vram-limit explicitly\n"
+                "3. Check GPU drivers are installed correctly\n"
+                "4. Use --cpu-offload strategy for CPU-only processing"
+            )
+        
+        if available_vram <= 0:
+            raise ValueError(
+                f"FATAL: Invalid VRAM amount detected: {available_vram}MB\n"
+                "This indicates a problem with GPU detection.\n"
+                "Please specify --vram-limit explicitly or check GPU setup."
+            )
+        
+        return available_vram
 
     def _log_vram_error(self, error: VRAMError):
         """Log detailed VRAM error information"""

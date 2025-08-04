@@ -12,6 +12,7 @@ from PIL import Image
 
 from ..adapters.mock_pipeline import (MockImg2ImgPipeline, MockInpaintPipeline,
                                       MockRefinerPipeline)
+from ..core.configuration_manager import ConfigurationManager
 from ..utils.logging_utils import setup_logger
 from .base_adapter import BasePipelineAdapter
 
@@ -24,8 +25,8 @@ class MockPipelineAdapter(BasePipelineAdapter):
 
     def __init__(
         self,
-        device: str = "cpu",
-        dtype: str = "fp32",
+        device: Optional[str] = None,
+        dtype: Optional[str] = None,
         logger: Optional[logging.Logger] = None,
         **kwargs,
     ):
@@ -33,14 +34,23 @@ class MockPipelineAdapter(BasePipelineAdapter):
         Initialize mock adapter
 
         Args:
-            device: Device to simulate (cpu/cuda/mps)
-            dtype: Data type to simulate
-            logger: Logger instance
+            device: Device to simulate (None = use config default from 'adapters.mock.default_device')
+            dtype: Data type to simulate (None = use config default from 'adapters.mock.default_dtype')
+            logger: Logger instance (None = use default logger)
             **kwargs: Additional arguments (for compatibility)
         """
+        # Initialize configuration manager
+        self.config_manager = ConfigurationManager()
+        
+        # Get defaults from config if not provided
+        if device is None:
+            device = self.config_manager.get_value('adapters.mock.default_device')
+        if dtype is None:
+            dtype = self.config_manager.get_value('adapters.mock.default_dtype')
+        
         self.device = device
         self.dtype = dtype
-        self.logger = logger or setup_logger(__name__)
+        self.logger = logger if logger is not None else setup_logger(__name__)
 
         # Initialize mock pipelines
         self.pipelines = {
@@ -82,14 +92,24 @@ class MockPipelineAdapter(BasePipelineAdapter):
         self,
         prompt: str,
         negative_prompt: Optional[str] = None,
-        width: int = 1024,
-        height: int = 1024,
-        num_inference_steps: int = 50,
-        guidance_scale: float = 7.5,
+        width: Optional[int] = None,
+        height: Optional[int] = None,
+        num_inference_steps: Optional[int] = None,
+        guidance_scale: Optional[float] = None,
         seed: Optional[int] = None,
         **kwargs,
     ) -> Image.Image:
         """Generate image from text prompt"""
+        # Get defaults from config if not provided
+        if width is None:
+            width = self.config_manager.get_value('adapters.common.default_width')
+        if height is None:
+            height = self.config_manager.get_value('adapters.common.default_height')
+        if num_inference_steps is None:
+            num_inference_steps = self.config_manager.get_value('adapters.common.default_num_inference_steps')
+        if guidance_scale is None:
+            guidance_scale = self.config_manager.get_value('adapters.common.default_guidance_scale')
+        
         self.logger.info(
             f"Mock generating {width}x{height} image from prompt: {prompt[:50]}..."
         )
@@ -138,13 +158,21 @@ class MockPipelineAdapter(BasePipelineAdapter):
         mask: Image.Image,
         prompt: str,
         negative_prompt: Optional[str] = None,
-        strength: float = 0.8,
-        num_inference_steps: int = 50,
-        guidance_scale: float = 7.5,
+        strength: Optional[float] = None,
+        num_inference_steps: Optional[int] = None,
+        guidance_scale: Optional[float] = None,
         seed: Optional[int] = None,
         **kwargs,
     ) -> Image.Image:
         """Inpaint masked region of image"""
+        # Get defaults from config if not provided
+        if strength is None:
+            strength = self.config_manager.get_value('adapters.common.default_inpaint_strength')
+        if num_inference_steps is None:
+            num_inference_steps = self.config_manager.get_value('adapters.common.default_num_inference_steps')
+        if guidance_scale is None:
+            guidance_scale = self.config_manager.get_value('adapters.common.default_guidance_scale')
+            
         self.logger.info(f"Mock inpainting with prompt: {prompt[:50]}...")
 
         # Use mock pipeline
@@ -168,13 +196,21 @@ class MockPipelineAdapter(BasePipelineAdapter):
         image: Image.Image,
         prompt: str,
         negative_prompt: Optional[str] = None,
-        strength: float = 0.8,
-        num_inference_steps: int = 50,
-        guidance_scale: float = 7.5,
+        strength: Optional[float] = None,
+        num_inference_steps: Optional[int] = None,
+        guidance_scale: Optional[float] = None,
         seed: Optional[int] = None,
         **kwargs,
     ) -> Image.Image:
         """Transform image with img2img"""
+        # Get defaults from config if not provided
+        if strength is None:
+            strength = self.config_manager.get_value('adapters.common.default_strength')
+        if num_inference_steps is None:
+            num_inference_steps = self.config_manager.get_value('adapters.common.default_num_inference_steps')
+        if guidance_scale is None:
+            guidance_scale = self.config_manager.get_value('adapters.common.default_guidance_scale')
+            
         self.logger.info(f"Mock img2img with prompt: {prompt[:50]}...")
 
         # Use mock pipeline
@@ -206,10 +242,14 @@ class MockPipelineAdapter(BasePipelineAdapter):
         self,
         image: Image.Image,
         prompt: Optional[str] = None,
-        scale_factor: int = 2,
+        scale_factor: Optional[int] = None,
         **kwargs,
     ) -> Image.Image:
         """Enhance/upscale image"""
+        # Get default from config if not provided
+        if scale_factor is None:
+            scale_factor = self.config_manager.get_value('adapters.common.default_scale_factor')
+            
         self.logger.info(f"Mock enhancing image by {scale_factor}x...")
 
         # Simple bicubic upscale for mock
@@ -280,10 +320,10 @@ class MockPipelineAdapter(BasePipelineAdapter):
         control_image: Image.Image,
         prompt: str,
         negative_prompt: Optional[str] = None,
-        controlnet_conditioning_scale: float = 1.0,
-        strength: float = 0.8,
-        num_inference_steps: int = 50,
-        guidance_scale: float = 7.5,
+        controlnet_conditioning_scale: Optional[float] = None,
+        strength: Optional[float] = None,
+        num_inference_steps: Optional[int] = None,
+        guidance_scale: Optional[float] = None,
         seed: Optional[int] = None,
         **kwargs,
     ) -> Image.Image:
@@ -302,10 +342,10 @@ class MockPipelineAdapter(BasePipelineAdapter):
         control_image: Image.Image,
         prompt: str,
         negative_prompt: Optional[str] = None,
-        controlnet_conditioning_scale: float = 1.0,
-        strength: float = 0.8,
-        num_inference_steps: int = 50,
-        guidance_scale: float = 7.5,
+        controlnet_conditioning_scale: Optional[float] = None,
+        strength: Optional[float] = None,
+        num_inference_steps: Optional[int] = None,
+        guidance_scale: Optional[float] = None,
         seed: Optional[int] = None,
         **kwargs,
     ) -> Image.Image:
@@ -448,14 +488,22 @@ class MockPipelineAdapter(BasePipelineAdapter):
         h, w = img_array.shape[:2]
 
         # Create watermark area
-        watermark_h, watermark_w = 40, 120
+        watermark_h = self.config_manager.get_value('constants.watermark.height')
+        watermark_w = self.config_manager.get_value('constants.watermark.width')
         if h > watermark_h and w > watermark_w:
             # Semi-transparent dark background
+            opacity = self.config_manager.get_value('constants.watermark.opacity')
             img_array[:watermark_h, :watermark_w] = (
-                img_array[:watermark_h, :watermark_w] * 0.5
+                img_array[:watermark_h, :watermark_w] * opacity
             )
 
             # Add white text (simplified - in real implementation use PIL.ImageDraw)
             # This is just to make it visually distinct
-            img_array[10:30, 10:110] = np.clip(
-                img_array[10:30, 10:110] + 100, 0, 255)
+            text_top = self.config_manager.get_value('constants.watermark.text_top')
+            text_bottom = self.config_manager.get_value('constants.watermark.text_bottom')
+            text_left = self.config_manager.get_value('constants.watermark.text_left')
+            text_right = self.config_manager.get_value('constants.watermark.text_right')
+            text_brightness = self.config_manager.get_value('constants.watermark.text_brightness')
+            max_rgb = self.config_manager.get_value('constants.image.max_rgb_value')
+            img_array[text_top:text_bottom, text_left:text_right] = np.clip(
+                img_array[text_top:text_bottom, text_left:text_right] + text_brightness, 0, max_rgb)

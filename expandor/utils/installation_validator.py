@@ -13,6 +13,7 @@ from typing import Any, Dict, Optional
 
 import torch
 
+from ..core.configuration_manager import ConfigurationManager
 from ..utils.logging_utils import setup_logger
 
 
@@ -29,17 +30,20 @@ class InstallationValidator:
         self.issues = []
         self.warnings = []
         self.info = {}
+        self.config_manager = ConfigurationManager()
 
-    def validate_installation(self, verbose: bool = True) -> Dict[str, Any]:
+    def validate_installation(self, verbose: Optional[bool] = None) -> Dict[str, Any]:
         """
         Validate complete Expandor installation
 
         Args:
-            verbose: Show detailed output
+            verbose: Show detailed output (None = use config default from 'constants.cli.default_verbose')
 
         Returns:
             Dictionary with validation results
         """
+        if verbose is None:
+            verbose = self.config_manager.get_value('constants.cli.default_verbose')
         self.logger.info("Validating Expandor installation...")
 
         # Clear previous results
@@ -309,7 +313,8 @@ class InstallationValidator:
         available_features = []
 
         for package_name, config in optional_packages.items():
-            module_name = config.get("module", package_name)
+            # Optional packages may specify alternate module names
+            module_name = config["module"] if "module" in config else package_name
 
             try:
                 importlib.import_module(module_name)
@@ -485,14 +490,15 @@ class InstallationValidator:
         # System Info
         print("\n📊 SYSTEM INFORMATION:")
         print(f"  • Platform: {results['platform']}")
-        print(
-            f"  • Python: {
-                results.get(
-                    'info',
-                    {}).get(
-                    'python_version',
-                    'unknown')}"
-        )
+        # FAIL LOUD - info should always be present
+        if 'info' not in results:
+            raise ValueError(
+                "Validation results missing 'info' section! "
+                "This is a bug in validation logic."
+            )
+        info = results['info']
+        python_version = info.get('python_version', 'unknown')  # OK - optional field
+        print(f"  • Python: {python_version}")
         print(f"  • Expandor: {results['expandor_version']}")
 
         # GPU Info

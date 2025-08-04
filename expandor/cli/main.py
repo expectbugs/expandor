@@ -8,6 +8,7 @@ import sys
 import traceback
 from datetime import datetime
 from pathlib import Path
+from typing import Tuple
 
 import torch
 
@@ -22,6 +23,54 @@ from .commands import parse_resolution
 from .process import process_single_image
 from .setup_wizard import SetupWizard
 from .utils import generate_output_path, test_configuration
+
+# Strategy name mapping from CLI to internal names
+STRATEGY_CLI_TO_INTERNAL = {
+    "direct": "direct_upscale",
+    "progressive": "progressive_outpaint", 
+    "swpo": "swpo",
+    "tiled": "tiled_expansion",
+    "cpu_offload": "cpu_offload",
+    "hybrid": "hybrid_adaptive",
+    "auto": None,  # None means let system choose
+}
+
+
+def validate_resolution_early(resolution: Tuple[int, int], source_file: str) -> None:
+    """Validate resolution before any heavy operations"""
+    width, height = resolution
+    
+    # Check for invalid dimensions
+    if width <= 0 or height <= 0:
+        raise ValueError(
+            f"Invalid resolution {width}x{height}: dimensions must be positive"
+        )
+    
+    # Get dimension limits from config
+    from ..core.configuration_manager import ConfigurationManager
+    config_manager = ConfigurationManager()
+    max_dim = config_manager.get_value('constants.dimensions.max_dimension')
+    min_dim = config_manager.get_value('constants.dimensions.min_dimension')
+    
+    # Check for extreme dimensions
+    if width > max_dim or height > max_dim:
+        raise ValueError(
+            f"Resolution {width}x{height} exceeds maximum dimension {max_dim}"
+        )
+    
+    # Check for extreme aspect ratios
+    aspect_ratio = max(width/height, height/width)
+    max_ratio = config_manager.get_value('constants.dimensions.max_aspect_ratio')
+    if aspect_ratio > max_ratio:
+        raise ValueError(
+            f"Extreme aspect ratio {aspect_ratio:.1f}:1 exceeds maximum {max_ratio}:1"
+        )
+    
+    # Check minimum size
+    if width < min_dim or height < min_dim:
+        raise ValueError(
+            f"Resolution {width}x{height} below minimum dimension {min_dim}"
+        )
 
 
 def setup_controlnet(args, logger):
@@ -118,7 +167,6 @@ def main():
         return setup_controlnet(args, logger)
 
     if args.init_config:
-        import shutil
         import yaml
         
         user_config_dir = Path.home() / ".config" / "expandor"
@@ -131,24 +179,40 @@ def main():
             if response.lower() != 'y':
                 return 0
         
-        # Copy template and update version
-        template_path = Path(__file__).parent.parent / "config" / "examples" / "user_config_example.yaml"
+        # Create proper minimal user config template
+        template_content = '''# Expandor User Configuration
+version: '2.0'
+
+# User preferences (customize these)
+quality_global:
+  default_preset: balanced
+
+# Model preferences  
+models:
+  preferred: sdxl
+  
+# Output preferences
+output:
+  default_format: png
+  default_quality: high
+
+# Resource limits
+resources:
+  max_vram_usage_mb: null  # null = auto-detect
+  
+# Feature toggles
+features:
+  auto_artifact_detection: true
+  save_metadata: true
+'''
         
-        # Read template and update version to 2.0
-        with open(template_path, 'r') as f:
-            template_config = yaml.safe_load(f)
-        
-        # Update to current version
-        template_config['version'] = '2.0'
-        
-        # Write updated config
-        with open(user_config_path, 'w') as f:
-            yaml.dump(template_config, f, default_flow_style=False, sort_keys=False)
-        
+        user_config_path.write_text(template_content)
         logger.info(f"✓ Created user configuration at {user_config_path}")
         logger.info("Edit this file to customize Expandor for your system.")
         logger.info("\nCommon customizations:")
-        logger.info("  - Set 'vram.limit_mb' for your GPU memory")
+        logger.info("  - Set 'resources.max_vram_usage_mb' for your GPU memory limit")
+        logger.info("  - Change 'quality_global.default_preset' to ultra/high/balanced/fast")
+        logger.info("  - Set 'models.preferred' to your preferred model")
         logger.info("  - Adjust 'core.quality_preset' for default quality")
         logger.info("  - Configure 'paths' for your storage locations")
         logger.info("  - Add custom quality presets under 'custom_presets'")
@@ -312,6 +376,9 @@ def main():
             else:
                 # Standard resolution format
                 target_resolution = parse_resolution(args.resolution)
+            
+            # Early validation BEFORE model loading
+            validate_resolution_early(target_resolution, str(input_path))
 
             # Generate output path
             if args.output and len(input_files) == 1:
@@ -330,6 +397,15 @@ def main():
             else:
                 seed = abs(hash(f"{input_path}_{datetime.now()}")) % (2**32)
 
+            # Map CLI strategy name to internal name
+            internal_strategy = None
+            if args.strategy:
+                if args.strategy in STRATEGY_CLI_TO_INTERNAL:
+                    internal_strategy = STRATEGY_CLI_TO_INTERNAL[args.strategy]
+                else:
+                    # This should never happen due to argparse choices
+                    raise ValueError(f"Unknown strategy: {args.strategy}")
+
             # Create config
             config = configurator.create_expandor_config(
                 source_image=input_path,
@@ -337,7 +413,7 @@ def main():
                 prompt=args.prompt or f"high quality {model_name} expansion",
                 seed=seed,
                 quality_preset=args.quality,
-                strategy_override=args.strategy,
+                strategy_override=internal_strategy,
                 save_stages=args.save_stages,
                 stage_dir=args.stage_dir or Path("./expandor_stages"),
                 verbose=args.verbose,

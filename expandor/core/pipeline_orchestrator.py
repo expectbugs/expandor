@@ -317,10 +317,12 @@ class PipelineOrchestrator:
 
         # Add configured fallbacks
         # Map fallback config to strategy classes
+        # Get tile sizes from config
+        tile_sizes = self.config_manager.get_value('constants.common_dimensions.tile_sizes')
         fallback_map = {
-            "tiled_large": ("tiled_expansion", {"tile_size": 1024}),
-            "tiled_medium": ("tiled_expansion", {"tile_size": 768}),
-            "tiled_small": ("tiled_expansion", {"tile_size": 512}),
+            "tiled_large": ("tiled_expansion", {"tile_size": tile_sizes[2]}),  # 1024
+            "tiled_medium": ("tiled_expansion", {"tile_size": tile_sizes[1]}),  # 768
+            "tiled_small": ("tiled_expansion", {"tile_size": tile_sizes[0]}),  # 512
             "cpu_offload": ("cpu_offload", {}),
         }
 
